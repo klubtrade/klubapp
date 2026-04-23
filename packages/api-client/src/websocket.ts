@@ -124,10 +124,20 @@ export interface FrontendContextRow {
 }
 
 /**
- * Risk surface — per-asset lambda grid for portfolio-margin math.
- * Published event-driven (when underlying risk changes).
+ * Risk stream payload — per-asset lambda grid for portfolio-margin
+ * math. Published on the `risk:{symbol}` WebSocket topic,
+ * event-driven (when underlying regime / lambda grid changes).
+ *
+ * Named `RiskStream` to disambiguate from the REST endpoint's
+ * `RiskSurface` type in `types.ts`, which is a SMALLER shape
+ * `{s, imFraction, mmFraction, adlRank}`. The two names referring
+ * to the same concept but different payloads was confusing; the
+ * streaming one got renamed.
+ *
+ * Consumers on the web side typically want this (streaming) one
+ * because it's kept live, not the snapshot from REST.
  */
-export interface RiskSurface {
+export interface RiskStream {
   readonly symbol: string;
   readonly timestamp: number;
   readonly regime: number;
@@ -180,7 +190,7 @@ export type IncomingMessage =
   | { readonly type: 'candle'; readonly data: { readonly candle: Candle; readonly symbol: string; readonly interval: CandleInterval } }
   | { readonly type: 'l2Snapshot'; readonly data: L2Snapshot }
   | { readonly type: 'l2Delta'; readonly data: L2Delta }
-  | { readonly type: 'risk'; readonly data: RiskSurface }
+  | { readonly type: 'risk'; readonly data: RiskStream }
   | { readonly type: 'frontendContext'; readonly data: { readonly ctx: readonly FrontendContextRow[] } }
   | { readonly type: 'account'; readonly data: AccountUpdate }
   | { readonly type: 'error'; readonly message: string };
@@ -192,7 +202,7 @@ export type StreamHandler = {
   candle: (c: Candle, symbol: string, interval: CandleInterval) => void;
   l2Snapshot: (b: L2Snapshot) => void;
   l2Delta: (b: L2Delta) => void;
-  risk: (r: RiskSurface) => void;
+  risk: (r: RiskStream) => void;
   frontendContext: (ctx: readonly FrontendContextRow[]) => void;
   account: (a: AccountUpdate) => void;
 };

@@ -4,6 +4,7 @@ import {
   BulkWebSocket,
   type ConnectionState,
   type FrontendContextRow,
+  type RiskStream,
   type TradeUpdate,
 } from '@klub/api-client';
 import type { Ticker } from '@klub/api-client';
@@ -52,6 +53,7 @@ class MarketDataClient {
   private demoCtxListeners = new Set<Listener<readonly FrontendContextRow[]>>();
   private demoTickerListeners = new Map<string, Set<Listener<Ticker>>>();
   private demoTradesListeners = new Map<string, Set<Listener<readonly TradeUpdate[]>>>();
+  private demoRiskListeners = new Map<string, Set<Listener<RiskStream>>>();
 
   private readonly wsUrl: string;
 
@@ -127,6 +129,44 @@ class MarketDataClient {
     return this.ws!.onTrades(symbol, handler);
   }
 
+  /**
+   * Per-symbol risk surface stream. Published event-driven when
+   * Bulk's underlying regime / lambda grid changes — NOT a
+   * continuous feed. Expect long gaps between updates on quiet
+   * markets and a flurry during volatility transitions.
+   *
+   * Used by `/health` and the bulk-margin math (Week 2) to replace
+   * the naive `maintenanceMarginFrac: 0.005` placeholder with
+   * per-market, regime-aware figures.
+   *
+   * Note: we don't simulate risk surfaces in demo mode (no WS URL).
+   * The consuming hook should gracefully fall back to the existing
+   * naive maintenance-margin placeholder when no data has arrived —
+   * same honest-empty-state pattern as other streams.
+   */
+  onRisk(symbol: string, handler: Listener<RiskStream>): () => void {
+    if (!this.wsUrl) {
+      // Demo mode: accept the subscription but never emit. The hook
+      // reads its own seeded fallback. We still track the listener
+      // so stateful callers can see subscription bookkeeping is
+      // consistent across streams.
+      let bucket = this.demoRiskListeners.get(symbol);
+      if (!bucket) {
+        bucket = new Set();
+        this.demoRiskListeners.set(symbol, bucket);
+      }
+      bucket.add(handler);
+      this.ensureDemoMode();
+      return () => {
+        bucket?.delete(handler);
+        if (bucket?.size === 0) this.demoRiskListeners.delete(symbol);
+        this.maybeStopDemoMode();
+      };
+    }
+    this.ensureWs();
+    return this.ws!.onRisk(symbol, handler);
+  }
+
   // -------------------------------------------------------------------
 
   onStateChange(listener: Listener<ConnectionState>): () => void {
@@ -189,7 +229,8 @@ class MarketDataClient {
     const stillInUse =
       this.demoCtxListeners.size > 0 ||
       this.demoTickerListeners.size > 0 ||
-      this.demoTradesListeners.size > 0;
+      this.demoTradesListeners.size > 0 ||
+      this.demoRiskListeners.size > 0;
     if (stillInUse) return;
     if (this.demoTimer) clearInterval(this.demoTimer);
     this.demoTimer = null;

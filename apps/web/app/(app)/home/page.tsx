@@ -1,5 +1,6 @@
 'use client';
 
+import { healthScore } from '@klub/calc';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -7,9 +8,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 
 import { useBulkAccount, type BulkAccountSnapshot } from '@/hooks/use-bulk-account';
 import { useConnectionState } from '@/hooks/use-connection-state';
+import { useRiskSurfacesRest } from '@/hooks/use-risk-surfaces-rest';
 import { useTickers } from '@/hooks/use-tickers';
+import { buildHealthInput, type LivePriceMap, type RiskSurfaceMap } from '@/lib/health-input';
+import { MARKETS, SEED_PRICES, type MarketSymbol } from '@/lib/markets';
 import { useUserPrefs } from '@/lib/user-prefs';
-import { SEED_PRICES, type MarketSymbol } from '@/lib/markets';
 
 /**
  * /home — minimal dashboard.
@@ -21,18 +24,17 @@ import { SEED_PRICES, type MarketSymbol } from '@/lib/markets';
  *   - A single primary action ("Open a trade")
  *   - One secondary link ("Follow someone")
  *
- * Behind a tap:
- *   - "Show details" reveals: equity, PnL, positions, health, markets —
- *     all real data pulled from the user's Bulk account when connected,
- *     sensible fallbacks (dashes) when disconnected.
+ * Behind "Show details":
+ *   - Equity, PnL, positions, health score, market tickers
  *
- * First-time visitors (no onboarding yet) still route to /onboarding.
+ * The health score shown here is computed by the same
+ * `buildHealthInput` + `healthScore()` pipeline as /health, so the
+ * two pages never disagree on the number.
  */
 
-// Home shows a curated subset of markets (the three most recognizable
-// to retail: BTC, ETH, SOL) rather than the full 10. Seed prices come
-// from the shared markets module so numbers stay in sync with /trade
-// and /quick-trade.
+// The markets tile shows a curated subset (BTC/ETH/SOL) rather than
+// all 10 — dashboards should be scannable, not exhaustive. /desk
+// covers full-market coverage.
 const TICKER_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD'] as const;
 
 export default function HomePage() {
@@ -56,7 +58,6 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen">
-      {/* Hero — single question + two compact CTAs */}
       <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-12 pt-28 md:pt-36">
         <h1 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.025em] md:text-[40px]">
           What do you want to do?
@@ -95,20 +96,37 @@ function DetailsPanel() {
   const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
   const { state: accountState } = useBulkAccount(pubkey);
 
-  const symbols = useMemo(() => [...TICKER_SYMBOLS], []);
-  const prices = useTickers(symbols);
+  // Subscribe to ALL market symbols (not just the 3 tickers shown)
+  // so the health score has live prices for every possible position.
+  // Internally this is one frontendContext subscription thanks to
+  // the Week-1 fan-out fix — cheap to ask for all 10.
+  const allSymbols = useMemo<readonly MarketSymbol[]>(
+    () => MARKETS.map((m) => m.symbol),
+    [],
+  );
+  const prices = useTickers(allSymbols);
   const { isLive, isDemo } = useConnectionState();
+
+  // REST snapshot of per-market risk-surface grids. Same hook
+  // /health uses; shared cache via the 30s refresh. Day 3 threads
+  // the full grid (not just a scalar mmFraction) so buildHealthInput
+  // can look up position-specific mm per notional + leverage.
+  const { params: restRiskParams } = useRiskSurfacesRest();
 
   return (
     <div className="mt-6 space-y-8 border-t border-border-subtle pt-8">
-      <AccountStats snapshot={accountState.data} connected={wallet.connected} />
+      <AccountStats
+        snapshot={accountState.data}
+        connected={wallet.connected}
+        livePrices={prices}
+        mmSurfaces={restRiskParams}
+      />
 
       <div>
-        {/* Markets header laid out in the SAME 2-col grid as the stats
-            above (grid-cols-2 gap-x-6). This aligns "Markets" with
-            Equity/Positions (col 1) and "Live" with PnL/Health (col 2),
-            so the right-hand badges form a clean vertical line. */}
-        <div className="mb-4 grid grid-cols-2 items-center gap-x-6">
+        {/* Markets header — flex-between so "Live" sits flush with
+            the right edge of the container, matching the Total PnL
+            / Health alignment below. */}
+        <div className="mb-4 flex items-center justify-between gap-x-6">
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
             Markets
           </div>
@@ -146,26 +164,26 @@ function DetailsPanel() {
 }
 
 /**
- * Account summary card. Four tiles:
- *   - Equity: totalBalance from margin
- *   - PnL: realized + unrealized combined (accurate; "24h" would
- *     require a time-series we don't maintain yet)
- *   - Positions: count of open positions
- *   - Health: derived from marginUsed / totalBalance; 100 = unleveraged,
- *     0 = fully committed
+ * Account summary card. Four tiles in a 2-col grid:
+ *   col 1: Equity        col 2: Total PnL   (right-aligned)
+ *   col 1: Positions     col 2: Health      (right-aligned)
  *
- * When disconnected or snapshot unavailable, tiles show "—" rather
- * than mock values. The previous version of this page used DEMO_*
- * constants that felt dishonest once users connect.
+ * Health = `healthScore(buildHealthInput(...)).score`, so /home
+ * and /health always agree. Falls back to "—" when no positions
+ * (health is meaningless without positions — /health shows an
+ * empty state in that case; /home just dashes the tile).
  */
 function AccountStats({
   snapshot,
   connected,
+  livePrices,
+  mmSurfaces,
 }: {
   readonly snapshot: BulkAccountSnapshot | null;
   readonly connected: boolean;
+  readonly livePrices: LivePriceMap;
+  readonly mmSurfaces: RiskSurfaceMap;
 }) {
-  // All tiles default to "—" (em dash). Populated when we have data.
   let equityLabel = '—';
   let pnlLabel = '—';
   let pnlTone: 'long' | 'short' | 'neutral' = 'neutral';
@@ -178,11 +196,9 @@ function AccountStats({
       equityLabel = `$${formatUsd(snapshot.equityUsd)}`;
     }
 
-    // PnL = realized + unrealized if both available; else whichever
-    // is present. This is TOTAL PnL across all positions, not 24h —
-    // tracking a true 24h window requires server-side snapshots on
-    // a cadence we don't maintain yet. Labeling it as "Total PnL"
-    // rather than "24h PnL" is the honest call.
+    // Total PnL = realized + unrealized. True 24h PnL would need
+    // server-side equity snapshots on a cadence we don't maintain
+    // yet; labeling this "Total PnL" is the honest call.
     const realized = readPnlComponent(snapshot.raw, ['realizedPnl']);
     const unrealized = snapshot.unrealizedPnlUsd;
     const combined =
@@ -196,27 +212,29 @@ function AccountStats({
 
     positionsLabel = String(snapshot.positions.length);
 
-    // Health: proxy for how maxed out your leverage is. 100 = no
-    // collateral in use, 0 = fully committed. Requires totalBalance
-    // AND marginUsed to be non-null; otherwise show "—" rather than
-    // a misleading 100.
-    const total = snapshot.equityUsd;
-    const marginUsed = readPnlComponent(snapshot.raw, ['marginUsed']);
-    if (total !== null && total > 0 && marginUsed !== null) {
-      const utilization = Math.max(0, Math.min(1, marginUsed / total));
-      const score = Math.round((1 - utilization) * 100);
-      healthLabel = String(score);
-      healthTone = score >= 75 ? 'long' : score >= 50 ? 'neutral' : 'short';
+    // Health: route through the shared adapter so /home and /health
+    // show the same number. buildHealthInput returns null when
+    // there's no usable portfolio (no equity OR no positions);
+    // we leave the tile as "—" in that case.
+    const input = buildHealthInput(snapshot, livePrices, mmSurfaces);
+    if (input) {
+      try {
+        const result = healthScore(input);
+        healthLabel = String(result.score);
+        healthTone =
+          result.score >= 75 ? 'long' : result.score >= 50 ? 'neutral' : 'short';
+      } catch {
+        // healthScore threw (malformed input); leave "—"
+      }
     }
   }
 
   return (
     <div>
-      {/* Header laid out in the SAME 2-col grid as the stats below so
-          "Account" aligns with col 1 (Equity) and the status badge
-          aligns with col 2 (PnL). Matches the Markets section above
-          for a consistent vertical rhythm across the whole panel. */}
-      <div className="mb-4 grid grid-cols-2 items-center gap-x-6">
+      {/* Header flex-between — "Connect wallet to see" (when shown)
+          sits flush with the right edge, aligned with the Total PnL /
+          Health values below. */}
+      <div className="mb-4 flex items-center justify-between gap-x-6">
         <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
           Account
         </div>
@@ -228,9 +246,9 @@ function AccountStats({
       </div>
       <dl className="grid grid-cols-2 gap-y-4 gap-x-6">
         <Stat label="Equity" value={equityLabel} />
-        <Stat label="Total PnL" value={pnlLabel} tone={pnlTone} />
+        <Stat label="Total PnL" value={pnlLabel} tone={pnlTone} align="right" />
         <Stat label="Positions" value={positionsLabel} />
-        <Stat label="Health" value={healthLabel} tone={healthTone} />
+        <Stat label="Health" value={healthLabel} tone={healthTone} align="right" />
       </dl>
     </div>
   );
@@ -238,18 +256,11 @@ function AccountStats({
 
 /**
  * Pull a numeric field out of the raw /account response, navigating
- * into `fullAccount.margin.*`. Used for fields not surfaced in the
- * top-level snapshot type — specifically `realizedPnl` and
- * `marginUsed` which aren't on BulkAccountSnapshot yet.
- *
- * (Could extend the hook's normalize to surface these, but the home
- * page is the only consumer — keeping the narrow reach here avoids
- * widening the snapshot API for one page.)
+ * into `fullAccount.margin.*`. Used for `realizedPnl` which isn't
+ * surfaced on the top-level snapshot type.
  */
 function readPnlComponent(raw: unknown, path: readonly string[]): number | null {
   if (!raw || typeof raw !== 'object') return null;
-  // Unwrap the same way useBulkAccount does: array → first element →
-  // fullAccount → margin.
   let cursor: unknown = raw;
   if (Array.isArray(cursor) && cursor.length >= 1) cursor = cursor[0];
   if (cursor && typeof cursor === 'object' && 'fullAccount' in cursor) {
@@ -273,15 +284,18 @@ function Stat({
   label,
   value,
   tone,
+  align,
 }: {
   readonly label: string;
   readonly value: string;
   readonly tone?: 'long' | 'short' | 'neutral';
+  readonly align?: 'left' | 'right';
 }) {
   const color =
     tone === 'long' ? 'text-pnl-long' : tone === 'short' ? 'text-pnl-short' : 'text-fg-primary';
+  const alignClass = align === 'right' ? 'text-right' : '';
   return (
-    <div>
+    <div className={alignClass}>
       <dt className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">{label}</dt>
       <dd className={`mt-1 font-mono text-[18px] ${color}`}>{value}</dd>
     </div>

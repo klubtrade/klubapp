@@ -49,8 +49,12 @@ export { BulkWebSocket } from './websocket.js';
 export type {
   BulkWebSocketConfig,
   ConnectionState,
+  FrontendContextRow,
+  RiskPoint,
+  RiskStream,
   StreamHandler,
   Subscription,
+  TradeUpdate,
   WSTransport,
   WSTransportConstructor,
 } from './websocket.js';

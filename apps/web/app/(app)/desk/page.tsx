@@ -11,21 +11,18 @@ import { MARKETS, type MarketSymbol } from '@/lib/markets';
 /**
  * /desk — minimalist funding monitor.
  *
- * Visible by default:
- *   - Simple list: symbol, funding %, annualized, mark
+ * Columns match what early.bulk.trade shows: 1h, 8h, and annualized
+ * funding. Previously we only showed 8h + annual, and both were wrong
+ * by a large factor because we treated Bulk's `funding` field as a
+ * fractional per-8h value when it's actually an hourly percent value.
+ * See `use-funding-rates.ts` for the unit-semantics note.
  *
  * Data source: Bulk testnet frontendContext stream. Only symbols with
  * active markets on testnet render real data. We DO NOT fall back to
  * seed values — if the feed has no data, we show "—" honestly.
- *
- * Market list pulled from `@/lib/markets` so this screen automatically
- * picks up new listings without an edit here. Previously hardcoded
- * three markets which was inconsistent with /trade and /quick-trade.
  */
 
 export default function DeskPage() {
-  // Copy into a mutable array — `useTickers` takes `readonly string[]`
-  // but the shared const is typed narrower.
   const symbols = useMemo<readonly MarketSymbol[]>(() => MARKETS.map((m) => m.symbol), []);
   const funding = useFundingRates(symbols);
   const tickers = useTickers(symbols);
@@ -33,7 +30,7 @@ export default function DeskPage() {
 
   return (
     <main className="min-h-screen">
-      <section className="mx-auto max-w-xl px-6 pb-12 pt-28 md:pt-32">
+      <section className="mx-auto max-w-2xl px-6 pb-12 pt-28 md:pt-32">
         <div className="flex items-center justify-between">
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
             Funding · live
@@ -62,34 +59,40 @@ export default function DeskPage() {
           Funding rates
         </h1>
         <p className="mt-2 text-[13px] text-fg-muted">
-          Per-8h funding. Positive means longs pay shorts.
+          Per-hour funding as published by Bulk. Positive means longs pay shorts. 8h and
+          annualized columns are extrapolated from the live hourly rate.
         </p>
 
         <div className="mt-10">
-          {/* Header row */}
-          <div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-border-subtle px-1 pb-2 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+          {/* Header row — four columns: market, 1h, 8h, annual.
+              `grid-cols-[1fr_auto_auto_auto]` with uniform gap lets
+              the market label take remaining space while funding
+              columns right-align in fixed-width columns. */}
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border-subtle px-1 pb-2 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
             <span>Market</span>
-            <span className="text-right">Funding · 8h</span>
+            <span className="text-right">1h</span>
+            <span className="text-right">8h</span>
             <span className="text-right">Annual</span>
           </div>
 
-          {/* Rows */}
           <ul className="divide-y divide-border-subtle">
             {MARKETS.map((m) => {
               const sym = m.symbol;
-              const rate = funding[sym]?.rate;
+              const fundingRow = funding[sym];
               const mark = tickers[sym]?.mark;
-              const hasFunding = rate !== undefined && Number.isFinite(rate);
+              const hasFunding =
+                fundingRow !== undefined && Number.isFinite(fundingRow.hourlyPct);
               const hasMark = mark !== undefined;
-              const pct = (rate ?? 0) * 100;
-              const annualized = pct * 3 * 365;
-              const tone = pct >= 0 ? 'text-pnl-long' : 'text-pnl-short';
+              const hourly = fundingRow?.hourlyPct ?? 0;
+              const eightH = fundingRow?.eightHourPct ?? 0;
+              const annual = fundingRow?.annualPct ?? 0;
+              const tone = hourly >= 0 ? 'text-pnl-long' : 'text-pnl-short';
 
               return (
                 <li key={sym}>
                   <Link
                     href="/trade"
-                    className="grid grid-cols-[1fr_auto_auto] gap-4 px-1 py-3.5 transition-colors hover:bg-bg-surface"
+                    className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-1 py-3.5 transition-colors hover:bg-bg-surface"
                   >
                     <div className="min-w-0">
                       <div className="text-[14px] text-fg-primary">{m.label}</div>
@@ -97,11 +100,26 @@ export default function DeskPage() {
                         {hasMark ? `$${formatPrice(mark)}` : '—'}
                       </div>
                     </div>
-                    <div className={`text-right font-mono text-[13px] ${hasFunding ? tone : 'text-fg-muted'}`}>
-                      {hasFunding ? `${pct >= 0 ? '+' : ''}${pct.toFixed(4)}%` : '—'}
+                    <div
+                      className={`text-right font-mono text-[12px] ${
+                        hasFunding ? tone : 'text-fg-muted'
+                      }`}
+                    >
+                      {hasFunding ? formatPct(hourly, 5) : '—'}
                     </div>
-                    <div className={`text-right font-mono text-[13px] ${hasFunding ? tone : 'text-fg-muted'}`}>
-                      {hasFunding ? `${annualized >= 0 ? '+' : ''}${annualized.toFixed(1)}%` : '—'}
+                    <div
+                      className={`text-right font-mono text-[12px] ${
+                        hasFunding ? tone : 'text-fg-muted'
+                      }`}
+                    >
+                      {hasFunding ? formatPct(eightH, 4) : '—'}
+                    </div>
+                    <div
+                      className={`text-right font-mono text-[12px] ${
+                        hasFunding ? tone : 'text-fg-muted'
+                      }`}
+                    >
+                      {hasFunding ? formatPct(annual, 2) : '—'}
                     </div>
                   </Link>
                 </li>
@@ -112,6 +130,16 @@ export default function DeskPage() {
       </section>
     </main>
   );
+}
+
+/**
+ * Format a percent value with fixed decimals and an explicit sign.
+ * Bulk's website shows 4-5 decimals for small hourly/8h values so
+ * you can see subtle moves; 2 decimals is fine for annualized.
+ */
+function formatPct(value: number, decimals: number): string {
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(decimals)}%`;
 }
 
 function formatPrice(p: number): string {
