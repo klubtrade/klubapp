@@ -1,4 +1,8 @@
-import type { HealthInput } from '@klub/calc';
+import {
+  calculateBulkPortfolioMaintenanceMargin,
+  type BulkMarginPositionInput,
+  type HealthInput,
+} from '@klub/calc';
 
 import type { BulkAccountSnapshot, BulkPosition } from '@/hooks/use-bulk-account';
 import type { RiskSurfaceParams } from '@/hooks/use-risk-surfaces-rest';
@@ -23,10 +27,6 @@ import type { RiskSurfaceParams } from '@/hooks/use-risk-surfaces-rest';
  * position-aware mmFraction rather than a one-per-market floor.
  */
 
-/** Maintenance margin fraction fallback for markets with no
- *  risk-surface grid (Bulk hasn't published, or request failed). */
-export const PLACEHOLDER_MAINTENANCE_MARGIN_FRAC = 0.005;
-
 /** Funding rate fallback when a ticker has no live funding yet. */
 export const PLACEHOLDER_FUNDING_8H = 0.0001;
 
@@ -46,42 +46,54 @@ export function buildHealthInput(
   if (snapshot.equityUsd === null) return null;
   if (snapshot.positions.length === 0) return null;
   const equityUsd = snapshot.equityUsd;
+  const positions = snapshot.positions.map((p) =>
+    toHealthPositionInput(p, equityUsd, livePrices, mmSurfaces),
+  );
+  if (positions.some((p) => p === null)) return null;
+
+  const readyPositions = positions as readonly ReadyHealthPositionInput[];
+  const bulkMargin = calculateBulkPortfolioMaintenanceMargin({
+    positions: readyPositions.map((p) => ({
+      symbol: p.symbol,
+      size: p.size,
+      markPrice: p.markPrice,
+      lambda: p.lambda,
+    })) satisfies readonly BulkMarginPositionInput[],
+  });
+
   return {
     equityUsd,
     collateralUsd: equityUsd,
-    positions: snapshot.positions.map((p) =>
-      toHealthPosition(p, equityUsd, livePrices, mmSurfaces),
-    ),
+    positions: readyPositions.map((position, index) => ({
+      symbol: position.symbol,
+      size: position.size,
+      entryPrice: position.entryPrice,
+      markPrice: position.markPrice,
+      liqPrice: position.liqPrice,
+      maintenanceMarginUsd:
+        bulkMargin.positions[index]?.marginComponentUsd ?? position.notionalUsd * position.lambda,
+      funding8hRate: position.funding8hRate,
+    })),
   };
 }
 
-/**
- * Returns true when every position in the snapshot has a
- * risk-surface grid available (i.e. we can do real per-position mm
- * lookup, not fallback). Used by /health to hide the placeholder
- * caveat banner.
- */
-export function hasRealMmForAllPositions(
-  snapshot: BulkAccountSnapshot | null,
-  mmSurfaces: RiskSurfaceMap,
-): boolean {
-  if (!snapshot || snapshot.positions.length === 0) return false;
-  return snapshot.positions.every((p) => {
-    const params = mmSurfaces[p.symbol];
-    return (
-      !!params &&
-      typeof params.mmFraction === 'number' &&
-      Number.isFinite(params.mmFraction)
-    );
-  });
+interface ReadyHealthPositionInput {
+  readonly symbol: string;
+  readonly size: number;
+  readonly entryPrice: number;
+  readonly markPrice: number;
+  readonly liqPrice: number;
+  readonly notionalUsd: number;
+  readonly lambda: number;
+  readonly funding8hRate: number;
 }
 
-function toHealthPosition(
+function toHealthPositionInput(
   p: BulkPosition,
   equityUsd: number,
   livePrices: LivePriceMap,
   mmSurfaces: RiskSurfaceMap | undefined,
-): HealthInput['positions'][number] {
+): ReadyHealthPositionInput | null {
   const live = livePrices[p.symbol];
   const markPrice = live?.mark ?? p.fairPrice;
   const fundingRate = live?.fundingRate ?? PLACEHOLDER_FUNDING_8H;
@@ -102,19 +114,19 @@ function toHealthPosition(
 
   const side: 'long' | 'short' = p.sizeBase > 0 ? 'long' : 'short';
   const params = mmSurfaces?.[p.symbol];
-  const mmFrac = params
-    ? lookupPositionMm(params, side, notional, effectiveLeverage)
-    : PLACEHOLDER_MAINTENANCE_MARGIN_FRAC;
+  if (!params) return null;
+  const lambda = lookupPositionMm(params, side, notional, effectiveLeverage);
 
   return {
     symbol: p.symbol,
     size: p.sizeBase,
     entryPrice: p.entryPrice,
     markPrice,
+    notionalUsd: notional,
+    lambda,
     liqPrice: Number.isFinite(liqFromRaw)
       ? liqFromRaw
-      : estimateLiqPrice(p.sizeBase, markPrice, mmFrac),
-    maintenanceMarginUsd: notional * mmFrac,
+      : estimateLiqPrice(p.sizeBase, markPrice, lambda),
     funding8hRate: fundingRate,
   };
 }
@@ -134,9 +146,9 @@ function toHealthPosition(
  * Bulk would actually apply. Bilinear interpolation is a
  * refinement for a later day.
  *
- * Falls back to `params.mmFraction` (the grid's lowest-corner
- * value, typically 0.02) if the grid is missing or the computed
- * index lands in a hole.
+ * TODO(week-2): switch this REST-based lookup to the live
+ * `risk:{symbol}` websocket grid once the stream is stable enough
+ * to be authoritative for /health and /home.
  */
 export function lookupPositionMm(
   params: RiskSurfaceParams,

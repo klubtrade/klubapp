@@ -1,6 +1,9 @@
 // apps/web/app/api/portfolio/route.ts
-import { BulkClient, queryFullAccount } from '@klub/api-client';
-import type { HealthInput, HealthPosition } from '@klub/calc';
+import { BulkClient, getRiskSurfaces, queryFullAccount } from '@klub/api-client';
+import {
+  calculateBulkPortfolioMaintenanceMargin,
+} from '@klub/calc';
+import type { BulkMarginPositionInput, HealthInput, HealthPosition } from '@klub/calc';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -21,6 +24,8 @@ const Body = z.object({
   user: z.string().min(32).max(64),
 });
 
+type BulkLambdaBySymbol = Readonly<Record<string, number>>;
+
 export async function POST(request: Request) {
   let payload: unknown;
   try {
@@ -40,28 +45,45 @@ export async function POST(request: Request) {
     );
   }
 
+  const baseUrl = process.env['BULK_API_BASE_URL'];
+  const integratorId = process.env['BULK_INTEGRATOR_ID'];
+
   const client = new BulkClient({
-    baseUrl: process.env['BULK_API_BASE_URL'],
-    ...(process.env['BULK_INTEGRATOR_ID']
-      ? { integratorId: process.env['BULK_INTEGRATOR_ID'] }
-      : {}),
+    ...(baseUrl ? { baseUrl } : {}),
+    ...(integratorId ? { integratorId } : {}),
   });
 
   try {
-    const account = await queryFullAccount(client, parsed.data.user);
+    const [account, lambdaBySymbol] = await Promise.all([
+      queryFullAccount(client, parsed.data.user),
+      fetchBulkLambdaBySymbol(client),
+    ]);
 
-    const positions: readonly HealthPosition[] = account.positions.map((p) => ({
-      symbol: p.s,
-      size: Number(p.sz),
-      entryPrice: Number(p.entryPx),
-      markPrice: Number(p.markPx),
-      liqPrice: Number(p.liqPx),
-      // Bulk doesn't return per-position maintenance as a single
-      // number in the account payload; approximate from leverage. A
-      // proper implementation joins risk surfaces. Placeholder here.
-      maintenanceMarginUsd: Number(p.sz) * Number(p.markPx) * 0.005,
-      funding8hRate: 0, // TODO: join ticker data for per-symbol rate
-    }));
+    const bulkMargin = calculateBulkPortfolioMaintenanceMargin({
+      positions: account.positions.map((p) => ({
+        symbol: p.s,
+        size: Number(p.sz),
+        markPrice: Number(p.markPx),
+        lambda: resolveBulkLambda(p.s, lambdaBySymbol),
+      })) satisfies readonly BulkMarginPositionInput[],
+    });
+
+    const positions: readonly HealthPosition[] = account.positions.map((p, index) => {
+      const marginPosition = bulkMargin.positions[index];
+      if (marginPosition === undefined) {
+        throw new Error(`missing Bulk margin component for ${p.s}`);
+      }
+
+      return {
+        symbol: p.s,
+        size: Number(p.sz),
+        entryPrice: Number(p.entryPx),
+        markPrice: Number(p.markPx),
+        liqPrice: Number(p.liqPx),
+        maintenanceMarginUsd: marginPosition.marginComponentUsd,
+        funding8hRate: 0, // TODO: join ticker data for per-symbol rate
+      };
+    });
 
     const body: HealthInput = {
       equityUsd: Number(account.equityUsd),
@@ -83,4 +105,30 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   }
+}
+
+async function fetchBulkLambdaBySymbol(client: BulkClient): Promise<BulkLambdaBySymbol> {
+  // TODO(week-2): replace this HTTP `riskSurfaces` snapshot with a
+  // cached `risk:{symbol}` websocket feed once live Bulk risk updates
+  // are threaded into the web app.
+  const riskSurfaces = await getRiskSurfaces(client);
+  const entries: [string, number][] = [];
+
+  for (const surface of riskSurfaces.surfaces) {
+    const lambda = Number(surface.mmFraction);
+    if (!Number.isFinite(lambda) || lambda < 0) {
+      throw new Error(`invalid Bulk lambda for ${surface.s}`);
+    }
+    entries.push([surface.s, lambda]);
+  }
+
+  return Object.fromEntries(entries);
+}
+
+function resolveBulkLambda(symbol: string, lambdaBySymbol: BulkLambdaBySymbol): number {
+  const lambda = lambdaBySymbol[symbol];
+  if (lambda === undefined) {
+    throw new Error(`missing Bulk lambda for ${symbol}`);
+  }
+  return lambda;
 }

@@ -15,6 +15,19 @@ export {
 } from './calculator.js';
 export type { CalcInput, CalcOutput, Side } from './calculator.js';
 
+export {
+  bulkMarginComponentUsd,
+  bulkMarginNotionalUsd,
+  calculateBulkPortfolioMaintenanceMargin,
+} from './bulk-margin.js';
+export type {
+  BulkCorrelationMatrix,
+  BulkMarginPositionBreakdown,
+  BulkMarginPositionInput,
+  BulkPortfolioMaintenanceMarginInput,
+  BulkPortfolioMaintenanceMarginResult,
+} from './bulk-margin.js';
+
 export { bandFor, healthScore, stressTest } from './health.js';
 export type {
   HealthBand,

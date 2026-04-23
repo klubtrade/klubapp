@@ -9,7 +9,7 @@ import { useBulkAccount } from '@/hooks/use-bulk-account';
 import { useRiskSurfaces } from '@/hooks/use-risk-surface';
 import { useRiskSurfacesRest } from '@/hooks/use-risk-surfaces-rest';
 import { useTickers } from '@/hooks/use-tickers';
-import { buildHealthInput, hasRealMmForAllPositions } from '@/lib/health-input';
+import { buildHealthInput } from '@/lib/health-input';
 import { MARKETS, type MarketSymbol } from '@/lib/markets';
 
 /**
@@ -34,11 +34,9 @@ import { MARKETS, type MarketSymbol } from '@/lib/markets';
  *   shocked-score, which isn't in the current API. That's Day 3
  *   work (alongside the bulk-margin formula refactor).
  *
- *   Maintenance-margin-per-position is still the naive
- *   `maintenanceMarginFrac: 0.005` placeholder. Real per-market
- *   figures from Bulk's risk surfaces land in Day 2 via
- *   `useRiskSurface`. This page is ready for that swap — the math
- *   happens in the adapter below, not in `healthScore` itself.
+ *   Health math now runs through the shared adapter backed by
+ *   `/api/bulk/account` + `/api/risk-surfaces`, which feeds the
+ *   Bulk margin calculator with real risk-surface lambdas.
  */
 
 const BAND_TONE: Record<HealthOutput['band'], string> = {
@@ -112,24 +110,12 @@ export default function HealthPage() {
   const { params: restParams } = useRiskSurfacesRest();
 
   // Build the HealthInput from real data via the shared adapter so
-  // /home and /health compute identical scores. Returns null when
-  // inputs are insufficient (no equity OR no positions). Day 3 wires
-  // the FULL risk-surface grid per symbol (not just a scalar mm
-  // fraction) so buildHealthInput can look up a position-specific
-  // maintenance margin based on each position's notional + implicit
-  // leverage + side.
+  // /home and /health compute identical scores. The adapter now
+  // routes through Bulk's margin calculator using lambdas derived
+  // from `/api/risk-surfaces`.
   const healthInput = useMemo<HealthInput | null>(
     () => buildHealthInput(snapshot, livePrices, restParams),
     [snapshot, livePrices, restParams],
-  );
-
-  // Caveat banner shows only when AT LEAST ONE position is still
-  // using the placeholder mmFraction (REST snapshot didn't cover
-  // that symbol). Once Bulk's /riskSurfaces returns every symbol
-  // in the user's portfolio, the caveat disappears.
-  const usingRealMmForAll = useMemo(
-    () => hasRealMmForAllPositions(snapshot, restParams),
-    [snapshot, restParams],
   );
 
   const result = useMemo<HealthOutput | null>(() => {
@@ -192,7 +178,6 @@ export default function HealthPage() {
         ) : result ? (
           <HealthReadout
             result={result}
-            usingRealMmForAll={usingRealMmForAll}
             showBreakdown={showBreakdown}
             showAdvice={showAdvice}
             onToggleBreakdown={() => {
@@ -219,14 +204,12 @@ export default function HealthPage() {
 
 function HealthReadout({
   result,
-  usingRealMmForAll,
   showBreakdown,
   showAdvice,
   onToggleBreakdown,
   onToggleAdvice,
 }: {
   readonly result: HealthOutput;
-  readonly usingRealMmForAll: boolean;
   readonly showBreakdown: boolean;
   readonly showAdvice: boolean;
   readonly onToggleBreakdown: () => void;
@@ -285,20 +268,6 @@ function HealthReadout({
             </li>
           ))}
         </ul>
-      )}
-
-      {/* Honest caveat row. Shown ONLY when at least one position
-          is still using the placeholder maintenance-margin fraction
-          (Bulk's REST /riskSurfaces hasn't covered that symbol yet).
-          Once real MM fractions are flowing for every open position,
-          this banner disappears — the score is no longer indicative. */}
-      {!usingRealMmForAll && (
-        <div className="mt-10 rounded-klub border border-border-subtle bg-bg-base/40 p-3 text-[11px] leading-relaxed text-fg-muted">
-          Some positions use a placeholder maintenance-margin figure because Bulk&rsquo;s
-          risk surface hasn&rsquo;t covered those markets yet. Liquidation proximity is
-          directionally correct but may be off by a few percentage points until real
-          per-market figures arrive.
-        </div>
       )}
     </>
   );
