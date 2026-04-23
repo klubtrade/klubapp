@@ -1,0 +1,311 @@
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+@import '@solana/wallet-adapter-react-ui/styles.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * KLUB global tokens.
+ *
+ * Mirrors tailwind.config.ts. Anything read as a CSS var by inline styles
+ * or plain CSS (SVG gradients, inline style attributes) lives here.
+ *
+ * Dropped from the previous revision:
+ *   - `.klub-grain` noise overlay — the new aesthetic is clean, not gritty
+ *   - `.corner-brackets` decoration — replaced by subtle hover states + soft radii
+ *
+ * Kept:
+ *   - `.live-dot` pulsing indicator (now purple, not amber)
+ *   - `.reveal` fly-in animation utility (for scroll reveals without Framer Motion)
+ */
+:root {
+  --bg-base: #0a0a0b;
+  --bg-surface: #131316;
+  --bg-elevated: #1a1a1f;
+  --border-subtle: #1c1c22;
+  --border-default: #26262c;
+  --border-strong: #3f3f46;
+  --fg-primary: #fafafa;
+  --fg-secondary: #a8a8ae;
+  --fg-muted: #5a5a63;
+  --accent: #a78bfa;
+  --accent-bright: #c4b5fd;
+  --accent-soft: #7c3aed;
+  --accent-glow: rgba(167, 139, 250, 0.12);
+  --pnl-long: #10b981;
+  --pnl-short: #ef4444;
+  --alert-yellow: #eab308;
+  --alert-orange: #f97316;
+  --alert-red: #dc2626;
+  --radius-klub: 10px;
+  --radius-klub-lg: 16px;
+}
+
+html,
+body {
+  background: var(--bg-base);
+  color: var(--fg-primary);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum', 'zero', 'cv11';
+}
+
+/* Pulsing purple indicator — used on brand marks + live status pills */
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Scroll-reveal utility — use on landing surfaces. Framer Motion handles
+   richer sequencing elsewhere; this is the no-dep fallback for static
+   content blocks. */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.reveal.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Rule-dashed separator between sections (unchanged) */
+.rule-dashed {
+  border-top: 1px dashed var(--border-default);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg-base);
+}
+
+/* ---------------------------------------------------------------------------
+   Button utilities — used across every CTA in the app for consistency.
+
+   .btn-primary   — filled purple, main action
+   .btn-secondary — bordered, secondary action
+   .btn-ghost     — text only, tertiary action
+   .btn-danger    — red, destructive (unfollow, close position, revoke key)
+
+   All share tactile behavior: focus ring, active press (98% scale),
+   and disabled state (50% opacity, no pointer events).
+   --------------------------------------------------------------------------- */
+
+.btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-klub);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  transition:
+    background 180ms,
+    color 180ms,
+    border-color 180ms,
+    transform 120ms,
+    box-shadow 180ms;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-base:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent);
+}
+.btn-base:active:not(:disabled):not([aria-disabled='true']) {
+  transform: scale(0.98);
+}
+.btn-base:disabled,
+.btn-base[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-primary {
+  @apply btn-base;
+  background: var(--accent);
+  color: var(--bg-base);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-bright);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  @apply btn-base;
+  background: transparent;
+  color: var(--fg-primary);
+  border: 1px solid var(--border-default);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--fg-muted);
+  background: var(--bg-elevated);
+}
+
+.btn-ghost {
+  @apply btn-base;
+  background: transparent;
+  color: var(--fg-secondary);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  color: var(--fg-primary);
+}
+
+.btn-danger {
+  @apply btn-base;
+  background: var(--pnl-short);
+  color: var(--bg-base);
+}
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Size variants — apply alongside .btn-* */
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+.btn-lg {
+  padding: 0.875rem 1.25rem;
+  font-size: 0.9375rem;
+}
+.btn-block {
+  width: 100%;
+}
+/*
+ * .btn-compact — auto width, comfortable minimum. For standalone CTAs
+ * that shouldn't span the full container (e.g. hero "Open a trade").
+ * Use instead of .btn-block when you want a shorter, cleaner button.
+ */
+.btn-compact {
+  min-width: 160px;
+  width: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .btn-base {
+    transition: none;
+  }
+  .btn-base:hover:not(:disabled) {
+    transform: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+/* ========================================================================= */
+/* Pro terminal — react-grid-layout theming                                   */
+/* ========================================================================= */
+
+.pro-grid .react-grid-item.react-grid-placeholder {
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px dashed rgba(167, 139, 250, 0.6);
+  border-radius: 6px;
+  opacity: 1;
+  transition-duration: 100ms;
+  z-index: 2;
+}
+
+.pro-grid .react-grid-item > .react-resizable-handle {
+  background: transparent;
+}
+
+.pro-grid .react-grid-item > .react-resizable-handle::after {
+  border-right: 2px solid var(--fg-muted);
+  border-bottom: 2px solid var(--fg-muted);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.pro-grid .react-grid-item:hover > .react-resizable-handle::after {
+  opacity: 0.4;
+}
+
+.pro-grid .react-grid-item.react-draggable-dragging {
+  z-index: 10;
+  transition: none;
+  opacity: 0.9;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+.pro-grid .pro-drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+
+.pro-grid .react-draggable-dragging .pro-drag-handle {
+  cursor: grabbing;
+}
+
+/* ==========================================================================
+   Bloomberg-style scope for /pro
+   --------------------------------------------------------------------------
+   Applies ONLY inside <main class="pro-scope">. Everything else in the app
+   (including /trade) continues to use the purple KLUB theme.
+
+   Changes:
+     - Amber accent (Bloomberg iconic)
+     - Square corners (no radii) — terminal traditions
+     - Tabular mono with smaller leading
+     - Flush panels (borders coalesce instead of gap)
+   ========================================================================== */
+
+   .pro-scope {
+    /* Remap accent to Bloomberg amber */
+    --accent: #ff9f0a;
+    --accent-bright: #ffb347;
+    --accent-soft: #d17f00;
+    --accent-glow: rgba(255, 159, 10, 0.18);
+    /* Override radii so panels read as square terminal tiles */
+    --radius-klub: 0px;
+    --radius-klub-lg: 2px;
+    font-family: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* Tighter typography defaults — terminal density */
+  .pro-scope * {
+    letter-spacing: 0;
+  }
+  .pro-scope .font-mono {
+    font-feature-settings: 'tnum', 'zero';
+  }
+  
+  /* Square out any rounded utilities used inside pro */
+  .pro-scope .rounded-klub,
+  .pro-scope .rounded-klub-lg,
+  .pro-scope .rounded-md,
+  .pro-scope .rounded {
+    border-radius: 2px;
+  }

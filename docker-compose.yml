@@ -1,0 +1,48 @@
+# docker-compose.yml
+#
+# Local infrastructure for KLUB backend development.
+#   - Postgres 16 for the primary database (users, waitlist, invites, leaders, follows, journal)
+#   - Redis 7 for BullMQ queues (alerts, copy-trade, waitlist-resend-sync)
+#
+# Usage:
+#   docker compose up -d
+#   pnpm --filter @klub/db db:migrate
+#   pnpm --filter @klub/worker dev
+#
+# Production runs these as managed services (RDS + ElastiCache, or Neon + Upstash).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: klub
+      POSTGRES_PASSWORD: klub_local_dev
+      POSTGRES_DB: klub
+    ports:
+      - '5432:5432'
+    volumes:
+      - klub-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U klub']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - klub-redis-data:/data
+    command: ['redis-server', '--appendonly', 'yes']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  klub-postgres-data:
+  klub-redis-data:
