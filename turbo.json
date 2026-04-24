@@ -5,7 +5,31 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": ["NODE_ENV"]
+      "env": [
+        "NODE_ENV",
+        "BULK_HTTP_URL",
+        "BULK_INTEGRATOR_ID",
+        "NEXT_PUBLIC_BULK_WS_URL",
+        "NEXT_PUBLIC_BULK_TESTNET_APP_URL",
+        "NEXT_PUBLIC_BULK_NETWORK",
+        "NEXT_PUBLIC_SITE_URL",
+        "NEXT_PUBLIC_PRIVY_APP_ID",
+        "PRIVY_APP_SECRET",
+        "NEXT_PUBLIC_COINBASE_ONRAMP_APP_ID",
+        "NEXT_PUBLIC_EXPERIMENTAL_IKA_RAMP",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "RESEND_API_KEY",
+        "WAITLIST_AUDIENCE_ID",
+        "AGENT_WALLET_KMS_KEY_ARN",
+        "AGENT_WALLET_LOCAL_KEY",
+        "TELEGRAM_BOT_TOKEN",
+        "PUSH_VAPID_PUBLIC_KEY",
+        "PUSH_VAPID_PRIVATE_KEY",
+        "SENTRY_DSN",
+        "NEXT_PUBLIC_POSTHOG_KEY",
+        "NEXT_PUBLIC_POSTHOG_HOST"
+      ]
     },
     "dev": {
       "cache": false,
