@@ -1,6 +1,6 @@
 'use client';
 
-import { healthScore, type HealthInput, type HealthOutput } from '@klub/calc';
+import { healthScore, type HealthInput, type HealthOutput, type SubScore } from '@klub/calc';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -378,19 +378,40 @@ function SubscoreRow({
   sub,
 }: {
   readonly label: string;
-  readonly sub: { readonly score: number; readonly label: string };
+  readonly sub: SubScore;
 }) {
   const tone =
     sub.score >= 75 ? 'text-pnl-long' : sub.score >= 50 ? 'text-fg-primary' : 'text-pnl-short';
+  const summary = formatSubscoreSummary(sub);
   return (
     <div>
       <div className="flex items-baseline justify-between text-[13px]">
         <span className="text-fg-muted">{label}</span>
-        <span className={`font-mono ${tone}`}>{sub.score}</span>
+        <span className={`font-mono ${tone}`}>{summary}</span>
       </div>
       <div className="mt-0.5 text-[11px] text-fg-muted">{sub.label}</div>
     </div>
   );
+}
+
+function formatSubscoreSummary(sub: SubScore): string {
+  const scoreLabel = `score ${sub.score}/100`;
+
+  if (sub.rawUnit === 'multiple') {
+    return `${sub.rawValue.toFixed(1)}x · ${scoreLabel}`;
+  }
+
+  if (sub.rawUnit === 'fraction') {
+    return `${formatPercentage(sub.rawValue)} · ${scoreLabel}`;
+  }
+
+  return scoreLabel;
+}
+
+function formatPercentage(value: number): string {
+  const absValue = Math.abs(value);
+  const digits = absValue >= 0.1 ? 0 : absValue >= 0.01 ? 1 : 2;
+  return `${(value * 100).toFixed(digits)}%`;
 }
 
 function regimeLabelForValue(regime: number): 'bearish' | 'neutral' | 'bullish' {
