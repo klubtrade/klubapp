@@ -4,6 +4,7 @@ import {
   BulkWebSocket,
   type ConnectionState,
   type FrontendContextRow,
+  type LiveRiskSurface,
   type RiskStream,
   type TradeUpdate,
 } from '@klub/api-client';
@@ -167,6 +168,19 @@ class MarketDataClient {
     return this.ws!.onRisk(symbol, handler);
   }
 
+  subscribeRisk(symbol: string): () => void {
+    if (!this.wsUrl) {
+      return () => undefined;
+    }
+    this.ensureWs();
+    return this.ws!.subscribeRisk(symbol);
+  }
+
+  getLiveRiskSurface(symbol: string): LiveRiskSurface | null {
+    if (!this.ws) return null;
+    return this.ws.getLiveRiskSurface(symbol);
+  }
+
   // -------------------------------------------------------------------
 
   onStateChange(listener: Listener<ConnectionState>): () => void {
@@ -191,12 +205,6 @@ class MarketDataClient {
     if (this.ws) return;
     this.ws = new BulkWebSocket({
       url: this.wsUrl,
-      log: (msg, meta) => {
-        if (process.env['NODE_ENV'] !== 'production') {
-          // eslint-disable-next-line no-console
-          console.log(`[market-data] ${msg}`, meta ?? '');
-        }
-      },
     });
     this.ws.onStateChange((s) => {
       this.setState(s);

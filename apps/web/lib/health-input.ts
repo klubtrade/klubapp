@@ -1,11 +1,16 @@
+'use client';
+
 import {
+  type BulkCorrelationMatrix,
   calculateBulkPortfolioMaintenanceMargin,
   type BulkMarginPositionInput,
   type HealthInput,
 } from '@klub/calc';
+import type { RiskStream } from '@klub/api-client';
 
 import type { BulkAccountSnapshot, BulkPosition } from '@/hooks/use-bulk-account';
 import type { RiskSurfaceParams } from '@/hooks/use-risk-surfaces-rest';
+import { marketData } from '@/lib/market-data/client';
 
 /**
  * Shared adapter between /home and /health so both pages derive
@@ -52,6 +57,9 @@ export function buildHealthInput(
   if (positions.some((p) => p === null)) return null;
 
   const readyPositions = positions as readonly ReadyHealthPositionInput[];
+  const correlations = buildPortfolioCorrelations(
+    readyPositions.map((position) => position.symbol),
+  );
   const bulkMargin = calculateBulkPortfolioMaintenanceMargin({
     positions: readyPositions.map((p) => ({
       symbol: p.symbol,
@@ -59,6 +67,7 @@ export function buildHealthInput(
       markPrice: p.markPrice,
       lambda: p.lambda,
     })) satisfies readonly BulkMarginPositionInput[],
+    ...(correlations ? { correlations } : {}),
   });
 
   return {
@@ -113,7 +122,7 @@ function toHealthPositionInput(
   const effectiveLeverage = equityUsd > 0 ? Math.max(1, notional / equityUsd) : 1;
 
   const side: 'long' | 'short' = p.sizeBase > 0 ? 'long' : 'short';
-  const params = mmSurfaces?.[p.symbol];
+  const params = preferredRiskSurfaceParams(p.symbol, mmSurfaces);
   if (!params) return null;
   const lambda = lookupPositionMm(params, side, notional, effectiveLeverage);
 
@@ -146,9 +155,9 @@ function toHealthPositionInput(
  * Bulk would actually apply. Bilinear interpolation is a
  * refinement for a later day.
  *
- * TODO(week-2): switch this REST-based lookup to the live
- * `risk:{symbol}` websocket grid once the stream is stable enough
- * to be authoritative for /health and /home.
+ * TODO(week-2): once the `risk:{symbol}` websocket cache is hydrated
+ * early enough on first paint, remove the REST fallback entirely and
+ * source /health + /home from live risk only.
  */
 export function lookupPositionMm(
   params: RiskSurfaceParams,
@@ -177,6 +186,108 @@ export function lookupPositionMm(
   const row = gridTable[notionalIdx];
   const mm = row ? row[leverageIdx] : undefined;
   return typeof mm === 'number' && Number.isFinite(mm) ? mm : params.mmFraction;
+}
+
+function preferredRiskSurfaceParams(
+  symbol: string,
+  mmSurfaces: RiskSurfaceMap | undefined,
+): RiskSurfaceParams | undefined {
+  const live = marketData.getLiveRiskSurface(symbol);
+  if (live) {
+    const params = riskParamsFromLiveSurface(live);
+    if (params) return params;
+  }
+  return mmSurfaces?.[symbol];
+}
+
+function riskParamsFromLiveSurface(surface: RiskStream): RiskSurfaceParams | null {
+  const mmFraction = surface.buy[0]?.[0]?.mmrO;
+  if (typeof mmFraction !== 'number' || !Number.isFinite(mmFraction)) {
+    return null;
+  }
+  return {
+    mmFraction,
+    imFraction: mmFraction,
+    adlRank: 0,
+    leverageKnots: surface.leverage,
+    notionalKnots: surface.notionals,
+    buy: flattenLiveRiskGrid(surface.buy),
+    sell: flattenLiveRiskGrid(surface.sell),
+  };
+}
+
+function flattenLiveRiskGrid(
+  grid: readonly (readonly { readonly mmrO: number }[])[],
+): readonly (readonly number[])[] {
+  return grid.map((row) => row.map((point) => point.mmrO));
+}
+
+function buildPortfolioCorrelations(
+  symbols: readonly string[],
+): BulkCorrelationMatrix | undefined {
+  const symbolByAsset = new Map<string, string>();
+  const symbolSet = new Set(symbols);
+  const correlations: Record<string, Record<string, number>> = {};
+  let sawLiveSurface = false;
+  let sawLiveCorrs = false;
+
+  for (const symbol of symbols) {
+    const asset = assetFromSymbol(symbol);
+    if (!symbolByAsset.has(asset)) {
+      symbolByAsset.set(asset, symbol);
+    }
+  }
+
+  for (const symbol of symbols) {
+    const surface = marketData.getLiveRiskSurface(symbol);
+    if (!surface) continue;
+    sawLiveSurface = true;
+    if (surface.corrs.length === 0) {
+      // TODO(week-2): Bulk WS currently appears to omit `corrs` from
+      // some live `risk:{symbol}` payloads, so /health cannot apply
+      // portfolio offsets until the websocket feed includes them.
+      continue;
+    }
+    sawLiveCorrs = true;
+
+    for (const [pair, value] of surface.corrs) {
+      if (!Number.isFinite(value)) continue;
+
+      const [leftToken, rightToken] = pair.split(/[:/]/).map((token) => token.trim());
+      if (!leftToken || !rightToken) continue;
+
+      const leftSymbol = resolveCorrelationSymbol(leftToken, symbolByAsset, symbolSet);
+      const rightSymbol = resolveCorrelationSymbol(rightToken, symbolByAsset, symbolSet);
+      if (!leftSymbol || !rightSymbol || leftSymbol === rightSymbol) continue;
+
+      correlations[leftSymbol] ??= {};
+      correlations[rightSymbol] ??= {};
+      correlations[leftSymbol]![rightSymbol] = value;
+      correlations[rightSymbol]![leftSymbol] = value;
+    }
+  }
+
+  if (!sawLiveSurface || !sawLiveCorrs) {
+    return undefined;
+  }
+
+  return Object.keys(correlations).length > 0 ? correlations : undefined;
+}
+
+function resolveCorrelationSymbol(
+  token: string,
+  symbolByAsset: ReadonlyMap<string, string>,
+  symbolSet: ReadonlySet<string>,
+): string | null {
+  if (symbolSet.has(token)) {
+    return token;
+  }
+  return symbolByAsset.get(token) ?? null;
+}
+
+function assetFromSymbol(symbol: string): string {
+  const separatorIndex = symbol.indexOf('-');
+  return separatorIndex === -1 ? symbol : symbol.slice(0, separatorIndex);
 }
 
 function pickNumber(obj: unknown, keys: readonly string[]): number {
