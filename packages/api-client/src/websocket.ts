@@ -153,6 +153,10 @@ export interface RiskStream {
   readonly corrs: readonly (readonly [string, number])[];
 }
 
+export type LiveRiskSurface = RiskStream & {
+  readonly risk: RiskStream;
+};
+
 export interface RiskPoint {
   /** Maintenance margin ratio at regime start. */
   readonly mmrO: number;
@@ -190,7 +194,11 @@ export type IncomingMessage =
   | { readonly type: 'candle'; readonly data: { readonly candle: Candle; readonly symbol: string; readonly interval: CandleInterval } }
   | { readonly type: 'l2Snapshot'; readonly data: L2Snapshot }
   | { readonly type: 'l2Delta'; readonly data: L2Delta }
-  | { readonly type: 'risk'; readonly data: RiskStream }
+  | {
+      readonly type: 'risk';
+      readonly topic?: string;
+      readonly data: RiskStream | { readonly risk: RiskStream };
+    }
   | { readonly type: 'frontendContext'; readonly data: { readonly ctx: readonly FrontendContextRow[] } }
   | { readonly type: 'account'; readonly data: AccountUpdate }
   | { readonly type: 'error'; readonly message: string };
@@ -268,6 +276,12 @@ function topicPrefix(type: Subscription['type']): string {
   return type;
 }
 
+function symbolFromTopic(topic: string | undefined, prefix: string): string | null {
+  if (!topic?.startsWith(`${prefix}.`)) return null;
+  const symbol = topic.slice(prefix.length + 1);
+  return symbol.length > 0 ? symbol : null;
+}
+
 /**
  * Pull the first finite number from `obj` at any of the given keys,
  * or NaN if none are present. Used in the frontendContext adapter
@@ -339,6 +353,7 @@ export class BulkWebSocket {
   }) | null = null;
 
   private subs = new Map<string, SubEntry>();
+  private riskSurfaces = new Map<string, LiveRiskSurface>();
   private pendingAcks = new Map<string, () => void>();
   private currentBackoffMs: number;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -437,6 +452,12 @@ export class BulkWebSocket {
   onRisk(symbol: string, handler: StreamHandler['risk']): () => void {
     return this.register({ type: 'risk', symbol }, handler);
   }
+  subscribeRisk(symbol: string): () => void {
+    return this.register({ type: 'risk', symbol }, () => undefined);
+  }
+  getLiveRiskSurface(symbol: string): LiveRiskSurface | null {
+    return this.riskSurfaces.get(symbol) ?? null;
+  }
   onFrontendContext(handler: StreamHandler['frontendContext']): () => void {
     return this.register({ type: 'frontendContext' }, handler);
   }
@@ -468,6 +489,8 @@ export class BulkWebSocket {
       this.subs.set(key, entry);
       if (this.connected) {
         this.sendSubscribe([sub]);
+      } else if (!this.socket) {
+        this.connect();
       }
     }
 
@@ -677,9 +700,15 @@ export class BulkWebSocket {
       }
 
       case 'risk': {
-        const entry = this.subs.get(`risk.${msg.data.symbol}`);
+        const risk = normalizeRiskMessage(msg);
+        if (!risk) {
+          this.log('ws: risk frame missing symbol', { parsed: msg });
+          return;
+        }
+        this.riskSurfaces.set(risk.symbol, risk);
+        const entry = this.subs.get(`risk.${risk.symbol}`);
         if (entry) {
-          for (const h of entry.handlers) h(msg.data);
+          for (const h of entry.handlers) h(risk.risk);
         }
         return;
       }
@@ -799,4 +828,36 @@ export class BulkWebSocket {
       this.openSocket();
     }, delay);
   }
+}
+
+function normalizeRiskMessage(
+  msg: Extract<IncomingMessage, { readonly type: 'risk' }>,
+): LiveRiskSurface | null {
+  const nestedRisk =
+    'risk' in msg.data && msg.data.risk && typeof msg.data.risk === 'object'
+      ? msg.data.risk
+      : null;
+  const rawRiskValue = nestedRisk ?? msg.data;
+  if (!rawRiskValue || typeof rawRiskValue !== 'object') {
+    return null;
+  }
+  const rawRisk = rawRiskValue as Partial<RiskStream> & { readonly symbol?: string };
+  const symbol =
+    (typeof rawRisk.symbol === 'string' && rawRisk.symbol.length > 0
+      ? rawRisk.symbol
+      : symbolFromTopic(msg.topic, 'risk')) ?? null;
+
+  if (!symbol) {
+    return null;
+  }
+
+  const risk = {
+    ...(rawRiskValue as RiskStream),
+    symbol,
+  } as RiskStream;
+
+  return {
+    ...risk,
+    risk,
+  };
 }

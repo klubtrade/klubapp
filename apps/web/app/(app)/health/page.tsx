@@ -1,15 +1,15 @@
 'use client';
 
-import { healthScore, type HealthInput, type HealthOutput } from '@klub/calc';
+import { healthScore, type HealthInput, type HealthOutput, type SubScore } from '@klub/calc';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 import { useBulkAccount } from '@/hooks/use-bulk-account';
-import { useRiskSurfaces } from '@/hooks/use-risk-surface';
 import { useRiskSurfacesRest } from '@/hooks/use-risk-surfaces-rest';
 import { useTickers } from '@/hooks/use-tickers';
-import { buildHealthInput, hasRealMmForAllPositions } from '@/lib/health-input';
+import { buildHealthInput } from '@/lib/health-input';
+import { marketData } from '@/lib/market-data/client';
 import { MARKETS, type MarketSymbol } from '@/lib/markets';
 
 /**
@@ -34,11 +34,9 @@ import { MARKETS, type MarketSymbol } from '@/lib/markets';
  *   shocked-score, which isn't in the current API. That's Day 3
  *   work (alongside the bulk-margin formula refactor).
  *
- *   Maintenance-margin-per-position is still the naive
- *   `maintenanceMarginFrac: 0.005` placeholder. Real per-market
- *   figures from Bulk's risk surfaces land in Day 2 via
- *   `useRiskSurface`. This page is ready for that swap — the math
- *   happens in the adapter below, not in `healthScore` itself.
+ *   Health math now runs through the shared adapter backed by
+ *   `/api/bulk/account` + `/api/risk-surfaces`, which feeds the
+ *   Bulk margin calculator with real risk-surface lambdas.
  */
 
 const BAND_TONE: Record<HealthOutput['band'], string> = {
@@ -60,6 +58,9 @@ const BAND_LABEL: Record<HealthOutput['band'], string> = {
 export default function HealthPage() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
+  const [riskTick, setRiskTick] = useState(0);
+  const subscribedRef = useRef<Set<string>>(new Set());
+  const unsubscribeRef = useRef(new Map<string, () => void>());
 
   const wallet = useWallet();
   const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
@@ -100,11 +101,68 @@ export default function HealthPage() {
   // testnet markets frames may not arrive for long periods, so we
   // combine with the REST snapshot below. Day 3+ will prefer stream
   // data when fresher than REST.
-  const positionSymbols = useMemo(
-    () => positions.map((p) => p.symbol),
+  const symbols = useMemo(
+    () => Array.from(new Set(positions.map((p) => p.symbol))),
     [positions],
   );
-  useRiskSurfaces(positionSymbols);
+
+  useEffect(() => {
+    for (const symbol of symbols) {
+      if (subscribedRef.current.has(symbol)) continue;
+      const unsubscribeRisk = marketData.subscribeRisk(symbol);
+      const unsubscribeUpdates = marketData.onRisk(symbol, () => {
+        setRiskTick((n) => n + 1);
+      });
+      subscribedRef.current.add(symbol);
+      unsubscribeRef.current.set(symbol, () => {
+        unsubscribeUpdates();
+        unsubscribeRisk();
+      });
+    }
+  }, [symbols.join(',')]);
+
+  useEffect(() => {
+    return () => {
+      for (const unsubscribe of unsubscribeRef.current.values()) {
+        unsubscribe();
+      }
+      unsubscribeRef.current.clear();
+      subscribedRef.current.clear();
+    };
+  }, []);
+
+  const regimeLabel = useMemo(() => {
+    const regimes = symbols
+      .map((symbol) => extractSurfaceRegime(marketData.getLiveRiskSurface(symbol)))
+      .filter((regime): regime is number => typeof regime === 'number');
+
+    if (regimes.length === 0) {
+      return 'unavailable';
+    }
+
+    const counts = new Map<number, number>();
+
+    for (const regime of regimes) {
+      counts.set(regime, (counts.get(regime) ?? 0) + 1);
+    }
+
+    let selectedRegime: number | null = null;
+    let selectedCount = -1;
+
+    for (const regime of regimes) {
+      const count = counts.get(regime) ?? 0;
+      if (count > selectedCount) {
+        selectedRegime = regime;
+        selectedCount = count;
+      }
+    }
+
+    if (selectedRegime === null) {
+      return 'unavailable';
+    }
+
+    return regimeLabelForValue(selectedRegime);
+  }, [symbols.join(','), riskTick]);
 
   // REST snapshot of per-market mm/im fractions, refreshed every 30s.
   // This is what actually powers the health math today — the stream
@@ -112,24 +170,12 @@ export default function HealthPage() {
   const { params: restParams } = useRiskSurfacesRest();
 
   // Build the HealthInput from real data via the shared adapter so
-  // /home and /health compute identical scores. Returns null when
-  // inputs are insufficient (no equity OR no positions). Day 3 wires
-  // the FULL risk-surface grid per symbol (not just a scalar mm
-  // fraction) so buildHealthInput can look up a position-specific
-  // maintenance margin based on each position's notional + implicit
-  // leverage + side.
+  // /home and /health compute identical scores. The adapter now
+  // routes through Bulk's margin calculator using lambdas derived
+  // from `/api/risk-surfaces`.
   const healthInput = useMemo<HealthInput | null>(
     () => buildHealthInput(snapshot, livePrices, restParams),
     [snapshot, livePrices, restParams],
-  );
-
-  // Caveat banner shows only when AT LEAST ONE position is still
-  // using the placeholder mmFraction (REST snapshot didn't cover
-  // that symbol). Once Bulk's /riskSurfaces returns every symbol
-  // in the user's portfolio, the caveat disappears.
-  const usingRealMmForAll = useMemo(
-    () => hasRealMmForAllPositions(snapshot, restParams),
-    [snapshot, restParams],
   );
 
   const result = useMemo<HealthOutput | null>(() => {
@@ -145,8 +191,13 @@ export default function HealthPage() {
     <main className="min-h-screen">
       <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-12 pt-28 md:pt-36">
         <div className="flex items-center justify-between gap-4">
-          <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-            Portfolio health
+          <div className="flex items-center gap-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
+              Portfolio health
+            </div>
+            <div className="rounded-full border border-border-subtle px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+              Current regime: {regimeLabel}
+            </div>
           </div>
           {connected && (
             <div className="flex items-center gap-3 text-[11px] text-fg-muted">
@@ -192,7 +243,6 @@ export default function HealthPage() {
         ) : result ? (
           <HealthReadout
             result={result}
-            usingRealMmForAll={usingRealMmForAll}
             showBreakdown={showBreakdown}
             showAdvice={showAdvice}
             onToggleBreakdown={() => {
@@ -219,14 +269,12 @@ export default function HealthPage() {
 
 function HealthReadout({
   result,
-  usingRealMmForAll,
   showBreakdown,
   showAdvice,
   onToggleBreakdown,
   onToggleAdvice,
 }: {
   readonly result: HealthOutput;
-  readonly usingRealMmForAll: boolean;
   readonly showBreakdown: boolean;
   readonly showAdvice: boolean;
   readonly onToggleBreakdown: () => void;
@@ -286,20 +334,6 @@ function HealthReadout({
           ))}
         </ul>
       )}
-
-      {/* Honest caveat row. Shown ONLY when at least one position
-          is still using the placeholder maintenance-margin fraction
-          (Bulk's REST /riskSurfaces hasn't covered that symbol yet).
-          Once real MM fractions are flowing for every open position,
-          this banner disappears — the score is no longer indicative. */}
-      {!usingRealMmForAll && (
-        <div className="mt-10 rounded-klub border border-border-subtle bg-bg-base/40 p-3 text-[11px] leading-relaxed text-fg-muted">
-          Some positions use a placeholder maintenance-margin figure because Bulk&rsquo;s
-          risk surface hasn&rsquo;t covered those markets yet. Liquidation proximity is
-          directionally correct but may be off by a few percentage points until real
-          per-market figures arrive.
-        </div>
-      )}
     </>
   );
 }
@@ -344,17 +378,62 @@ function SubscoreRow({
   sub,
 }: {
   readonly label: string;
-  readonly sub: { readonly score: number; readonly label: string };
+  readonly sub: SubScore;
 }) {
   const tone =
     sub.score >= 75 ? 'text-pnl-long' : sub.score >= 50 ? 'text-fg-primary' : 'text-pnl-short';
+  const summary = formatSubscoreSummary(sub);
   return (
     <div>
       <div className="flex items-baseline justify-between text-[13px]">
         <span className="text-fg-muted">{label}</span>
-        <span className={`font-mono ${tone}`}>{sub.score}</span>
+        <span className={`font-mono ${tone}`}>{summary}</span>
       </div>
       <div className="mt-0.5 text-[11px] text-fg-muted">{sub.label}</div>
     </div>
   );
+}
+
+function formatSubscoreSummary(sub: SubScore): string {
+  const scoreLabel = `score ${sub.score}/100`;
+
+  if (sub.rawUnit === 'multiple') {
+    return `${sub.rawValue.toFixed(1)}x · ${scoreLabel}`;
+  }
+
+  if (sub.rawUnit === 'fraction') {
+    return `${formatPercentage(sub.rawValue)} · ${scoreLabel}`;
+  }
+
+  return scoreLabel;
+}
+
+function formatPercentage(value: number): string {
+  const absValue = Math.abs(value);
+  const digits = absValue >= 0.1 ? 0 : absValue >= 0.01 ? 1 : 2;
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+function regimeLabelForValue(regime: number): 'bearish' | 'neutral' | 'bullish' {
+  if (regime < 0) return 'bearish';
+  if (regime > 0) return 'bullish';
+  return 'neutral';
+}
+
+function extractSurfaceRegime(surface: unknown): number | null {
+  if (!surface || typeof surface !== 'object') {
+    return null;
+  }
+
+  const topLevel = (surface as { regime?: unknown }).regime;
+  if (typeof topLevel === 'number' && Number.isFinite(topLevel)) {
+    return topLevel;
+  }
+
+  const nested = (surface as { risk?: { regime?: unknown } }).risk?.regime;
+  if (typeof nested === 'number' && Number.isFinite(nested)) {
+    return nested;
+  }
+
+  return null;
 }

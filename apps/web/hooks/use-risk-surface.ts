@@ -1,7 +1,7 @@
 'use client';
 
 import type { RiskStream } from '@klub/api-client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { marketData } from '@/lib/market-data/client';
 
@@ -37,37 +37,16 @@ import { marketData } from '@/lib/market-data/client';
 export function useRiskSurface(symbol: string | null): RiskStream | null {
   const [surface, setSurface] = useState<RiskStream | null>(null);
 
-  // One-shot diagnostic guard — the first risk frame per hook
-  // instance logs its shape so we can verify Bulk is actually
-  // publishing to this topic on testnet. Same pattern that
-  // diagnosed the fan-out bug in Week 1. Remove after Day 2
-  // confirms surfaces flow.
-  const loggedFirstRef = useRef(false);
-
   useEffect(() => {
     // Reset on symbol change. Otherwise BTC's stale surface would
     // briefly render while switching to ETH before the first ETH
     // frame arrives. Same flush-on-symbol-change rule as
     // useRecentTrades.
     setSurface(null);
-    loggedFirstRef.current = false;
 
     if (!symbol) return undefined;
 
     const unsub = marketData.onRisk(symbol, (next) => {
-      if (!loggedFirstRef.current) {
-        loggedFirstRef.current = true;
-        // eslint-disable-next-line no-console
-        console.debug(`[useRiskSurface] FIRST risk frame for ${symbol}`, {
-          regime: next.regime,
-          leverage: next.leverage,
-          notionals: next.notionals,
-          buyGridSize: next.buy.length,
-          sellGridSize: next.sell.length,
-          corrsCount: next.corrs.length,
-          timestamp: next.timestamp,
-        });
-      }
       setSurface(next);
     });
 

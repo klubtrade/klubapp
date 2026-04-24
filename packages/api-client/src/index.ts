@@ -50,6 +50,7 @@ export type {
   BulkWebSocketConfig,
   ConnectionState,
   FrontendContextRow,
+  LiveRiskSurface,
   RiskPoint,
   RiskStream,
   StreamHandler,
