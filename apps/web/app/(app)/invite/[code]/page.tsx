@@ -22,7 +22,7 @@ export default async function InvitePage({
     <InviteFlow
       code={code}
       label={check.label}
-      remaining={check.remaining ?? undefined}
+      {...(check.remaining !== null ? { remaining: check.remaining } : {})}
     />
   );
 }
