@@ -1,5 +1,7 @@
 'use client';
 
+
+
 import { motion, useScroll, useTransform } from 'framer-motion';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -78,7 +80,7 @@ function LandingNav() {
           KLUB
         </Link>
         <Link
-          href="/trade"
+          href="/home"
           className="group inline-flex items-center gap-2 rounded-klub bg-accent px-[18px] py-2.5 text-sm font-medium text-bg-base transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-bright"
         >
           Enter the app
@@ -158,7 +160,7 @@ function Hero() {
           className="mb-20 flex flex-wrap justify-center gap-3"
         >
           <Link
-            href="/trade"
+            href="/home"
             className="group inline-flex items-center gap-2 rounded-klub bg-accent px-[18px] py-2.5 text-sm font-medium text-bg-base transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-bright"
           >
             Enter the app
@@ -405,7 +407,7 @@ function Trust() {
 
 function Faq() {
   const qa = [
-    { q: 'What is Bulk Exchange?', a: 'A decentralized perpetuals exchange baked directly into solana validators with 5\u201320ms matching latency. KLUB is a retail-focused front-end on top of Bulk\u2019s API.' },
+    { q: 'What is Bulk Exchange?', a: 'A decentralized perpetuals exchange on its own L1 (BULK Net) with 5\u201320ms matching latency. KLUB is a retail-focused front-end on top of Bulk\u2019s API.' },
     { q: 'Do you custody my funds?', a: 'No. Your USDC and positions live in your own Bulk account. KLUB executes via agent-wallet keys with scoped permissions you can revoke any time.' },
     { q: 'Is KLUB actually members-only?', a: 'Access is invite-based during pre-launch. Waitlist members get testnet access first, then mainnet.' },
     { q: 'When does KLUB launch?', a: 'Waitlist now. Testnet first, then mainnet with the V1 feature set.' },
@@ -477,7 +479,7 @@ function CtaBlock() {
           Testnet invites go to the waitlist before mainnet. Two-minute signup, zero spam.
         </p>
         <Link
-          href="/trade"
+          href="/home"
           className="group inline-flex items-center gap-2 rounded-klub bg-accent px-5 py-3 text-sm font-medium text-bg-base transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-bright"
         >
           Enter the app
