@@ -40,6 +40,7 @@ export {
   placeOrders,
   queryAccount,
   queryFullAccount,
+  queryUserFills,
   requestFaucet,
   updateUserSettings,
 } from './endpoints.js';
@@ -98,4 +99,6 @@ export type {
   TimeInForce,
   TimestampMs,
   TrailingStopOrderType,
+  UserFill,
+  UserFillResponseItem,
 } from './types.js';

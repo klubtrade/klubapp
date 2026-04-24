@@ -30,6 +30,8 @@ import type {
   RiskSurfaces,
   Symbol,
   Ticker,
+  UserFill,
+  UserFillResponseItem,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -116,7 +118,12 @@ export function getFeeState(
 export async function queryAccount(
   client: BulkClient,
   params: AccountQueryParams,
-): Promise<FullAccount | readonly Position[] | readonly OpenOrder[]> {
+): Promise<
+  | FullAccount
+  | readonly Position[]
+  | readonly OpenOrder[]
+  | readonly UserFillResponseItem[]
+> {
   switch (params.type) {
     case 'fullAccount':
       return client.postUnsigned<AccountQueryParams, FullAccount>(
@@ -133,6 +140,11 @@ export async function queryAccount(
         '/account',
         params,
       );
+    case 'fills':
+      return client.postUnsigned<
+        AccountQueryParams,
+        readonly UserFillResponseItem[]
+      >('/account', params);
   }
 }
 
@@ -145,6 +157,27 @@ export function queryFullAccount(
     type: 'fullAccount',
     user,
   });
+}
+
+/**
+ * POST /account with `{ type: "fills", user }` — recent user fill history.
+ *
+ * Bulk currently returns last 5000 fills for account fills query; this is not
+ * guaranteed full 30d history for high-volume leaders.
+ */
+export async function queryUserFills(
+  client: BulkClient,
+  user: Pubkey,
+): Promise<readonly UserFill[]> {
+  const rows = await client.postUnsigned<
+    AccountQueryParams,
+    readonly UserFillResponseItem[]
+  >('/account', {
+    type: 'fills',
+    user,
+  });
+
+  return rows.map((row) => row.fills);
 }
 
 // ---------------------------------------------------------------------------

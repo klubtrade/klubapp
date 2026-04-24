@@ -263,7 +263,11 @@ export interface FeeState {
 // Account
 // ---------------------------------------------------------------------------
 
-export type AccountQueryType = 'fullAccount' | 'positions' | 'openOrders';
+export type AccountQueryType =
+  | 'fullAccount'
+  | 'positions'
+  | 'openOrders'
+  | 'fills';
 
 export interface AccountQueryParams {
   readonly type: AccountQueryType;
@@ -303,6 +307,26 @@ export interface OpenOrder {
   readonly px: DecimalString;
   readonly t: OrderType;
   readonly ts: TimestampMs;
+}
+
+export interface UserFill {
+  readonly symbol: Symbol;
+  readonly amount: number;
+  readonly price: number;
+  readonly isBuy: boolean;
+  readonly fee?: number;
+  readonly makerFee?: number;
+  readonly takerFee?: number;
+  readonly timestamp: TimestampMs;
+  readonly maker: Pubkey;
+  readonly taker: Pubkey;
+  readonly reason: 'normal' | 'liquidation' | 'adl' | string;
+  readonly slot: number;
+}
+
+/** Raw item shape returned by POST /account with `type: "fills"`. */
+export interface UserFillResponseItem {
+  readonly fills: UserFill;
 }
 
 // ---------------------------------------------------------------------------
