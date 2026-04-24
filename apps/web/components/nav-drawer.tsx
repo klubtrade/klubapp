@@ -35,6 +35,7 @@ const NAV_GROUPS: readonly {
       { href: '/quick-trade', label: 'Quick trade' },
       { href: '/trade', label: 'Expert trade' },
       { href: '/follow', label: 'Follow leaders' },
+      { href: '/copy-trade', label: 'Copy trade' },
       { href: '/health', label: 'Portfolio health' },
       { href: '/pro', label: 'Pro terminal' },
     ],
@@ -94,39 +95,46 @@ export function NavDrawer() {
 
   return (
     <>
-      {/* Hamburger button — fixed top-left */}
-      <button
-        type="button"
-        aria-label="Open menu"
-        aria-expanded={open}
-        onClick={() => {
-          setOpen(true);
-        }}
-        className="fixed left-4 top-4 z-30 inline-flex h-10 w-10 items-center justify-center rounded-klub border border-border-subtle bg-bg-base/80 text-fg-primary backdrop-blur-sm transition-colors hover:bg-bg-elevated md:left-6 md:top-6"
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 20 20"
-          fill="none"
-          aria-hidden
+      {/* Hamburger + KLUB wordmark — grouped top-left so the
+          top-right stays clear for the account pill added in Week 1. */}
+      <div className="fixed left-4 top-4 z-30 flex items-center gap-3 md:left-6 md:top-6">
+        <button
+          type="button"
+          aria-label="Open menu"
+          aria-expanded={open}
+          onClick={() => {
+            setOpen(true);
+          }}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-klub border border-border-subtle bg-bg-base/80 text-fg-primary backdrop-blur-sm transition-colors hover:bg-bg-elevated"
         >
-          <path
-            d="M3 6h14M3 10h14M3 14h14"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden
+          >
+            <path
+              d="M3 6h14M3 10h14M3 14h14"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
 
-      {/* KLUB wordmark lives in LayoutShell (top-right strip next to
-          the wallet button) — not duplicated here. Previously this
-          component rendered its own fixed-position wordmark that
-          stacked on top of the shell's, so a user saw one visible
-          mark but there were actually two DOM nodes in the same
-          spot. Semantically wrong and a tab-navigation hazard.
-          Removed — nav-drawer owns only the left side. */}
+        <Link
+          href="/home"
+          aria-label="KLUB home"
+          className="flex items-center gap-2 font-semibold tracking-[-0.02em] text-fg-primary transition-opacity hover:opacity-70"
+        >
+          <span
+            aria-hidden
+            className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_12px_rgba(167,139,250,0.6)]"
+          />
+          klub
+        </Link>
+      </div>
 
       {/* Backdrop */}
       {open && (
