@@ -253,7 +253,7 @@ function buildPortfolioCorrelations(
     for (const [pair, value] of surface.corrs) {
       if (!Number.isFinite(value)) continue;
 
-      const [leftToken, rightToken] = pair.split(/[:/]/).map((token) => token.trim());
+      const [leftToken, rightToken] = pair.split(/[:/]/).map((token: string) => token.trim());
       if (!leftToken || !rightToken) continue;
 
       const leftSymbol = resolveCorrelationSymbol(leftToken, symbolByAsset, symbolSet);

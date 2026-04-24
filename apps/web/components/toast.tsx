@@ -58,7 +58,13 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
       const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : Math.random().toString(36).slice(2);
-      const toast: Toast = { id, kind, message, description, createdAt: Date.now() };
+      const toast: Toast = {
+        id,
+        kind,
+        message,
+        createdAt: Date.now(),
+        ...(description !== undefined ? { description } : {}),
+      };
       setToasts((prev) => [...prev, toast]);
       setTimeout(() => {
         if (!pausedRef.current.has(id)) dismiss(id);
