@@ -53,12 +53,8 @@ const WATCHLIST: readonly {
   { sym: 'SUI-USD', mark: 1.68, chg24hPct: 4.12, fund8h: 0.0094, oi: 2_800_000 },
 ];
 
-const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1D', '1W'] as const;
-type Timeframe = (typeof TIMEFRAMES)[number];
-
 export default function ProPage() {
   const [symbol, setSymbol] = useState('BTC-USD');
-  const [timeframe, setTimeframe] = useState<Timeframe>('15m');
   const [showPalette, setShowPalette] = useState(false);
 
   // Subscribe to every market in the watchlist — singleton socket
@@ -115,21 +111,16 @@ export default function ProPage() {
       </div>
 
       {/* Desktop terminal */}
-      <main className="pro-scope hidden min-h-screen pt-16 md:block md:pt-20">
+      <main className="hidden min-h-screen md:block">
         <ProHeader symbol={symbol} onOpenPalette={() => { setShowPalette(true); }} />
-        <div className="grid h-[calc(100vh-64px-56px-56px)] grid-cols-[240px_minmax(0,1fr)_280px_320px] gap-px bg-border-subtle md:h-[calc(100vh-80px-56px-56px)]">
+        <div className="grid h-[calc(100vh-56px-56px)] grid-cols-[240px_minmax(0,1fr)_280px_320px] gap-px bg-border-subtle">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}
             livePrices={livePrices}
           />
           <div className="grid grid-rows-[minmax(0,1.3fr)_minmax(0,1fr)] gap-px bg-border-subtle">
-            <PanelChart
-              symbol={symbol}
-              mark={mark}
-              timeframe={timeframe}
-              onTimeframe={setTimeframe}
-            />
+            <PanelChart symbol={symbol} mark={mark} />
             <PanelPositions mark={mark} symbol={symbol} />
           </div>
           <div className="grid grid-rows-[minmax(0,1.6fr)_minmax(0,1fr)] gap-px bg-border-subtle">
@@ -171,27 +162,33 @@ function ProHeader({
   const mark = prices[symbol]?.mark;
   return (
     <header className="flex h-14 items-center justify-between border-b border-border-subtle bg-bg-base px-4">
-      <div className="flex items-center gap-4">
-        <span className="flex items-center gap-2 text-[14px] font-semibold text-fg-primary">
-          <span className="text-fg-muted">Pro</span>
-          <span className="text-fg-muted">·</span>
+      <div className="flex items-center gap-6">
+        <Link href="/home" className="flex items-center gap-2 text-[15px] font-semibold">
+          <span className="live-dot" />
+          KLUB <span className="text-fg-muted">/</span> Pro
+        </Link>
+        <div className="font-mono text-[13px] text-fg-muted">
           <span className="text-fg-primary">{symbol}</span>
           {mark !== undefined && (
-            <span className="ml-1 text-accent">${formatPrice(mark)}</span>
+            <span className="ml-2 text-accent">${formatPrice(mark)}</span>
           )}
-        </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onOpenPalette}
-          className="flex items-center gap-2 rounded-klub border border-border-subtle bg-bg-surface px-2.5 py-1 text-[11px] text-fg-muted transition-colors hover:border-border hover:text-fg-primary"
+          className="flex items-center gap-2 rounded-klub border border-border-subtle bg-bg-surface px-3 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-border hover:text-fg-primary"
         >
-          <span>Search / command</span>
-          <kbd className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0 font-mono text-[10px]">
+          <span>Search or run command</span>
+          <kbd className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px]">
             ⌘K
           </kbd>
         </button>
+        <Link href="/home" className="btn-ghost btn-sm">
+          Exit
+        </Link>
       </div>
-      {/* Right side intentionally empty — global top-right strip owns this area */}
     </header>
   );
 }
@@ -293,33 +290,19 @@ function PanelWatchlist({
 // Chart
 // =============================================================================
 
-function PanelChart({
-  symbol,
-  mark,
-  timeframe,
-  onTimeframe,
-}: {
-  readonly symbol: string;
-  readonly mark: number;
-  readonly timeframe: Timeframe;
-  readonly onTimeframe: (tf: Timeframe) => void;
-}) {
-  const path = useMemo(() => buildProChartPath(timeframe), [timeframe]);
+function PanelChart({ symbol, mark }: { readonly symbol: string; readonly mark: number }) {
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
       <PanelHead>
         <div className="flex items-center justify-between">
-          <span>Chart · {symbol} · {timeframe}</span>
+          <span>Chart · {symbol}</span>
           <div className="flex gap-1">
-            {TIMEFRAMES.map((tf) => (
+            {['1m', '5m', '15m', '1h', '4h', '1D', '1W'].map((tf, i) => (
               <button
                 key={tf}
                 type="button"
-                onClick={() => {
-                  onTimeframe(tf);
-                }}
                 className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  tf === timeframe ? 'bg-accent/15 text-accent' : 'text-fg-muted hover:text-fg-primary'
+                  i === 2 ? 'bg-accent/15 text-accent' : 'text-fg-muted hover:text-fg-primary'
                 }`}
               >
                 {tf}
@@ -347,8 +330,16 @@ function PanelChart({
               strokeDasharray="3,5"
             />
           ))}
-          <path d={`${path} L 800 300 L 0 300 Z`} fill="url(#pro-chart-fade)" />
-          <path d={path} stroke="var(--accent)" strokeWidth="1.5" fill="none" />
+          <path
+            d="M 0 240 Q 80 180 160 200 T 320 140 T 480 110 T 640 90 T 800 70 L 800 300 L 0 300 Z"
+            fill="url(#pro-chart-fade)"
+          />
+          <path
+            d="M 0 240 Q 80 180 160 200 T 320 140 T 480 110 T 640 90 T 800 70"
+            stroke="var(--accent)"
+            strokeWidth="1.5"
+            fill="none"
+          />
         </svg>
       </div>
       <div className="border-t border-border-subtle px-4 py-1.5 font-mono text-[11px] text-fg-muted">
@@ -583,7 +574,7 @@ function PanelOrderForm({ symbol, mark }: { readonly symbol: string; readonly ma
           label="Size"
           value={size}
           onChange={setSize}
-          suffix={symbol.split('-')[0]}
+          suffix={symbol.split('-')[0] ?? symbol}
           step={0.001}
           decimals={4}
         />
@@ -821,29 +812,6 @@ function CommandPalette({
       </div>
     </div>
   );
-}
-
-/**
- * Deterministic chart path seeded by timeframe. Gives visible feedback
- * that timeframe buttons do something, before real candle data lands.
- */
-function buildProChartPath(tf: Timeframe): string {
-  const seed = TIMEFRAMES.indexOf(tf);
-  const steps = 24;
-  const amplitude = 60 + seed * 10;
-  const offset = 200 - seed * 12;
-  const stepX = 800 / steps;
-  const pts: string[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const x = (i * stepX).toFixed(1);
-    const y = (
-      offset +
-      Math.sin(i * 0.5 + seed) * amplitude * 0.5 +
-      Math.cos(i * 0.3 + seed * 2) * amplitude * 0.3
-    ).toFixed(1);
-    pts.push(`${i === 0 ? 'M' : 'L'} ${x} ${y}`);
-  }
-  return pts.join(' ');
 }
 
 function formatPrice(p: number): string {
