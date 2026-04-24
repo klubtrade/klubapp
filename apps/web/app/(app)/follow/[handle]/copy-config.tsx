@@ -1,100 +1,70 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
 
+import { useCopyTrade } from '@/components/copy-trade-provider';
 import { useToast } from '@/components/toast';
 import { RISK_PRESETS, useUserPrefs } from '@/lib/user-prefs';
 import type { MockLeader } from '@/lib/mock-data/leaders';
 
-
-
-
-
-
 /**
- * LeaderDetails — minimalist client UI for the leader profile.
+ * LeaderDetails — client UI for the leader profile page.
  *
  * Renders:
- *   - "Follow" button (primary) + ghost link back to leaders
+ *   - Primary CTA: "Copy this trader" — opens config modal, wires up
+ *     the follow via the shared `useCopyTrade` provider so the
+ *     leader shows up on /copy-trade and signals flow to the banner.
  *   - Three disclosure toggles: About · Stats · Recent trades
- *   - A modal-style panel for configuring the follow when tapped
  *
- * All state is per-device. Phase 3.5 syncs to Postgres once the user
- * is signed in.
+ * Before Day 5 (this file's previous version) stored follows in a
+ * separate `klub.follows.v1` localStorage key that had NO connection
+ * to the copy-trade engine. That meant /follow and /copy-trade were
+ * two disconnected islands. This version consolidates: one follow
+ * state, one engine, one signals queue. The config modal still
+ * collects `maxAllocPct`, `stopOverridePct`, and `copyAllSymbols`,
+ * but only `maxAllocPct` is plumbed into the engine today — the
+ * other two fields are hidden until the engine supports them (TODO
+ * next session).
  */
 
-interface FollowConfig {
-  readonly handle: string;
-  readonly maxAllocPct: number;
-  readonly stopOverridePct: number | null;
-  readonly copyAll: boolean;
-  readonly startedAt: number;
-}
-
-const FOLLOWS_KEY = 'klub.follows.v1';
-
 export function LeaderDetails({ leader }: { readonly leader: MockLeader }) {
+  const wallet = useWallet();
   const toast = useToast();
   const { prefs } = useUserPrefs();
   const preset = RISK_PRESETS[prefs.riskProfile];
-
-  
+  const { follows, follow, unfollow } = useCopyTrade();
 
   const [maxAllocPct, setMaxAllocPct] = useState(prefs.defaultCopyAllocPct);
-
-  
-  const [stopOverridePct, setStopOverridePct] = useState<number | ''>('');
-  const [copyAllSymbols, setCopyAllSymbols] = useState(true);
   const [configOpen, setConfigOpen] = useState(false);
-  const [following, setFollowing] = useState(false);
 
   const [showAbout, setShowAbout] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showTrades, setShowTrades] = useState(false);
 
-  useEffect(() => {
-    try {
-      const existing = JSON.parse(localStorage.getItem(FOLLOWS_KEY) ?? '[]') as FollowConfig[];
-      setFollowing(existing.some((f) => f.handle === leader.handle));
-    } catch {
-      /* ignore */
-    }
-  }, [leader.handle]);
+  // We consider the leader "followed" when their walletPubkey exists
+  // in the copy-trade provider's follow list. This is the single
+  // source of truth now that the two islands are merged.
+  const following = follows.some((f) => f.leaderPubkey === leader.walletPubkey);
 
   function handleStart() {
-    try {
-      const existing = JSON.parse(localStorage.getItem(FOLLOWS_KEY) ?? '[]') as FollowConfig[];
-      const next: FollowConfig[] = [
-        ...existing.filter((x) => x.handle !== leader.handle),
-        {
-          handle: leader.handle,
-          maxAllocPct,
-          stopOverridePct: typeof stopOverridePct === 'number' ? stopOverridePct : null,
-          copyAll: copyAllSymbols,
-          startedAt: Date.now(),
-        },
-      ];
-      localStorage.setItem(FOLLOWS_KEY, JSON.stringify(next));
-      setFollowing(true);
+    if (!wallet.connected) {
+      toast.error('Connect a wallet first');
       setConfigOpen(false);
-      toast.success(`Following @${leader.handle}`, `Cap ${maxAllocPct}% of account.`);
-    } catch {
-      toast.error('Could not save follow config');
+      return;
     }
+    follow({
+      leaderPubkey: leader.walletPubkey,
+      label: leader.handle,
+      allocationPct: maxAllocPct,
+    });
+    setConfigOpen(false);
+    toast.success(`Following @${leader.handle}`, `${maxAllocPct}% per trade.`);
   }
 
   function handleUnfollow() {
-    try {
-      const existing = JSON.parse(localStorage.getItem(FOLLOWS_KEY) ?? '[]') as FollowConfig[];
-      localStorage.setItem(
-        FOLLOWS_KEY,
-        JSON.stringify(existing.filter((x) => x.handle !== leader.handle)),
-      );
-      setFollowing(false);
-      toast.info(`Unfollowed @${leader.handle}`);
-    } catch {
-      /* ignore */
-    }
+    unfollow(leader.walletPubkey);
+    toast.info(`Unfollowed @${leader.handle}`);
   }
 
   return (
@@ -113,7 +83,7 @@ export function LeaderDetails({ leader }: { readonly leader: MockLeader }) {
             }}
             className="btn-primary btn-compact btn-lg"
           >
-            Follow @{leader.handle}
+            Copy this trader
           </button>
         )}
       </div>
@@ -206,10 +176,6 @@ export function LeaderDetails({ leader }: { readonly leader: MockLeader }) {
           handle={leader.handle}
           maxAllocPct={maxAllocPct}
           setMaxAllocPct={setMaxAllocPct}
-          stopOverridePct={stopOverridePct}
-          setStopOverridePct={setStopOverridePct}
-          copyAllSymbols={copyAllSymbols}
-          setCopyAllSymbols={setCopyAllSymbols}
           maxAllowed={preset.maxCopyAllocPct}
           onConfirm={handleStart}
           onCancel={() => {
@@ -277,10 +243,6 @@ function ConfigModal({
   handle,
   maxAllocPct,
   setMaxAllocPct,
-  stopOverridePct,
-  setStopOverridePct,
-  copyAllSymbols,
-  setCopyAllSymbols,
   maxAllowed,
   onConfirm,
   onCancel,
@@ -288,10 +250,6 @@ function ConfigModal({
   readonly handle: string;
   readonly maxAllocPct: number;
   readonly setMaxAllocPct: (v: number) => void;
-  readonly stopOverridePct: number | '';
-  readonly setStopOverridePct: (v: number | '') => void;
-  readonly copyAllSymbols: boolean;
-  readonly setCopyAllSymbols: (v: boolean) => void;
   readonly maxAllowed: number;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
@@ -319,14 +277,17 @@ function ConfigModal({
           e.stopPropagation();
         }}
       >
-        <h2 className="text-[18px] font-semibold text-fg-primary">Follow @{handle}</h2>
+        <h2 className="text-[18px] font-semibold text-fg-primary">Copy @{handle}</h2>
+        <p className="mt-2 text-[12px] text-fg-muted">
+          You’ll get a prompt each time this trader opens or closes a position.
+        </p>
 
         <div className="mt-6 space-y-5">
           {/* Allocation */}
           <div>
             <div className="flex items-baseline justify-between">
               <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-                Max allocation
+                Allocation per trade
               </span>
               <span className="font-mono text-[15px] text-accent">{maxAllocPct}%</span>
             </div>
@@ -342,55 +303,10 @@ function ConfigModal({
               className="mt-2 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
             />
             <div className="mt-1 text-[11px] text-fg-muted">
-              Capped at {maxAllowed}% by your risk profile.
+              {maxAllocPct}% of your equity per mirrored trade. Capped at {maxAllowed}% by your
+              risk profile.
             </div>
           </div>
-
-          {/* Stop override */}
-          <div>
-            <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-              Stop override · optional
-            </span>
-            <input
-              type="number"
-              step={0.5}
-              min={0}
-              value={stopOverridePct}
-              placeholder="Use leader's stop"
-              onChange={(e) => {
-                const raw = e.target.value;
-                if (raw === '') {
-                  setStopOverridePct('');
-                } else {
-                  const n = Number(raw);
-                  if (Number.isFinite(n)) setStopOverridePct(n);
-                }
-              }}
-              className="mt-1.5 w-full rounded-klub border border-border bg-bg-base px-3 py-2.5 font-mono text-[14px] focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          {/* Copy all markets */}
-          <button
-            type="button"
-            onClick={() => {
-              setCopyAllSymbols(!copyAllSymbols);
-            }}
-            className="flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-base px-4 py-3 text-left transition-colors hover:border-border"
-          >
-            <span className="text-[13px] text-fg-primary">Copy all markets</span>
-            <span
-              className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
-                copyAllSymbols ? 'bg-accent' : 'bg-border-default'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-bg-base transition-transform ${
-                  copyAllSymbols ? 'translate-x-[18px]' : 'translate-x-0.5'
-                }`}
-              />
-            </span>
-          </button>
         </div>
 
         <div className="mt-6 flex gap-2">
@@ -398,7 +314,7 @@ function ConfigModal({
             Cancel
           </button>
           <button type="button" onClick={onConfirm} className="btn-primary btn-block">
-            Start following
+            Start copying
           </button>
         </div>
       </div>

@@ -14,6 +14,16 @@ export type TraderStyle = 'scalper' | 'swing' | 'trend' | 'basis';
 
 export interface MockLeader {
   readonly handle: string;
+  /**
+   * Wallet address used by the copy-trade engine to subscribe to
+   * this leader's positions. For mock leaders these are placeholder
+   * base58 addresses; tapping "Copy this trader" will add them to
+   * the user's /copy-trade list, but the watcher won't receive real
+   * position data since these wallets don't exist on Bulk's testnet.
+   * Real leaderboard-sourced leaders (Phase 3.5) will have valid
+   * pubkeys and fully functional copy-trade flows.
+   */
+  readonly walletPubkey: string;
   readonly avatarHue: number; // deterministic color from handle
   readonly style: TraderStyle;
   readonly styleLabel: string;
@@ -50,6 +60,7 @@ const NOW = Date.UTC(2026, 3, 18, 14, 30, 0); // deterministic for testing
 export const MOCK_LEADERS: readonly MockLeader[] = [
   {
     handle: 'alphamamba',
+    walletPubkey: 'MoCkApAMaMbaXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
     avatarHue: 38,
     style: 'trend',
     styleLabel: 'Trend follower',
@@ -100,6 +111,7 @@ export const MOCK_LEADERS: readonly MockLeader[] = [
   },
   {
     handle: 'funding_harvester',
+    walletPubkey: 'MoCkFundingHarvester22222222222222222222222',
     avatarHue: 160,
     style: 'basis',
     styleLabel: 'Basis trader',
@@ -140,6 +152,7 @@ export const MOCK_LEADERS: readonly MockLeader[] = [
   },
   {
     handle: 'sol_maxi_7',
+    walletPubkey: 'MoCkSoJMaxi77777777777777777777777777777777',
     avatarHue: 290,
     style: 'swing',
     styleLabel: 'Directional swing',
@@ -180,6 +193,7 @@ export const MOCK_LEADERS: readonly MockLeader[] = [
   },
   {
     handle: 'gm_scalper',
+    walletPubkey: 'MoCkGmScaJperYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY',
     avatarHue: 210,
     style: 'scalper',
     styleLabel: 'Intraday scalper',
@@ -220,6 +234,7 @@ export const MOCK_LEADERS: readonly MockLeader[] = [
   },
   {
     handle: 'macro_mira',
+    walletPubkey: 'MoCkMacroMiraDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD',
     avatarHue: 340,
     style: 'trend',
     styleLabel: 'Macro trend',
@@ -250,6 +265,7 @@ export const MOCK_LEADERS: readonly MockLeader[] = [
   },
   {
     handle: 'quiet_quant',
+    walletPubkey: 'MoCkQuietQuantEEEEEEEEEEEEEEEEEEEEEEEEEEEEE',
     avatarHue: 100,
     style: 'basis',
     styleLabel: 'Systematic basis',

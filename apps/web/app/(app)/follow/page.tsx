@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-import { MOCK_LEADERS, type TraderStyle } from '@/lib/mock-data/leaders';
+import { useCopyTrade } from '@/components/copy-trade-provider';
+import { useToast } from '@/components/toast';
+import { MOCK_LEADERS, type MockLeader, type TraderStyle } from '@/lib/mock-data/leaders';
+import { useUserPrefs } from '@/lib/user-prefs';
 
 /**
  * /follow — minimalist leaderboard.
@@ -40,6 +43,7 @@ export default function FollowPage() {
   const [styleFilter, setStyleFilter] = useState<TraderStyle | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortBy>('pnl30d');
   const [filterOpen, setFilterOpen] = useState(false);
+  const { follows } = useCopyTrade();
 
   const filtered = useMemo(() => {
     const list = MOCK_LEADERS.filter(
@@ -59,6 +63,14 @@ export default function FollowPage() {
     });
   }, [styleFilter, sortBy]);
 
+  // Set lookup so Copy buttons can tell which leaders are already
+  // in the user's copy-trade list (renders "Copying" badge instead
+  // of the action). Keyed by walletPubkey.
+  const followingSet = useMemo(
+    () => new Set(follows.map((f) => f.leaderPubkey)),
+    [follows],
+  );
+
   return (
     <main className="min-h-screen">
       <section className="mx-auto max-w-xl px-6 pb-20 pt-28 md:pt-32">
@@ -66,16 +78,26 @@ export default function FollowPage() {
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
             Leaders
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setFilterOpen((v) => !v);
-            }}
-            aria-expanded={filterOpen}
-            className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
-          >
-            {filterOpen ? 'Close' : 'Filter'}
-          </button>
+          <div className="flex items-center gap-4">
+            {follows.length > 0 && (
+              <Link
+                href="/copy-trade"
+                className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
+              >
+                Copying {follows.length} →
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setFilterOpen((v) => !v);
+              }}
+              aria-expanded={filterOpen}
+              className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
+            >
+              {filterOpen ? 'Close' : 'Filter'}
+            </button>
+          </div>
         </div>
 
         {filterOpen && (
@@ -131,10 +153,13 @@ export default function FollowPage() {
 
         <ul className="mt-6 divide-y divide-border-subtle">
           {filtered.map((l) => (
-            <li key={l.handle}>
+            <li
+              key={l.handle}
+              className="flex items-center gap-2 px-1 py-4 transition-colors hover:bg-bg-surface"
+            >
               <Link
                 href={`/follow/${l.handle}`}
-                className="flex items-center gap-3 px-1 py-4 transition-colors hover:bg-bg-surface"
+                className="flex min-w-0 flex-1 items-center gap-3"
               >
                 <span
                   aria-hidden
@@ -162,6 +187,10 @@ export default function FollowPage() {
                   {l.pnl30dUsd >= 0 ? '+' : '−'}${Math.abs(l.pnl30dUsd).toLocaleString()}
                 </div>
               </Link>
+              <RowCopyAction
+                leader={l}
+                isCopying={followingSet.has(l.walletPubkey)}
+              />
             </li>
           ))}
         </ul>
@@ -173,5 +202,55 @@ export default function FollowPage() {
         )}
       </section>
     </main>
+  );
+}
+
+/**
+ * RowCopyAction — inline Copy button on a leaderboard row.
+ *
+ * One-tap: copies with the user's default allocation from prefs.
+ * If the user is already copying this leader, renders an inert
+ * "Copying" badge instead — to adjust allocation or unfollow, they
+ * tap through to the profile page.
+ */
+function RowCopyAction({
+  leader,
+  isCopying,
+}: {
+  readonly leader: MockLeader;
+  readonly isCopying: boolean;
+}) {
+  const { follow } = useCopyTrade();
+  const toast = useToast();
+  const { prefs } = useUserPrefs();
+
+  if (isCopying) {
+    return (
+      <span className="shrink-0 rounded-md border border-border-subtle bg-bg-surface px-2.5 py-1 text-[10px] uppercase tracking-[0.06em] text-fg-muted">
+        Copying
+      </span>
+    );
+  }
+
+  function onCopy(e: React.MouseEvent<HTMLButtonElement>) {
+    // stopPropagation so the row's <Link> click doesn't also fire.
+    e.stopPropagation();
+    e.preventDefault();
+    follow({
+      leaderPubkey: leader.walletPubkey,
+      label: leader.handle,
+      allocationPct: prefs.defaultCopyAllocPct,
+    });
+    toast.success(`Copying @${leader.handle}`, `${prefs.defaultCopyAllocPct}% per trade.`);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      className="shrink-0 rounded-md border border-accent/40 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent transition-colors hover:bg-accent/20"
+    >
+      Copy
+    </button>
   );
 }

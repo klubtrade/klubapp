@@ -1,6 +1,7 @@
 'use client';
 
 import { useWallet } from '@solana/wallet-adapter-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { useCopyTrade } from '@/components/copy-trade-provider';
@@ -102,6 +103,13 @@ export default function CopyTradePage() {
           Paste a trader’s wallet address. When they open a new position, you’ll get a
           prompt to mirror it at your chosen allocation.
         </p>
+
+        <Link
+          href="/follow"
+          className="mt-4 inline-flex items-center gap-1 text-sm text-accent transition-colors hover:opacity-80"
+        >
+          Or browse the leaderboard →
+        </Link>
 
         <form onSubmit={onFollow} className="mt-8 space-y-4">
           <div>
