@@ -383,8 +383,8 @@ function OrderFormPanel({
 }) {
   const [side, setSide] = useState<Side>('long');
   const [orderType, setOrderType] = useState<'market' | 'limit'>('limit');
-  const [price, setPrice] = useState(mark);
-  const [size, setSize] = useState(0.05);
+  const [price, setPrice] = useState<number | ''>(mark);
+  const [size, setSize] = useState<number | ''>(0.05);
   const [leverage, setLeverage] = useState(5);
   const [targetPrice, setTargetPrice] = useState<number | ''>(mark * 1.04);
   const [stopPrice, setStopPrice] = useState<number | ''>(mark * 0.96);
@@ -396,11 +396,17 @@ function OrderFormPanel({
   }, [symbol, mark]);
 
   const result = useMemo(() => {
+    // price + size can be '' when the user clears the input mid-typing.
+    // The calculator contract requires finite numbers, so short-circuit
+    // to null in that state rather than feeding it bad input.
+    if (size === '') return null;
+    const entryPrice = orderType === 'limit' ? price : mark;
+    if (entryPrice === '') return null;
     try {
       return calculate({
         side,
         leverage,
-        entryPrice: orderType === 'limit' ? price : mark,
+        entryPrice,
         size,
         ...(typeof targetPrice === 'number' ? { targetPrice } : {}),
         ...(typeof stopPrice === 'number' ? { stopPrice } : {}),
