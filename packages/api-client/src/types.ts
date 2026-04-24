@@ -267,7 +267,8 @@ export type AccountQueryType =
   | 'fullAccount'
   | 'positions'
   | 'openOrders'
-  | 'fills';
+  | 'fills'
+  | 'fundingHistory';
 
 export interface AccountQueryParams {
   readonly type: AccountQueryType;
@@ -327,6 +328,23 @@ export interface UserFill {
 /** Raw item shape returned by POST /account with `type: "fills"`. */
 export interface UserFillResponseItem {
   readonly fills: UserFill;
+}
+
+export interface FundingPayment {
+  readonly owner: Pubkey;
+  readonly symbol: Symbol;
+  readonly size: number;
+  /** Signed USD payment. Positive = received funding, negative = paid. */
+  readonly payment: number;
+  readonly fundingRate: number;
+  readonly markPrice: number;
+  readonly slot: number;
+  readonly timestamp: TimestampMs;
+}
+
+/** Raw item shape returned by POST /account with `type: "fundingHistory"`. */
+export interface FundingPaymentResponseItem {
+  readonly fundingPayment: FundingPayment;
 }
 
 // ---------------------------------------------------------------------------

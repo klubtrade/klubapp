@@ -8,6 +8,7 @@ import { createDbClient, leaders, type Db } from "@klub/db";
 import type {
   BulkClient,
   BulkClientConfig,
+  FundingPayment,
   Pubkey,
   UserFill,
 } from "@klub/api-client";
@@ -19,6 +20,8 @@ export interface LeaderIndexerSummary {
   readonly leaderPubkey: Pubkey;
   readonly fillsTotal: number;
   readonly fillsLast30d: number;
+  readonly fundingPaymentsLast30d: number;
+  readonly fundingPnlUsd: number;
   readonly netPnlUsd: number;
   readonly unrealizedPnlUsd: number;
   readonly winRate: number;
@@ -29,6 +32,7 @@ export interface LeaderIndexerSummary {
 }
 
 export interface LeaderMetrics {
+  readonly fundingPnlUsd: number;
   readonly netPnlUsd: number;
   readonly unrealizedPnlUsd: number;
   readonly winRate: number;
@@ -75,7 +79,8 @@ export async function runLeaderIndexerOnce(
     );
   }
 
-  const { BulkClient, queryUserFills } = await import("@klub/api-client");
+  const { BulkClient, queryUserFills, queryUserFundingPayments } =
+    await import("@klub/api-client");
   const client = options.client ?? createBulkClientFromEnv(BulkClient);
   const db = options.db ?? createDbClientFromEnv();
   const nowMs = options.nowMs ?? Date.now();
@@ -83,8 +88,17 @@ export async function runLeaderIndexerOnce(
 
   const summaries = await Promise.all(
     leaderPubkeys.map(async (leaderPubkey) => {
-      const fills = await queryUserFills(client, leaderPubkey);
-      return summarizeLeaderFills({ leaderPubkey, fills, cutoffMs });
+      const [fills, fundingPayments] = await Promise.all([
+        queryUserFills(client, leaderPubkey),
+        queryUserFundingPayments(client, leaderPubkey),
+      ]);
+      return summarizeLeaderFills({
+        leaderPubkey,
+        fills,
+        fundingPayments,
+        cutoffMs,
+        nowMs,
+      });
     }),
   );
 
@@ -147,21 +161,32 @@ export function startLeaderIndexer(
 export function summarizeLeaderFills({
   leaderPubkey,
   fills,
+  fundingPayments,
   cutoffMs,
+  nowMs,
 }: {
   readonly leaderPubkey: Pubkey;
   readonly fills: readonly UserFill[];
+  readonly fundingPayments: readonly FundingPayment[];
   readonly cutoffMs: number;
+  readonly nowMs: number;
 }): LeaderIndexerSummary {
   const fillsLast30d = fills.filter(
     (fill) => toTimestampMs(fill.timestamp) >= cutoffMs,
   );
-  const metrics = computeLeaderMetrics(fillsLast30d);
+  const fundingPaymentsLast30d = fundingPayments.filter(
+    (payment) => toTimestampMs(payment.timestamp) >= cutoffMs,
+  );
+  const metrics = computeLeaderMetrics(fillsLast30d, fundingPaymentsLast30d, {
+    nowMs,
+  });
 
   return {
     leaderPubkey,
     fillsTotal: fills.length,
     fillsLast30d: fillsLast30d.length,
+    fundingPaymentsLast30d: fundingPaymentsLast30d.length,
+    fundingPnlUsd: metrics.fundingPnlUsd,
     netPnlUsd: metrics.netPnlUsd,
     unrealizedPnlUsd: metrics.unrealizedPnlUsd,
     winRate: metrics.winRate,
@@ -174,8 +199,11 @@ export function summarizeLeaderFills({
 
 export function computeLeaderMetrics(
   fills: readonly UserFill[],
+  fundingPayments: readonly FundingPayment[] = [],
+  options: { readonly nowMs?: number } = {},
 ): LeaderMetrics {
   let netPnlUsd = 0;
+  let fundingPnlUsd = 0;
   let closedTradesCount = 0;
   let winningTradesCount = 0;
   const positions = new Map<string, SymbolPosition>();
@@ -242,6 +270,16 @@ export function computeLeaderMetrics(
     positions.set(fill.symbol, position);
   }
 
+  for (const payment of fundingPayments) {
+    fundingPnlUsd += payment.payment;
+    netPnlUsd += payment.payment;
+    addDailyPnl(
+      dailyRealizedPnl,
+      dayKeyFromTimestamp(payment.timestamp),
+      payment.payment,
+    );
+  }
+
   let unrealizedPnlUsd = 0;
   for (const position of positions.values()) {
     if (position.positionSize > 0) {
@@ -255,6 +293,7 @@ export function computeLeaderMetrics(
   }
 
   return {
+    fundingPnlUsd: roundTo(fundingPnlUsd, 2),
     netPnlUsd: roundTo(netPnlUsd, 2),
     unrealizedPnlUsd: roundTo(unrealizedPnlUsd, 2),
     winRate:
@@ -262,7 +301,7 @@ export function computeLeaderMetrics(
         ? roundTo((winningTradesCount / closedTradesCount) * 100, 2)
         : 0,
     closedTradesCount,
-    ...computeRiskMetrics(dailyRealizedPnl),
+    ...computeRiskMetrics(dailyRealizedPnl, options.nowMs ?? Date.now()),
   };
 }
 
@@ -293,14 +332,15 @@ function addDailyPnl(
   dailyPnl.set(dayKey, (dailyPnl.get(dayKey) ?? 0) + pnlUsd);
 }
 
-function computeRiskMetrics(dailyPnl: Map<string, number>): {
+function computeRiskMetrics(
+  dailyPnl: Map<string, number>,
+  nowMs: number,
+): {
   readonly maxDrawdownUsd: number;
   readonly maxDrawdownPct: number;
   readonly sharpeRatio: number;
 } {
-  const dailyValues = [...dailyPnl.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, pnl]) => pnl);
+  const dailyValues = buildThirtyDayDailyPnlSeries(dailyPnl, nowMs);
 
   let equity = 0;
   let peak = 0;
@@ -323,6 +363,25 @@ function computeRiskMetrics(dailyPnl: Map<string, number>): {
     maxDrawdownPct: roundTo(maxDrawdownPct * 100, 2),
     sharpeRatio: roundTo(computeSharpeRatio(dailyValues), 2),
   };
+}
+
+function buildThirtyDayDailyPnlSeries(
+  dailyPnl: Map<string, number>,
+  nowMs: number,
+): readonly number[] {
+  const end = new Date(nowMs);
+  const endDayMs = Date.UTC(
+    end.getUTCFullYear(),
+    end.getUTCMonth(),
+    end.getUTCDate(),
+  );
+  const startDayMs = endDayMs - 29 * 24 * 60 * 60 * 1000;
+
+  return Array.from({ length: 30 }, (_, index) => {
+    const dayMs = startDayMs + index * 24 * 60 * 60 * 1000;
+    const dayKey = new Date(dayMs).toISOString().slice(0, 10);
+    return dailyPnl.get(dayKey) ?? 0;
+  });
 }
 
 function computeSharpeRatio(dailyValues: readonly number[]): number {
@@ -371,8 +430,10 @@ async function upsertLeaderSummary(
   summary: LeaderIndexerSummary,
 ): Promise<void> {
   const now = new Date();
-  // TODO: compute followedEquityUsd from follower allocations once those
-  // tables expose committed copy-trade capital per leader.
+  // TODO: compute followedEquityUsd once follower account equity is available.
+  // The current follows table has leaderHandle and maxAllocationPct, but it
+  // does not store follower equity/balance, and the indexer keys leaders by
+  // pubkey, not handle. Until that source is persisted, this remains 0.
   const followedEquityUsd = 0;
 
   await db

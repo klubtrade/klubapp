@@ -19,6 +19,8 @@ import type {
   FaucetRequestParams,
   FaucetResponse,
   FeeState,
+  FundingPayment,
+  FundingPaymentResponseItem,
   FullAccount,
   L2Book,
   ManageAgentWalletParams,
@@ -123,6 +125,7 @@ export async function queryAccount(
   | readonly Position[]
   | readonly OpenOrder[]
   | readonly UserFillResponseItem[]
+  | readonly FundingPaymentResponseItem[]
 > {
   switch (params.type) {
     case 'fullAccount':
@@ -144,6 +147,11 @@ export async function queryAccount(
       return client.postUnsigned<
         AccountQueryParams,
         readonly UserFillResponseItem[]
+      >('/account', params);
+    case 'fundingHistory':
+      return client.postUnsigned<
+        AccountQueryParams,
+        readonly FundingPaymentResponseItem[]
       >('/account', params);
   }
 }
@@ -178,6 +186,28 @@ export async function queryUserFills(
   });
 
   return rows.map((row) => row.fills);
+}
+
+/**
+ * POST /account with `{ type: "fundingHistory", user }` â€” recent funding
+ * payments.
+ *
+ * Bulk currently returns last 5000 funding payments and no pagination is
+ * documented.
+ */
+export async function queryUserFundingPayments(
+  client: BulkClient,
+  user: Pubkey,
+): Promise<readonly FundingPayment[]> {
+  const rows = await client.postUnsigned<
+    AccountQueryParams,
+    readonly FundingPaymentResponseItem[]
+  >('/account', {
+    type: 'fundingHistory',
+    user,
+  });
+
+  return rows.map((row) => row.fundingPayment);
 }
 
 // ---------------------------------------------------------------------------

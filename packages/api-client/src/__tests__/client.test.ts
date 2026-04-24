@@ -12,6 +12,7 @@ import {
   getTicker,
   placeOrders,
   queryFullAccount,
+  queryUserFundingPayments,
   queryUserFills,
 } from '../endpoints.js';
 import { BulkWebSocket, type WSTransportConstructor } from '../websocket.js';
@@ -247,6 +248,47 @@ describe('endpoint helpers', () => {
       taker: testPubkey,
       reason: 'normal',
       slot: 12345,
+    });
+  });
+
+  it('queryUserFundingPayments POSTs the fundingHistory account query', async () => {
+    const testPubkey = 'FuueqefENiGEW6uMqZQgmwjzgpnb85EgUcZa5Em4PQh7';
+    const fetchImpl = vi.fn(
+      makeFetch({
+        status: 200,
+        body: [
+          {
+            fundingPayment: {
+              owner: testPubkey,
+              symbol: 'BTC-USD',
+              size: 0.5,
+              payment: 12.5,
+              fundingRate: 0.0001,
+              markPrice: 100000,
+              slot: 123456789,
+              timestamp: 1763316177219383423,
+            },
+          },
+        ],
+      }),
+    );
+    const client = new BulkClient({ fetch: fetchImpl as typeof fetch });
+
+    const payments = await queryUserFundingPayments(client, testPubkey);
+
+    const init = fetchImpl.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(init.body as string);
+    expect(body).toEqual({ type: 'fundingHistory', user: testPubkey });
+    expect(payments).toHaveLength(1);
+    expect(payments[0]).toMatchObject({
+      owner: testPubkey,
+      symbol: 'BTC-USD',
+      size: 0.5,
+      payment: 12.5,
+      fundingRate: 0.0001,
+      markPrice: 100000,
+      slot: 123456789,
+      timestamp: 1763316177219383423,
     });
   });
 });
