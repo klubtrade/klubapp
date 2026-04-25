@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useConnectionState } from '@/hooks/use-connection-state';
 import { useTickers } from '@/hooks/use-tickers';
-
+import { MARKETS, SEED_PRICES, type MarketSymbol } from '@/lib/markets';
 
 /**
  * /trade — the central trading screen.
@@ -17,17 +17,15 @@ import { useTickers } from '@/hooks/use-tickers';
  *
  * Four panels: market header, orderbook, chart + positions, order
  * form + live Math side panel.
+ *
+ * Source-of-truth: market list is imported from `lib/markets.ts` so
+ * adding/removing a market is a one-line change in that file (it's
+ * also consumed by /quick-trade, /pro, /calculator, etc).
  */
 
-const SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'HYPE-USD'] as const;
-type Sym = (typeof SYMBOLS)[number];
-
-const INITIAL_PRICES: Record<Sym, number> = {
-  'BTC-USD': 67_420,
-  'ETH-USD': 3_284,
-  'SOL-USD': 178.4,
-  'HYPE-USD': 31.22,
-};
+const SYMBOLS = MARKETS.map((m) => m.symbol) as readonly MarketSymbol[];
+type Sym = MarketSymbol;
+const INITIAL_PRICES = SEED_PRICES;
 
 export default function TradePage() {
   const [symbol, setSymbol] = useState<Sym>('BTC-USD');
@@ -75,6 +73,17 @@ export default function TradePage() {
 // Market header
 // =============================================================================
 
+/**
+ * The header is sticky just below the global TopNav (which is `top-0`
+ * h-14). We pin to `top-14` so the symbol/mark/24h context stays
+ * visible while users scroll through the orderbook, chart, and order
+ * form. `z-30` keeps it below the TopNav drawer (z-50) and the
+ * waitlist/submit modal (z-50) but above the panels' contents.
+ *
+ * The translucent background + backdrop-blur is the standard "sticky
+ * surface" pattern: keeps the bar legible when content scrolls
+ * underneath without opaquely hiding what's behind it.
+ */
 function MarketHeader({
   symbol,
   mark,
@@ -89,7 +98,7 @@ function MarketHeader({
   const pctTone = pct >= 0 ? 'text-pnl-long' : 'text-pnl-short';
 
   return (
-    <section className="border-b border-border-subtle">
+    <section className="sticky top-14 z-30 border-b border-border-subtle bg-bg-base/90 backdrop-blur-sm">
       <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-6 px-4 py-4 md:px-6">
         <div className="flex items-center gap-8">
           <select
@@ -598,6 +607,19 @@ function Stat({
   );
 }
 
+/**
+ * NumField — numeric input with select-on-focus.
+ *
+ * Retail UX fix: previously, tapping the size input forced users to
+ * manually delete each character of the default value (e.g. 0.0500)
+ * before entering their own size. `onFocus={(e) => e.target.select()}`
+ * highlights the entire content the moment the field receives focus,
+ * so typing immediately replaces — exactly what users expect from
+ * trading screens (Coinbase, Hyperliquid, dYdX, Bulk all do this).
+ *
+ * Also catches the keyboard-tab path: tabbing into the field selects
+ * everything just like tapping with a mouse.
+ */
 function NumField({
   label,
   value,
@@ -630,6 +652,9 @@ function NumField({
           inputMode="decimal"
           step={step}
           value={display}
+          onFocus={(e) => {
+            e.target.select();
+          }}
           onChange={(e) => {
             const s = e.target.value;
             if (s === '') {
@@ -659,9 +684,20 @@ function formatPrice(p: number): string {
 }
 
 // =============================================================================
-// Submit stub modal — honest "not wired yet" in the new minimal language
+// Submit stub modal — honest "not wired yet" without a waitlist gate
 // =============================================================================
 
+/**
+ * Previously this modal told the user "you're on the waitlist" and
+ * routed them to /#waitlist. That created a confusing dead-end where
+ * users who clicked Buy thought they'd been put on a waitlist they
+ * never signed up for, and got redirected to the marketing page — a
+ * UX gate disguised as a confirmation. There is no actual waitlist
+ * blocking trading; the only thing missing is the Ed25519 signer
+ * wiring (worker → Bulk's `placeOrders`). So the modal now says
+ * exactly that, in plain language, with two real next-actions:
+ * try practice mode (works today) or browse leaders (also works).
+ */
 function SubmitStubModal({
   side,
   orderType,
@@ -712,34 +748,35 @@ function SubmitStubModal({
           </button>
         </div>
         <h2 className="mt-5 text-2xl font-semibold tracking-tight text-fg-primary">
-          Sit tight — order signing is next.
+          Order signing is next.
         </h2>
         <p className="mt-4 text-[14px] leading-relaxed text-fg-secondary">
-          Your <span className={sideTone}>{sideLabel}</span> ({orderType}) is validated.
-          What&rsquo;s missing is the Ed25519 signer: we&rsquo;re wiring{' '}
-          <code className="text-accent">bulk-keychain</code> right now. The trade screen is
-          live-data-ready; the pen is almost in your hand.
+          Your <span className={sideTone}>{sideLabel}</span> ({orderType}) passed validation —
+          the math, the risk, the route are all correct. What&rsquo;s missing is the
+          Ed25519 agent-wallet signer that hands the order to Bulk. We&rsquo;re wiring
+          it now. In the meantime, practice mode lets you place identical orders against
+          a simulated book.
         </p>
         <dl className="mt-6 grid grid-cols-3 gap-3 border-y border-border-subtle py-4 text-[11px] uppercase tracking-[0.06em]">
           <div>
-            <dt className="text-fg-muted">Testnet</dt>
-            <dd className="mt-1 text-accent">Weeks</dd>
+            <dt className="text-fg-muted">Validation</dt>
+            <dd className="mt-1 text-pnl-long">Passed</dd>
           </div>
           <div>
-            <dt className="text-fg-muted">Mainnet</dt>
-            <dd className="mt-1 text-fg-secondary">Soon after</dd>
+            <dt className="text-fg-muted">Signer</dt>
+            <dd className="mt-1 text-accent">Wiring</dd>
           </div>
           <div>
-            <dt className="text-fg-muted">You</dt>
-            <dd className="mt-1 text-pnl-long">On the list</dd>
+            <dt className="text-fg-muted">Practice</dt>
+            <dd className="mt-1 text-fg-primary">Ready</dd>
           </div>
         </dl>
         <div className="mt-6 flex flex-wrap gap-3">
           <a
-            href="/#waitlist"
+            href="/practice"
             className="rounded-klub bg-accent px-4 py-2 text-[13px] font-medium text-bg-base transition-colors hover:bg-accent-bright"
           >
-            Join the waitlist
+            Try practice mode
           </a>
           <a
             href="/follow"
