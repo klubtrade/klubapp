@@ -8,6 +8,13 @@
       "when": 1777060800000,
       "tag": "0000_add_leaders",
       "breakpoints": false
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777152636599,
+      "tag": "0001_add_leader_applications",
+      "breakpoints": false
     }
   ]
 }

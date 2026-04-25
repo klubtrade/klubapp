@@ -188,6 +188,20 @@ export const leaders = pgTable(
   }),
 );
 
+export const leaderApplications = pgTable('leader_applications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userPubkey: varchar('user_pubkey', { length: 128 }).notNull(),
+  handle: varchar('handle', { length: 20 }).notNull(),
+  status: varchar('status', { length: 16 })
+    .$type<'pending' | 'approved' | 'rejected'>()
+    .default('pending')
+    .notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+});
+
 // ---------------------------------------------------------------------------
 // follows (copy trading)
 // ---------------------------------------------------------------------------
