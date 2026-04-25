@@ -105,7 +105,7 @@ export function NavDrawer() {
           onClick={() => {
             setOpen(true);
           }}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-klub border border-border-subtle bg-bg-base/80 text-fg-primary backdrop-blur-sm transition-colors hover:bg-bg-elevated"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-klub border border-border-subtle bg-bg-base text-fg-primary transition-colors hover:bg-bg-elevated"
         >
           <svg
             width="18"
@@ -130,16 +130,22 @@ export function NavDrawer() {
         >
           <span
             aria-hidden
-            className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_12px_rgba(167,139,250,0.6)]"
+            className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_12px_rgba(232,182,71,0.6)]"
           />
           klub
         </Link>
       </div>
 
       {/* Backdrop */}
+      {/* Backdrop. Pure opacity fade — no blur. backdrop-blur on a
+          full-viewport overlay forces a per-frame resample of the
+          entire page behind it, which combined with the drawer's
+          transform animation ground the menu open to ~10fps on
+          mid-tier mobile. Plain dark overlay reads cleanly and
+          stays at 60fps. */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-bg-base/60 backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-bg-base/70 animate-fade-in"
           onClick={() => {
             setOpen(false);
           }}
@@ -147,8 +153,11 @@ export function NavDrawer() {
         />
       )}
 
-      {/* Drawer */}
+      {/* Drawer. `will-change: transform` promotes this element to
+          its own GPU layer so the slide-in animates smoothly without
+          repainting the parent. */}
       <aside
+        style={{ willChange: 'transform' }}
         className={`fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[360px] flex-col border-r border-border-subtle bg-bg-base transition-transform duration-300 ease-out ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}

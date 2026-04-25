@@ -21,19 +21,26 @@
  *   - `.reveal` fly-in animation utility (for scroll reveals without Framer Motion)
  */
 :root {
-  --bg-base: #0a0a0b;
-  --bg-surface: #131316;
-  --bg-elevated: #1a1a1f;
-  --border-subtle: #1c1c22;
-  --border-default: #26262c;
-  --border-strong: #3f3f46;
-  --fg-primary: #fafafa;
-  --fg-secondary: #a8a8ae;
-  --fg-muted: #5a5a63;
-  --accent: #a78bfa;
-  --accent-bright: #c4b5fd;
-  --accent-soft: #7c3aed;
-  --accent-glow: rgba(167, 139, 250, 0.12);
+  /* Mirrors tailwind.config.ts. See that file for palette philosophy. */
+  --bg-base: #06080F;
+  --bg-surface: #0F1320;
+  --bg-elevated: #171B2A;
+  --bg-hover: #1A1F2E;
+  --border-subtle: #1A1F2E;
+  --border-default: #252B3C;
+  --border-strong: #3D435A;
+  --fg-primary: #FFFFFF;
+  --fg-secondary: #B5BAC9;
+  --fg-muted: #6A7185;
+  /* Accent = warm gold. Primary brand signal. */
+  --accent: #E8B647;
+  --accent-bright: #F5CC6F;
+  --accent-soft: #B8902F;
+  --accent-dim: #3A2F12;
+  --accent-glow: rgba(232, 182, 71, 0.18);
+  /* Tertiary purple — links, focus rings, muted hover glow. */
+  --accent-purple: #A78BFA;
+  --accent-purple-soft: #6D5BC7;
   --pnl-long: #10b981;
   --pnl-short: #ef4444;
   --alert-yellow: #eab308;
@@ -61,7 +68,7 @@ html {
   font-feature-settings: 'tnum', 'zero', 'cv11';
 }
 
-/* Pulsing purple indicator — used on brand marks + live status pills */
+/* Pulsing gold indicator — used on brand marks + live status pills */
 .live-dot {
   width: 6px;
   height: 6px;
@@ -224,88 +231,55 @@ html {
     transition-duration: 0.001ms !important;
   }
 }
-/* ========================================================================= */
-/* Pro terminal — react-grid-layout theming                                   */
-/* ========================================================================= */
 
-.pro-grid .react-grid-item.react-grid-placeholder {
-  background: rgba(167, 139, 250, 0.12);
-  border: 1px dashed rgba(167, 139, 250, 0.6);
-  border-radius: 6px;
-  opacity: 1;
-  transition-duration: 100ms;
-  z-index: 2;
+/* ---------------------------------------------------------------------------
+   Solana wallet-adapter modal overrides.
+
+   We touch ONLY inner surfaces (the card, buttons, text) and leave
+   the outer `.wallet-adapter-modal` container alone. The adapter
+   sets that container to `position: fixed` with full-viewport
+   coverage; overriding it with `!important` strips the positioning
+   and the modal renders as an invisible inline block. Lesson learned.
+
+   If the adapter ever changes selectors, the modal falls back to
+   its own defaults — slightly off-brand but functional.
+   --------------------------------------------------------------------------- */
+
+.wallet-adapter-modal-wrapper {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--radius-klub-lg) !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6) !important;
+  color: var(--fg-primary) !important;
 }
 
-.pro-grid .react-grid-item > .react-resizable-handle {
-  background: transparent;
+.wallet-adapter-modal-title {
+  color: var(--fg-primary) !important;
 }
 
-.pro-grid .react-grid-item > .react-resizable-handle::after {
-  border-right: 2px solid var(--fg-muted);
-  border-bottom: 2px solid var(--fg-muted);
-  opacity: 0;
-  transition: opacity 150ms ease;
+.wallet-adapter-modal-list .wallet-adapter-button {
+  background: var(--bg-surface) !important;
+  color: var(--fg-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-klub) !important;
 }
 
-.pro-grid .react-grid-item:hover > .react-resizable-handle::after {
-  opacity: 0.4;
+.wallet-adapter-modal-list .wallet-adapter-button:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--accent) !important;
 }
 
-.pro-grid .react-grid-item.react-draggable-dragging {
-  z-index: 10;
-  transition: none;
-  opacity: 0.9;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+.wallet-adapter-modal-list-more {
+  color: var(--fg-secondary) !important;
+}
+.wallet-adapter-modal-list-more:hover {
+  color: var(--fg-primary) !important;
 }
 
-.pro-grid .pro-drag-handle {
-  cursor: grab;
-  user-select: none;
+.wallet-adapter-modal-button-close {
+  background: transparent !important;
+  color: var(--fg-secondary) !important;
 }
-
-.pro-grid .react-draggable-dragging .pro-drag-handle {
-  cursor: grabbing;
+.wallet-adapter-modal-button-close:hover {
+  color: var(--fg-primary) !important;
 }
-
-/* ==========================================================================
-   Bloomberg-style scope for /pro
-   --------------------------------------------------------------------------
-   Applies ONLY inside <main class="pro-scope">. Everything else in the app
-   (including /trade) continues to use the purple KLUB theme.
-
-   Changes:
-     - Amber accent (Bloomberg iconic)
-     - Square corners (no radii) — terminal traditions
-     - Tabular mono with smaller leading
-     - Flush panels (borders coalesce instead of gap)
-   ========================================================================== */
-
-   .pro-scope {
-    /* Remap accent to Bloomberg amber */
-    --accent: #ff9f0a;
-    --accent-bright: #ffb347;
-    --accent-soft: #d17f00;
-    --accent-glow: rgba(255, 159, 10, 0.18);
-    /* Override radii so panels read as square terminal tiles */
-    --radius-klub: 0px;
-    --radius-klub-lg: 2px;
-    font-family: ui-monospace, 'SF Mono', Menlo, Monaco, Consolas, monospace;
-    font-variant-numeric: tabular-nums;
-  }
-  
-  /* Tighter typography defaults — terminal density */
-  .pro-scope * {
-    letter-spacing: 0;
-  }
-  .pro-scope .font-mono {
-    font-feature-settings: 'tnum', 'zero';
-  }
-  
-  /* Square out any rounded utilities used inside pro */
-  .pro-scope .rounded-klub,
-  .pro-scope .rounded-klub-lg,
-  .pro-scope .rounded-md,
-  .pro-scope .rounded {
-    border-radius: 2px;
-  }

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 
 import { Providers } from './providers';
@@ -15,6 +15,22 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
   variable: '--font-jetbrains-mono',
 });
+
+/**
+ * Viewport. Critical for mobile rendering — without `width=device-width`
+ * iOS Safari renders at 980px and scales down, so every page looks like
+ * a tiny desktop site. `maximumScale: 1` prevents the iOS double-tap
+ * zoom-on-input bug for our trading inputs (no, you don't want the
+ * page to zoom when the user taps the size field). `themeColor` paints
+ * the iOS/Android browser chrome to match our deep-black bg so the app
+ * looks installed even in a regular tab.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#06080F',
+};
 
 export const metadata: Metadata = {
   title: 'KLUB — Members-only on-chain perps',

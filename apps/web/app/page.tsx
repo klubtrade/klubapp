@@ -1,7 +1,5 @@
 'use client';
 
-
-
 import { motion, useScroll, useTransform } from 'framer-motion';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -109,11 +107,11 @@ function Hero() {
       <motion.div
         aria-hidden
         style={{ y: glowY }}
-        className="pointer-events-none absolute -right-[10%] top-[10%] h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(167,139,250,0.18),transparent_60%)] blur-[60px]"
+        className="pointer-events-none absolute -right-[10%] top-[10%] h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(232,182,71,0.12),transparent_60%)] blur-[60px]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-[10%] -bottom-[20%] h-[400px] w-[400px] rounded-full bg-[radial-gradient(circle,rgba(167,139,250,0.08),transparent_60%)] blur-[50px]"
+        className="pointer-events-none absolute -left-[10%] -bottom-[20%] h-[400px] w-[400px] rounded-full bg-[radial-gradient(circle,rgba(232,182,71,0.05),transparent_60%)] blur-[50px]"
       />
 
       <div className="relative z-10 mx-auto max-w-[840px] text-center">
@@ -469,7 +467,7 @@ function CtaBlock() {
         whileInView="visible"
         viewport={viewport}
         variants={fadeUp}
-        className="mx-auto max-w-[1160px] rounded-klub-lg border border-border bg-[radial-gradient(ellipse_at_top,rgba(167,139,250,0.12),transparent_70%),theme(colors.bg.surface)] px-10 py-24 text-center"
+        className="mx-auto max-w-[1160px] rounded-klub-lg border border-border bg-[radial-gradient(ellipse_at_top,rgba(232,182,71,0.08),transparent_70%),theme(colors.bg.surface)] px-10 py-24 text-center"
       >
         <Kicker>Membership</Kicker>
         <h2 className="mx-auto mb-4 max-w-[560px] text-[clamp(28px,3.5vw,44px)] font-semibold leading-[1.15] tracking-[-0.025em]">
