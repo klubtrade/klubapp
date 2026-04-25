@@ -263,7 +263,12 @@ export interface FeeState {
 // Account
 // ---------------------------------------------------------------------------
 
-export type AccountQueryType = 'fullAccount' | 'positions' | 'openOrders';
+export type AccountQueryType =
+  | 'fullAccount'
+  | 'positions'
+  | 'openOrders'
+  | 'fills'
+  | 'fundingHistory';
 
 export interface AccountQueryParams {
   readonly type: AccountQueryType;
@@ -303,6 +308,43 @@ export interface OpenOrder {
   readonly px: DecimalString;
   readonly t: OrderType;
   readonly ts: TimestampMs;
+}
+
+export interface UserFill {
+  readonly symbol: Symbol;
+  readonly amount: number;
+  readonly price: number;
+  readonly isBuy: boolean;
+  readonly fee?: number;
+  readonly makerFee?: number;
+  readonly takerFee?: number;
+  readonly timestamp: TimestampMs;
+  readonly maker: Pubkey;
+  readonly taker: Pubkey;
+  readonly reason: 'normal' | 'liquidation' | 'adl' | string;
+  readonly slot: number;
+}
+
+/** Raw item shape returned by POST /account with `type: "fills"`. */
+export interface UserFillResponseItem {
+  readonly fills: UserFill;
+}
+
+export interface FundingPayment {
+  readonly owner: Pubkey;
+  readonly symbol: Symbol;
+  readonly size: number;
+  /** Signed USD payment. Positive = received funding, negative = paid. */
+  readonly payment: number;
+  readonly fundingRate: number;
+  readonly markPrice: number;
+  readonly slot: number;
+  readonly timestamp: TimestampMs;
+}
+
+/** Raw item shape returned by POST /account with `type: "fundingHistory"`. */
+export interface FundingPaymentResponseItem {
+  readonly fundingPayment: FundingPayment;
 }
 
 // ---------------------------------------------------------------------------

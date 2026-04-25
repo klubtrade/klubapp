@@ -19,6 +19,8 @@ import type {
   FaucetRequestParams,
   FaucetResponse,
   FeeState,
+  FundingPayment,
+  FundingPaymentResponseItem,
   FullAccount,
   L2Book,
   ManageAgentWalletParams,
@@ -30,6 +32,8 @@ import type {
   RiskSurfaces,
   Symbol,
   Ticker,
+  UserFill,
+  UserFillResponseItem,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -116,7 +120,13 @@ export function getFeeState(
 export async function queryAccount(
   client: BulkClient,
   params: AccountQueryParams,
-): Promise<FullAccount | readonly Position[] | readonly OpenOrder[]> {
+): Promise<
+  | FullAccount
+  | readonly Position[]
+  | readonly OpenOrder[]
+  | readonly UserFillResponseItem[]
+  | readonly FundingPaymentResponseItem[]
+> {
   switch (params.type) {
     case 'fullAccount':
       return client.postUnsigned<AccountQueryParams, FullAccount>(
@@ -133,6 +143,16 @@ export async function queryAccount(
         '/account',
         params,
       );
+    case 'fills':
+      return client.postUnsigned<
+        AccountQueryParams,
+        readonly UserFillResponseItem[]
+      >('/account', params);
+    case 'fundingHistory':
+      return client.postUnsigned<
+        AccountQueryParams,
+        readonly FundingPaymentResponseItem[]
+      >('/account', params);
   }
 }
 
@@ -145,6 +165,49 @@ export function queryFullAccount(
     type: 'fullAccount',
     user,
   });
+}
+
+/**
+ * POST /account with `{ type: "fills", user }` — recent user fill history.
+ *
+ * Bulk currently returns last 5000 fills for account fills query; this is not
+ * guaranteed full 30d history for high-volume leaders.
+ */
+export async function queryUserFills(
+  client: BulkClient,
+  user: Pubkey,
+): Promise<readonly UserFill[]> {
+  const rows = await client.postUnsigned<
+    AccountQueryParams,
+    readonly UserFillResponseItem[]
+  >('/account', {
+    type: 'fills',
+    user,
+  });
+
+  return rows.map((row) => row.fills);
+}
+
+/**
+ * POST /account with `{ type: "fundingHistory", user }` â€” recent funding
+ * payments.
+ *
+ * Bulk currently returns last 5000 funding payments and no pagination is
+ * documented.
+ */
+export async function queryUserFundingPayments(
+  client: BulkClient,
+  user: Pubkey,
+): Promise<readonly FundingPayment[]> {
+  const rows = await client.postUnsigned<
+    AccountQueryParams,
+    readonly FundingPaymentResponseItem[]
+  >('/account', {
+    type: 'fundingHistory',
+    user,
+  });
+
+  return rows.map((row) => row.fundingPayment);
 }
 
 // ---------------------------------------------------------------------------

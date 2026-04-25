@@ -42,7 +42,9 @@ export const users = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     email: varchar('email', { length: 254 }).notNull(),
     handle: varchar('handle', { length: 20 }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     disabledAt: timestamp('disabled_at', { withTimezone: true }),
     // Geolocation on signup — recorded for compliance, never exposed to user
@@ -59,7 +61,9 @@ export const waitlist = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     email: varchar('email', { length: 254 }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     // Set when the waitlist entry redeems an invite and becomes a user
     promotedUserId: uuid('promoted_user_id').references(() => users.id),
     // Free-form source tag: "twitter", "farcaster", "friend", etc.
@@ -70,19 +74,18 @@ export const waitlist = pgTable(
   }),
 );
 
-export const invites = pgTable(
-  'invites',
-  {
-    code: varchar('code', { length: 64 }).primaryKey(),
-    label: varchar('label', { length: 64 }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }),
-    // null for infinite (demo code); integer for capped
-    maxRedemptions: integer('max_redemptions'),
-    redemptionCount: integer('redemption_count').default(0).notNull(),
-    disabledAt: timestamp('disabled_at', { withTimezone: true }),
-  },
-);
+export const invites = pgTable('invites', {
+  code: varchar('code', { length: 64 }).primaryKey(),
+  label: varchar('label', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  // null for infinite (demo code); integer for capped
+  maxRedemptions: integer('max_redemptions'),
+  redemptionCount: integer('redemption_count').default(0).notNull(),
+  disabledAt: timestamp('disabled_at', { withTimezone: true }),
+});
 
 export const inviteRedemptions = pgTable('invite_redemptions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -92,7 +95,9 @@ export const inviteRedemptions = pgTable('invite_redemptions', {
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id),
-  redeemedAt: timestamp('redeemed_at', { withTimezone: true }).defaultNow().notNull(),
+  redeemedAt: timestamp('redeemed_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
   // Captured for compliance/fraud investigation
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
@@ -112,12 +117,17 @@ export const wallets = pgTable(
     address: varchar('address', { length: 64 }).notNull(),
     // 'solana' | 'bulk-net' — used to pick the right signer on execute
     chain: varchar('chain', { length: 32 }).notNull(),
-    addedAt: timestamp('added_at', { withTimezone: true }).defaultNow().notNull(),
+    addedAt: timestamp('added_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     primary: boolean('primary').default(false).notNull(),
   },
   (t) => ({
     addressIdx: index('wallets_address_idx').on(t.address),
-    userWalletUnique: uniqueIndex('wallets_user_address_idx').on(t.userId, t.address),
+    userWalletUnique: uniqueIndex('wallets_user_address_idx').on(
+      t.userId,
+      t.address,
+    ),
   }),
 );
 
@@ -138,7 +148,9 @@ export const agentWallets = pgTable(
     // Scope expressed as a JSON document — see AgentWalletScope type
     scope: jsonb('scope').notNull(),
     label: varchar('label', { length: 64 }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
@@ -146,6 +158,33 @@ export const agentWallets = pgTable(
   (t) => ({
     userIdx: index('agent_wallets_user_idx').on(t.userId),
     pubkeyIdx: uniqueIndex('agent_wallets_pubkey_idx').on(t.publicKey),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// leaders
+// ---------------------------------------------------------------------------
+
+export const leaders = pgTable(
+  'leaders',
+  {
+    pubkey: varchar('pubkey', { length: 128 }).primaryKey(),
+    handle: varchar('handle', { length: 20 }),
+    netPnl30dUsd: real('net_pnl_30d_usd').notNull(),
+    unrealizedPnlUsd: real('unrealized_pnl_usd').notNull(),
+    winRate: real('win_rate').notNull(),
+    closedTradesCount: integer('closed_trades_count').notNull(),
+    maxDrawdownUsd: real('max_drawdown_usd').notNull(),
+    maxDrawdownPct: real('max_drawdown_pct').notNull(),
+    sharpeRatio: real('sharpe_ratio').notNull(),
+    followedEquityUsd: real('followed_equity_usd').default(0).notNull(),
+    fillsLast30d: integer('fills_last_30d').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    handleIdx: index('leaders_handle_idx').on(t.handle),
   }),
 );
 
@@ -168,7 +207,9 @@ export const follows = pgTable(
     // If false, only BTC/ETH mirror; if true, all leader's markets
     copyAllSymbols: boolean('copy_all_symbols').default(true).notNull(),
     agentWalletId: uuid('agent_wallet_id').references(() => agentWallets.id),
-    startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     pausedAt: timestamp('paused_at', { withTimezone: true }),
     endedAt: timestamp('ended_at', { withTimezone: true }),
   },
@@ -199,7 +240,9 @@ export const alertSubscriptions = pgTable('alert_subscriptions', {
   // Tier thresholds (default [0.25, 0.10, 0.03]) — user may widen/tighten
   bufferTiers: jsonb('buffer_tiers').default([0.25, 0.1, 0.03]).notNull(),
   enabled: boolean('enabled').default(true).notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const alertDeliveries = pgTable(
@@ -213,12 +256,17 @@ export const alertDeliveries = pgTable(
     symbol: varchar('symbol', { length: 32 }).notNull(),
     tier: real('tier').notNull(), // 0.25 | 0.10 | 0.03
     channel: varchar('channel', { length: 16 }).notNull(),
-    deliveredAt: timestamp('delivered_at', { withTimezone: true }).defaultNow().notNull(),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     // null if delivery succeeded; error string otherwise
     error: text('error'),
   },
   (t) => ({
-    userTimeIdx: index('alert_deliveries_user_time_idx').on(t.userId, t.deliveredAt),
+    userTimeIdx: index('alert_deliveries_user_time_idx').on(
+      t.userId,
+      t.deliveredAt,
+    ),
   }),
 );
 
@@ -244,7 +292,9 @@ export const journalEntries = pgTable(
     exitPrice: real('exit_price'),
     exitReason: text('exit_reason'),
     realizedPnlUsd: real('realized_pnl_usd'),
-    openedAt: timestamp('opened_at', { withTimezone: true }).defaultNow().notNull(),
+    openedAt: timestamp('opened_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     closedAt: timestamp('closed_at', { withTimezone: true }),
   },
   (t) => ({
@@ -270,5 +320,9 @@ export interface AgentWalletScope {
   readonly symbols: readonly string[] | 'all';
   readonly maxNotionalUsd: number;
   readonly maxLeverage: number;
-  readonly allowedActions: readonly ('placeOrder' | 'cancelOrder' | 'reducePosition')[];
+  readonly allowedActions: readonly (
+    | 'placeOrder'
+    | 'cancelOrder'
+    | 'reducePosition'
+  )[];
 }

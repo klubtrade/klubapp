@@ -40,6 +40,8 @@ export {
   placeOrders,
   queryAccount,
   queryFullAccount,
+  queryUserFundingPayments,
+  queryUserFills,
   requestFaucet,
   updateUserSettings,
 } from './endpoints.js';
@@ -74,6 +76,8 @@ export type {
   FaucetRequestParams,
   FaucetResponse,
   FeeState,
+  FundingPayment,
+  FundingPaymentResponseItem,
   FullAccount,
   L2Book,
   LimitOrderType,
@@ -98,4 +102,6 @@ export type {
   TimeInForce,
   TimestampMs,
   TrailingStopOrderType,
+  UserFill,
+  UserFillResponseItem,
 } from './types.js';
