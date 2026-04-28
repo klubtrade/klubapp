@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "funding-arb": "tsx src/workers/funding-arb-detector.ts",
+    "funding-arb:once": "tsx src/workers/funding-arb-detector.ts --once",
     "leader-indexer": "tsx src/workers/leader-indexer.ts",
     "leader-indexer:once": "tsx src/workers/leader-indexer.ts --once",
     "start": "node dist/index.js",
