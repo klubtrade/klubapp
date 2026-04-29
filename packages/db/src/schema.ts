@@ -203,6 +203,38 @@ export const leaderApplications = pgTable('leader_applications', {
 });
 
 // ---------------------------------------------------------------------------
+// handles — KLUB-wide @username registry
+// ---------------------------------------------------------------------------
+
+/**
+ * Handles power the social layer of the Super App: pay-by-link
+ * (`klub.app/pay/@micah`), leader display, future profile URLs.
+ *
+ * Claim flow:
+ *   - User signs the message `claim:${handle}` with their wallet.
+ *   - POST /api/handles/claim verifies the signature and inserts.
+ *   - Handles are immutable after claim. To "rename" you revoke (TBD)
+ *     and re-claim a different handle.
+ *
+ * Charset is conservative — lowercase a-z, 0-9, underscore — and
+ * length-bounded 3-30 to fit in a URL without escaping.
+ */
+export const handles = pgTable(
+  'handles',
+  {
+    handle: varchar('handle', { length: 30 }).primaryKey(),
+    pubkey: varchar('pubkey', { length: 128 }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => ({
+    pubkeyIdx: index('handles_pubkey_idx').on(t.pubkey),
+  }),
+);
+
+// ---------------------------------------------------------------------------
 // follows (copy trading)
 // ---------------------------------------------------------------------------
 
