@@ -1,75 +1,96 @@
 'use client';
 
+import type { CandleInterval, L2Book } from '@klub/api-client';
+import { useWallet } from '@solana/wallet-adapter-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useActiveAccount } from '@/hooks/use-active-account';
+import { useBulkAccount, type BulkOpenOrder, type BulkPosition } from '@/hooks/use-bulk-account';
+import { useBulkCancel } from '@/hooks/use-bulk-cancel';
+import { useBulkOrder } from '@/hooks/use-bulk-order';
+import { useCandles } from '@/hooks/use-candles';
 import { useConnectionState } from '@/hooks/use-connection-state';
-import { useTickers } from '@/hooks/use-tickers';
+import { useL2Book } from '@/hooks/use-l2-book';
+import { useRecentTrades } from '@/hooks/use-recent-trades';
+import { useTickers, type LivePrice } from '@/hooks/use-tickers';
+import { MARKETS } from '@/lib/markets';
+import type { SubmitOrderResult } from '@/lib/bulk/orders';
 
 /**
- * /pro — KLUB Pro. Terminal-grade trading screen.
+ * /pro — KLUB Pro. Bloomberg-style trading terminal.
  *
- * Design goal: a trader who's used Bloomberg, OptionVision, or any
- * pro desk tool should feel at home inside 30 seconds. Six panels
- * laid out in a persistent grid, a command palette (⌘K) that
- * routes to actions, keyboard-first everywhere.
+ * The one place in KLUB where terminal aesthetics are the brief, not
+ * the anti-reference. Desktop-only by design — mobile gate redirects
+ * to /quick-trade.
  *
- * Panels:
- *   1. Watchlist      — 12 markets with mark + funding + OI (sortable)
- *   2. Chart          — big central panel (canvas placeholder, 8 TFs)
- *   3. Orderbook      — 15 levels each side, cumulative size bars
- *   4. Tape           — recent prints with aggressor side
- *   5. Order form     — limit/market/stop, size, lev slider, TP/SL
- *   6. Positions      — open positions + PnL + close buttons
+ * Six panels in a persistent 4-column grid:
+ *   1. Watchlist  — canonical 10 markets, real mark + 24h chg
+ *   2. Chart      — lightweight-charts v5 with timeframe selector
+ *   3. Positions  — real positions from /api/bulk/account, Close button
+ *   4. Order book — L2 ladder, REST polled at 1Hz
+ *   5. Tape       — recent trades, WS-streamed
+ *   6. Order form — real submit via useBulkOrder
  *
- * ⌘K palette commands:
- *   - "buy BTC 0.1"   — open the order form prefilled
- *   - "close all"     — close every position
- *   - "alerts on"     — enable alerts
- *   - "go to <page>"  — navigation shortcuts
+ * ⌘K palette opens a command list (symbol jumps + nav).
  *
- * Mobile: shows a "best on desktop" gate with a link to /quick-trade.
- * Terminals don't work on phones.
+ * Session 1 wires real data. Sessions 2+ add hotkey order entry,
+ * saved layouts (react-grid-layout), and click-to-trade L2 ladder.
  */
 
-const WATCHLIST: readonly {
-  readonly sym: string;
-  readonly mark: number;
-  readonly chg24hPct: number;
-  readonly fund8h: number;
-  readonly oi: number;
-}[] = [
-  { sym: 'BTC-USD', mark: 67_420, chg24hPct: 1.84, fund8h: 0.0118, oi: 412_000_000 },
-  { sym: 'ETH-USD', mark: 3_284, chg24hPct: 2.12, fund8h: 0.0094, oi: 248_000_000 },
-  { sym: 'SOL-USD', mark: 178.4, chg24hPct: -0.62, fund8h: 0.0172, oi: 88_000_000 },
-  { sym: 'HYPE-USD', mark: 31.22, chg24hPct: 5.41, fund8h: -0.0060, oi: 42_000_000 },
-  { sym: 'DOGE-USD', mark: 0.1842, chg24hPct: -1.18, fund8h: 0.0205, oi: 36_000_000 },
-  { sym: 'AVAX-USD', mark: 42.68, chg24hPct: 0.94, fund8h: 0.0038, oi: 19_000_000 },
-  { sym: 'LINK-USD', mark: 14.88, chg24hPct: -0.22, fund8h: 0.0061, oi: 12_000_000 },
-  { sym: 'ARB-USD', mark: 0.84, chg24hPct: 3.08, fund8h: 0.0012, oi: 8_000_000 },
-  { sym: 'OP-USD', mark: 1.94, chg24hPct: 2.04, fund8h: -0.0004, oi: 6_000_000 },
-  { sym: 'NEAR-USD', mark: 5.62, chg24hPct: 1.42, fund8h: 0.0081, oi: 5_000_000 },
-  { sym: 'APT-USD', mark: 8.24, chg24hPct: -2.08, fund8h: 0.0028, oi: 3_200_000 },
-  { sym: 'SUI-USD', mark: 1.68, chg24hPct: 4.12, fund8h: 0.0094, oi: 2_800_000 },
+const CandleChart = dynamic(() => import('@/components/candle-chart'), { ssr: false });
+
+const TIMEFRAMES: readonly { readonly label: string; readonly value: CandleInterval }[] = [
+  { label: '1m', value: '1m' },
+  { label: '5m', value: '5m' },
+  { label: '15m', value: '15m' },
+  { label: '1h', value: '1h' },
+  { label: '4h', value: '4h' },
+  { label: '1D', value: '1d' },
 ];
 
+const ALL_SYMBOLS = MARKETS.map((m) => m.symbol);
+
+function seedPriceFor(symbol: string): number {
+  return MARKETS.find((m) => m.symbol === symbol)?.seedPrice ?? 0;
+}
+
+function maxLeverageFor(symbol: string): number {
+  return MARKETS.find((m) => m.symbol === symbol)?.defaultLeverage ?? 10;
+}
+
+function baseLabelFor(symbol: string): string {
+  return MARKETS.find((m) => m.symbol === symbol)?.label ?? symbol.split('-')[0] ?? symbol;
+}
+
 export default function ProPage() {
-  const [symbol, setSymbol] = useState('BTC-USD');
+  const [symbol, setSymbol] = useState<string>(MARKETS[0]?.symbol ?? 'BTC-USD');
+  const [interval, setInterval] = useState<CandleInterval>('15m');
   const [showPalette, setShowPalette] = useState(false);
+  const [result, setResult] = useState<SubmitOrderResult | null>(null);
 
-  // Subscribe to every market in the watchlist — singleton socket
-  // multiplexes, one subscription per symbol.
-  const allSymbols = useMemo(() => WATCHLIST.map((w) => w.sym), []);
-  const livePrices = useTickers(allSymbols);
+  const { connected } = useWallet();
+  // Active account drives positions, orders, and the trading account
+  // on every signed action.
+  const { pubkey } = useActiveAccount();
 
-  // ⌘K / Ctrl+K opens the palette
+  const livePrices = useTickers(ALL_SYMBOLS);
+  const { state: accountState, refresh: refreshAccount } = useBulkAccount(pubkey);
+
+  const mark = livePrices[symbol]?.mark ?? seedPriceFor(symbol);
+
+  // ⌘K opens palette; Esc closes palette/result.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setShowPalette((v) => !v);
       }
-      if (e.key === 'Escape') setShowPalette(false);
+      if (e.key === 'Escape') {
+        setShowPalette(false);
+        setResult(null);
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => {
@@ -77,17 +98,17 @@ export default function ProPage() {
     };
   }, []);
 
-  // Live mark with seeded fallback. If a tick has arrived for this
-  // symbol, use it; otherwise use the WATCHLIST seed price so the
-  // chart, orderbook, and order form always have something to render.
-  const mark =
-    livePrices[symbol]?.mark ??
-    WATCHLIST.find((w) => w.sym === symbol)?.mark ??
-    0;
+  const handleResult = useCallback(
+    (r: SubmitOrderResult) => {
+      setResult(r);
+      if (r.ok) refreshAccount();
+    },
+    [refreshAccount],
+  );
 
   return (
     <>
-      {/* Mobile gate */}
+      {/* Mobile gate — terminals don't work on phones */}
       <div className="flex min-h-screen items-center justify-center px-6 md:hidden">
         <div className="max-w-sm rounded-klub-lg border border-border-subtle bg-bg-surface p-8 text-center">
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-accent">
@@ -112,36 +133,63 @@ export default function ProPage() {
 
       {/* Desktop terminal */}
       <main className="hidden min-h-screen md:block">
-        <ProHeader symbol={symbol} onOpenPalette={() => { setShowPalette(true); }} />
+        <ProHeader symbol={symbol} mark={mark} onOpenPalette={() => setShowPalette(true)} />
+
         <div className="grid h-[calc(100vh-56px-56px)] grid-cols-[240px_minmax(0,1fr)_280px_320px] gap-px bg-border-subtle">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}
             livePrices={livePrices}
           />
+
           <div className="grid grid-rows-[minmax(0,1.3fr)_minmax(0,1fr)] gap-px bg-border-subtle">
-            <PanelChart symbol={symbol} mark={mark} />
-            <PanelPositions mark={mark} symbol={symbol} />
+            <PanelChart
+              symbol={symbol}
+              interval={interval}
+              onInterval={setInterval}
+              mark={mark}
+            />
+            <PanelPositions
+              positions={accountState.data?.positions ?? []}
+              openOrders={accountState.data?.openOrders ?? []}
+              livePrices={livePrices}
+              accountStatus={accountState.status}
+              connected={connected}
+              onResult={handleResult}
+            />
           </div>
+
           <div className="grid grid-rows-[minmax(0,1.6fr)_minmax(0,1fr)] gap-px bg-border-subtle">
-            <PanelOrderbook mark={mark} />
-            <PanelTape mark={mark} />
+            <PanelOrderbook symbol={symbol} mark={mark} />
+            <PanelTape symbol={symbol} />
           </div>
-          <PanelOrderForm symbol={symbol} mark={mark} />
+
+          <PanelOrderForm
+            symbol={symbol}
+            mark={mark}
+            connected={connected}
+            onResult={handleResult}
+          />
         </div>
-        <ProStatusBar onOpenPalette={() => { setShowPalette(true); }} />
+
+        <ProStatusBar
+          accountState={accountState}
+          connected={connected}
+          onOpenPalette={() => setShowPalette(true)}
+        />
 
         {showPalette && (
           <CommandPalette
-            onClose={() => {
-              setShowPalette(false);
-            }}
+            livePrices={livePrices}
+            onClose={() => setShowPalette(false)}
             onSymbol={(s) => {
               setSymbol(s);
               setShowPalette(false);
             }}
           />
         )}
+
+        {result && <ResultModal result={result} onClose={() => setResult(null)} />}
       </main>
     </>
   );
@@ -153,13 +201,13 @@ export default function ProPage() {
 
 function ProHeader({
   symbol,
+  mark,
   onOpenPalette,
 }: {
   readonly symbol: string;
+  readonly mark: number;
   readonly onOpenPalette: () => void;
 }) {
-  const prices = useTickers([symbol]);
-  const mark = prices[symbol]?.mark;
   return (
     <header className="flex h-14 items-center justify-between border-b border-border-subtle bg-bg-base px-4">
       <div className="flex items-center gap-6">
@@ -169,7 +217,7 @@ function ProHeader({
         </Link>
         <div className="font-mono text-[13px] text-fg-muted">
           <span className="text-fg-primary">{symbol}</span>
-          {mark !== undefined && (
+          {mark > 0 && (
             <span className="ml-2 text-accent">${formatPrice(mark)}</span>
           )}
         </div>
@@ -193,8 +241,22 @@ function ProHeader({
   );
 }
 
-function ProStatusBar({ onOpenPalette }: { readonly onOpenPalette: () => void }) {
+function ProStatusBar({
+  accountState,
+  connected,
+  onOpenPalette,
+}: {
+  readonly accountState: ReturnType<typeof useBulkAccount>['state'];
+  readonly connected: boolean;
+  readonly onOpenPalette: () => void;
+}) {
   const { isLive, isDemo, isReconnecting } = useConnectionState();
+
+  const equity = accountState.data?.equityUsd ?? null;
+  const free = accountState.data?.freeMarginUsd ?? null;
+  const used =
+    equity !== null && free !== null ? Math.max(equity - free, 0) : null;
+
   return (
     <footer className="flex h-14 items-center justify-between border-t border-border-subtle bg-bg-base px-4 font-mono text-[11px] text-fg-muted">
       <div className="flex items-center gap-6">
@@ -219,23 +281,23 @@ function ProStatusBar({ onOpenPalette }: { readonly onOpenPalette: () => void })
             Idle
           </span>
         )}
-        <span>Latency · 14ms</span>
-        <span>Equity · $5,124.32</span>
-        <span>Used margin · $337</span>
-        <span>Free · $4,787</span>
+        <span>{connected ? 'Wallet · connected' : 'Wallet · disconnected'}</span>
+        <span>Equity · {equity !== null ? `$${formatUsd(equity)}` : '—'}</span>
+        <span>Used margin · {used !== null ? `$${formatUsd(used)}` : '—'}</span>
+        <span>Free · {free !== null ? `$${formatUsd(free)}` : '—'}</span>
       </div>
       <div className="flex items-center gap-4">
         <button type="button" onClick={onOpenPalette} className="text-accent">
           ⌘K
         </button>
-        <span>v0.1.0</span>
+        <span>v0.2.0</span>
       </div>
     </footer>
   );
 }
 
 // =============================================================================
-// Watchlist
+// Watchlist — canonical MARKETS with live ticker overlay
 // =============================================================================
 
 function PanelWatchlist({
@@ -245,37 +307,38 @@ function PanelWatchlist({
 }: {
   readonly symbol: string;
   readonly onSelect: (s: string) => void;
-  readonly livePrices: Record<string, { mark: number; updatedAt: number } | undefined>;
+  readonly livePrices: Record<string, LivePrice | undefined>;
 }) {
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
       <PanelHead>Watchlist</PanelHead>
       <div className="flex-1 overflow-auto">
-        {WATCHLIST.map((w) => {
-          const active = w.sym === symbol;
-          const chgTone = w.chg24hPct >= 0 ? 'text-pnl-long' : 'text-pnl-short';
-          const livePrice = livePrices[w.sym]?.mark;
-          const displayMark = livePrice ?? w.mark;
+        {MARKETS.map((m) => {
+          const live = livePrices[m.symbol];
+          const displayMark = live?.mark ?? m.seedPrice;
+          const chg = live?.change24hPct;
+          const chgTone =
+            chg === undefined ? 'text-fg-muted'
+              : chg >= 0 ? 'text-pnl-long' : 'text-pnl-short';
+          const active = m.symbol === symbol;
           return (
             <button
-              key={w.sym}
+              key={m.symbol}
               type="button"
-              onClick={() => {
-                onSelect(w.sym);
-              }}
+              onClick={() => onSelect(m.symbol)}
               className={`flex w-full items-baseline justify-between border-b border-border-subtle px-3 py-2 text-left font-mono text-[12px] transition-colors ${
                 active ? 'bg-accent/10' : 'hover:bg-bg-elevated'
               }`}
             >
-              <span
-                className={active ? 'font-semibold text-accent' : 'text-fg-primary'}
-              >
-                {w.sym}
+              <span className={active ? 'font-semibold text-accent' : 'text-fg-primary'}>
+                {m.label}
               </span>
               <span className="flex items-baseline gap-2">
                 <span className="text-fg-secondary">${formatPrice(displayMark)}</span>
                 <span className={chgTone}>
-                  {w.chg24hPct >= 0 ? '+' : ''}{w.chg24hPct.toFixed(2)}%
+                  {chg === undefined
+                    ? '—'
+                    : `${chg >= 0 ? '+' : ''}${(chg * 100).toFixed(2)}%`}
                 </span>
               </span>
             </button>
@@ -287,78 +350,86 @@ function PanelWatchlist({
 }
 
 // =============================================================================
-// Chart
+// Chart — real candles via lightweight-charts v5
 // =============================================================================
 
-function PanelChart({ symbol, mark }: { readonly symbol: string; readonly mark: number }) {
+function PanelChart({
+  symbol,
+  interval,
+  onInterval,
+  mark,
+}: {
+  readonly symbol: string;
+  readonly interval: CandleInterval;
+  readonly onInterval: (i: CandleInterval) => void;
+  readonly mark: number;
+}) {
+  const { state } = useCandles(symbol, interval);
+  const candles = state.candles;
+
+  const last = candles.length > 0 ? candles[candles.length - 1]! : null;
+  const o = last ? Number(last.o) : mark * 0.99;
+  const h = last ? Number(last.h) : mark * 1.01;
+  const l = last ? Number(last.l) : mark * 0.99;
+  const c = last ? Number(last.c) : mark;
+
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
       <PanelHead>
         <div className="flex items-center justify-between">
           <span>Chart · {symbol}</span>
           <div className="flex gap-1">
-            {['1m', '5m', '15m', '1h', '4h', '1D', '1W'].map((tf, i) => (
+            {TIMEFRAMES.map((tf) => (
               <button
-                key={tf}
+                key={tf.value}
                 type="button"
+                onClick={() => onInterval(tf.value)}
                 className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  i === 2 ? 'bg-accent/15 text-accent' : 'text-fg-muted hover:text-fg-primary'
+                  interval === tf.value
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-fg-muted hover:text-fg-primary'
                 }`}
               >
-                {tf}
+                {tf.label}
               </button>
             ))}
           </div>
         </div>
       </PanelHead>
-      <div className="flex-1 p-4">
-        <svg viewBox="0 0 800 300" className="h-full w-full" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="pro-chart-fade" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {[60, 120, 180, 240].map((y) => (
-            <line
-              key={y}
-              x1="0"
-              y1={y}
-              x2="800"
-              y2={y}
-              stroke="var(--border-subtle)"
-              strokeDasharray="3,5"
-            />
-          ))}
-          <path
-            d="M 0 240 Q 80 180 160 200 T 320 140 T 480 110 T 640 90 T 800 70 L 800 300 L 0 300 Z"
-            fill="url(#pro-chart-fade)"
-          />
-          <path
-            d="M 0 240 Q 80 180 160 200 T 320 140 T 480 110 T 640 90 T 800 70"
-            stroke="var(--accent)"
-            strokeWidth="1.5"
-            fill="none"
-          />
-        </svg>
+      <div className="flex-1 overflow-hidden">
+        {state.status === 'error' && candles.length === 0 ? (
+          <div className="flex h-full items-center justify-center px-6 text-center text-[12px] text-fg-muted">
+            Couldn&rsquo;t load candles. Bulk&rsquo;s API may be slow — retrying.
+          </div>
+        ) : (
+          <CandleChart key={`${symbol}-${interval}`} candles={candles} height={420} />
+        )}
       </div>
       <div className="border-t border-border-subtle px-4 py-1.5 font-mono text-[11px] text-fg-muted">
-        O: ${formatPrice(mark * 0.982)} · H: ${formatPrice(mark * 1.014)} · L: $
-        {formatPrice(mark * 0.974)} · C: ${formatPrice(mark)}
+        O ${formatPrice(o)} · H ${formatPrice(h)} · L ${formatPrice(l)} · C ${formatPrice(c)}
       </div>
     </section>
   );
 }
 
 // =============================================================================
-// Orderbook
+// Order book — real L2 from /l2Book
 // =============================================================================
 
-function PanelOrderbook({ mark }: { readonly mark: number }) {
-  const book = useMemo(() => generateBook(mark, 15), [mark]);
+function PanelOrderbook({ symbol, mark }: { readonly symbol: string; readonly mark: number }) {
+  const { state } = useL2Book(symbol, { depth: 15 });
+  const ladder = useMemo(() => buildLadder(state.book), [state.book]);
+
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
-      <PanelHead>Order book</PanelHead>
+      <PanelHead>
+        <div className="flex items-center justify-between">
+          <span>Order book</span>
+          {state.status === 'error' && (
+            <span className="text-pnl-short">stale</span>
+          )}
+        </div>
+      </PanelHead>
       <div className="grid grid-cols-3 border-b border-border-subtle px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
         <span>Price</span>
         <span className="text-right">Size</span>
@@ -366,39 +437,82 @@ function PanelOrderbook({ mark }: { readonly mark: number }) {
       </div>
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-auto">
-          {book.asks.map((r, i) => (
-            <BookRow key={`a${i}`} row={r} side="ask" maxSum={book.maxSum} />
-          ))}
+          {ladder.asks.length === 0 ? (
+            <BookSkeleton side="ask" />
+          ) : (
+            ladder.asks.map((r, i) => (
+              <BookRow key={`a${i}`} row={r} side="ask" maxSum={ladder.maxSum} />
+            ))
+          )}
         </div>
         <div className="border-y border-border-subtle px-3 py-1.5 text-center font-mono text-[13px] text-accent">
           ${formatPrice(mark)}
         </div>
         <div className="flex-1 overflow-auto">
-          {book.bids.map((r, i) => (
-            <BookRow key={`b${i}`} row={r} side="bid" maxSum={book.maxSum} />
-          ))}
+          {ladder.bids.length === 0 ? (
+            <BookSkeleton side="bid" />
+          ) : (
+            ladder.bids.map((r, i) => (
+              <BookRow key={`b${i}`} row={r} side="bid" maxSum={ladder.maxSum} />
+            ))
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function generateBook(mark: number, depth: number) {
-  const tick = mark * 0.0001;
-  const asks: { px: number; sz: number; sum: number }[] = [];
-  const bids: { px: number; sz: number; sum: number }[] = [];
+interface LadderRow {
+  readonly px: number;
+  readonly sz: number;
+  readonly sum: number;
+}
+
+function buildLadder(book: L2Book | null): {
+  readonly asks: readonly LadderRow[];
+  readonly bids: readonly LadderRow[];
+  readonly maxSum: number;
+} {
+  if (!book) return { asks: [], bids: [], maxSum: 0 };
+
+  const asks: LadderRow[] = [];
   let askSum = 0;
-  let bidSum = 0;
-  for (let i = 0; i < depth; i++) {
-    const asz = 0.5 + Math.random() * 2.5;
-    askSum += asz;
-    asks.push({ px: mark + tick * (i + 1), sz: asz, sum: askSum });
-    const bsz = 0.5 + Math.random() * 2.5;
-    bidSum += bsz;
-    bids.push({ px: mark - tick * (i + 1), sz: bsz, sum: bidSum });
+  for (const [pxStr, szStr] of book.asks) {
+    const px = Number(pxStr);
+    const sz = Number(szStr);
+    if (!Number.isFinite(px) || !Number.isFinite(sz)) continue;
+    askSum += sz;
+    asks.push({ px, sz, sum: askSum });
   }
+  // Asks render best-ask at the bottom (closest to spread)
   asks.reverse();
-  return { asks, bids, maxSum: Math.max(askSum, bidSum) };
+
+  const bids: LadderRow[] = [];
+  let bidSum = 0;
+  for (const [pxStr, szStr] of book.bids) {
+    const px = Number(pxStr);
+    const sz = Number(szStr);
+    if (!Number.isFinite(px) || !Number.isFinite(sz)) continue;
+    bidSum += sz;
+    bids.push({ px, sz, sum: bidSum });
+  }
+
+  return { asks, bids, maxSum: Math.max(askSum, bidSum, 1) };
+}
+
+function BookSkeleton({ side }: { readonly side: 'ask' | 'bid' }) {
+  const tone = side === 'ask' ? 'text-pnl-short/40' : 'text-pnl-long/40';
+  return (
+    <div className="flex flex-col gap-px px-3 py-1 font-mono text-[11px]">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-3 py-0.5">
+          <span className={tone}>—</span>
+          <span className="text-right text-fg-muted/40">—</span>
+          <span className="text-right text-fg-muted/40">—</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function BookRow({
@@ -406,7 +520,7 @@ function BookRow({
   side,
   maxSum,
 }: {
-  readonly row: { px: number; sz: number; sum: number };
+  readonly row: LadderRow;
   readonly side: 'ask' | 'bid';
   readonly maxSum: number;
 }) {
@@ -428,107 +542,293 @@ function BookRow({
 }
 
 // =============================================================================
-// Tape
+// Tape — recent trades from WS
 // =============================================================================
 
-function PanelTape({ mark }: { readonly mark: number }) {
-  const prints = useMemo(
-    () =>
-      Array.from({ length: 40 }).map((_, i) => ({
-        id: i,
-        px: mark * (1 + (Math.random() - 0.5) * 0.0008),
-        sz: 0.02 + Math.random() * 0.5,
-        side: (Math.random() > 0.5 ? 'buy' : 'sell') as 'buy' | 'sell',
-        ago: `${Math.floor(i * 2.5)}s`,
-      })),
-    [mark],
-  );
+function PanelTape({ symbol }: { readonly symbol: string }) {
+  const trades = useRecentTrades(symbol, { limit: 40 });
+  const now = Date.now();
+
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
-      <PanelHead>Tape</PanelHead>
+      <PanelHead>Tape · {baseLabelFor(symbol)}</PanelHead>
+      <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-border-subtle px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
+        <span>Price</span>
+        <span className="text-right">Size</span>
+        <span className="text-right">Time</span>
+      </div>
       <div className="flex-1 overflow-auto">
-        {prints.map((p) => (
-          <div
-            key={p.id}
-            className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-0.5 font-mono text-[11px]"
-          >
-            <span className={p.side === 'buy' ? 'text-pnl-long' : 'text-pnl-short'}>
-              ${formatPrice(p.px)}
-            </span>
-            <span className="text-right text-fg-secondary">{p.sz.toFixed(3)}</span>
-            <span className="text-right text-fg-muted">{p.ago}</span>
+        {trades.length === 0 ? (
+          <div className="px-3 py-4 text-center font-mono text-[11px] text-fg-muted">
+            Waiting for trades…
           </div>
-        ))}
+        ) : (
+          trades.map((p) => (
+            <div
+              key={`${p.time}-${p.px}-${p.sz}`}
+              className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-0.5 font-mono text-[11px]"
+            >
+              <span className={p.side === 'buy' ? 'text-pnl-long' : 'text-pnl-short'}>
+                ${formatPrice(p.px)}
+                {p.isLiquidation && <span className="ml-1 text-alert-orange">·LIQ</span>}
+              </span>
+              <span className="text-right text-fg-secondary">{p.sz.toFixed(3)}</span>
+              <span className="text-right text-fg-muted">{timeAgo(now, p.time)}</span>
+            </div>
+          ))
+        )}
       </div>
     </section>
   );
 }
 
+function timeAgo(now: number, then: number): string {
+  const sec = Math.max(0, Math.round((now - then) / 1000));
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+  return `${Math.floor(sec / 3600)}h`;
+}
+
 // =============================================================================
-// Positions
+// Positions — real positions, real Close button
 // =============================================================================
 
-function PanelPositions({ mark, symbol }: { readonly mark: number; readonly symbol: string }) {
-  const pos = {
-    symbol,
-    side: 'long' as const,
-    sizeBase: 0.1,
-    entry: mark * 0.982,
-    liq: mark * 0.88,
-  };
-  const pnl = (mark - pos.entry) * pos.sizeBase;
-  const tone = pnl >= 0 ? 'text-pnl-long' : 'text-pnl-short';
+function PanelPositions({
+  positions,
+  openOrders,
+  livePrices,
+  accountStatus,
+  connected,
+  onResult,
+}: {
+  readonly positions: readonly BulkPosition[];
+  readonly openOrders: readonly BulkOpenOrder[];
+  readonly livePrices: Record<string, LivePrice | undefined>;
+  readonly accountStatus: ReturnType<typeof useBulkAccount>['state']['status'];
+  readonly connected: boolean;
+  readonly onResult: (r: SubmitOrderResult) => void;
+}) {
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
-      <PanelHead>Positions · 1</PanelHead>
+      <PanelHead>
+        Positions · {positions.length} · Orders · {openOrders.length}
+      </PanelHead>
       <div className="flex-1 overflow-auto p-3">
-        <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-klub border border-border-subtle bg-bg-surface p-3">
-          <div className="font-mono text-[12px]">
-            <div className="flex items-baseline gap-2">
-              <span className="text-pnl-long">LONG</span>
-              <span className="text-fg-primary">{pos.symbol}</span>
-              <span className="text-fg-muted">{pos.sizeBase}</span>
-            </div>
-            <div className="mt-1 text-fg-muted">
-              Entry ${formatPrice(pos.entry)} · Liq ${formatPrice(pos.liq)}
-            </div>
+        {!connected ? (
+          <PositionsEmpty message="Connect a wallet to see positions." />
+        ) : accountStatus === 'loading' && positions.length === 0 ? (
+          <PositionsEmpty message="Loading positions…" />
+        ) : positions.length === 0 && openOrders.length === 0 ? (
+          <PositionsEmpty message="No positions or resting orders." />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {positions.map((p) => (
+              <PositionRow
+                key={`pos-${p.symbol}`}
+                pos={p}
+                live={livePrices[p.symbol]}
+                onResult={onResult}
+              />
+            ))}
+            {openOrders.map((o) => (
+              <OpenOrderRow key={`ord-${o.orderId}`} order={o} onResult={onResult} />
+            ))}
           </div>
-          <div className="text-right">
-            <div className={`font-mono text-[14px] ${tone}`}>
-              {pnl >= 0 ? '+' : ''}${Math.abs(pnl).toFixed(2)}
-            </div>
-            <button className="btn-ghost btn-sm mt-1 text-[11px]">Close</button>
-          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PositionsEmpty({ message }: { readonly message: string }) {
+  return (
+    <div className="flex h-full items-center justify-center text-center font-mono text-[11px] text-fg-muted">
+      {message}
+    </div>
+  );
+}
+
+function PositionRow({
+  pos,
+  live,
+  onResult,
+}: {
+  readonly pos: BulkPosition;
+  readonly live: LivePrice | undefined;
+  readonly onResult: (r: SubmitOrderResult) => void;
+}) {
+  const { submit, state } = useBulkOrder();
+  const isLong = pos.sizeBase > 0;
+  const absSize = Math.abs(pos.sizeBase);
+  const mark = live?.mark ?? pos.fairPrice;
+  const pnl =
+    pos.unrealizedPnlUsd ?? (mark - pos.entryPrice) * pos.sizeBase;
+  const tone = pnl >= 0 ? 'text-pnl-long' : 'text-pnl-short';
+
+  async function close() {
+    if (state.status === 'submitting') return;
+    const r = await submit({
+      symbol: pos.symbol,
+      side: isLong ? 'short' : 'long',
+      orderType: 'market',
+      size: absSize,
+      reduceOnly: true,
+    });
+    onResult(r);
+  }
+
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-klub border border-border-subtle bg-bg-surface p-3">
+      <div className="font-mono text-[12px]">
+        <div className="flex items-baseline gap-2">
+          <span className={isLong ? 'text-pnl-long' : 'text-pnl-short'}>
+            {isLong ? 'LONG' : 'SHORT'}
+          </span>
+          <span className="text-fg-primary">{pos.symbol}</span>
+          <span className="text-fg-muted">{absSize.toFixed(4)}</span>
+        </div>
+        <div className="mt-1 text-fg-muted">
+          Entry ${formatPrice(pos.entryPrice)} · Mark ${formatPrice(mark)}
         </div>
       </div>
-    </section>
+      <div className="text-right">
+        <div className={`font-mono text-[14px] ${tone}`}>
+          {pnl >= 0 ? '+' : '-'}${Math.abs(pnl).toFixed(2)}
+        </div>
+        <button
+          type="button"
+          onClick={close}
+          disabled={state.status === 'submitting'}
+          className="btn-ghost btn-sm mt-1 text-[11px] disabled:opacity-50"
+        >
+          {state.status === 'submitting' ? 'Closing…' : 'Close'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OpenOrderRow({
+  order,
+  onResult,
+}: {
+  readonly order: BulkOpenOrder;
+  readonly onResult: (r: SubmitOrderResult) => void;
+}) {
+  const { cancel, state } = useBulkCancel();
+
+  async function doCancel() {
+    if (state.status === 'submitting') return;
+    const r = await cancel({ symbol: order.symbol, orderId: order.orderId });
+    onResult(r);
+  }
+
+  const sideTone = order.isBuy ? 'text-pnl-long' : 'text-pnl-short';
+  const sideLabel = order.isBuy ? 'BUY' : 'SELL';
+
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-klub border border-border-subtle bg-bg-surface/60 p-3">
+      <div className="font-mono text-[12px]">
+        <div className="flex items-baseline gap-2">
+          <span className={sideTone}>{sideLabel}</span>
+          <span className="text-fg-primary">{order.symbol}</span>
+          <span className="text-fg-muted">{Math.abs(order.sizeBase).toFixed(4)}</span>
+          <span className="text-fg-muted">@ ${formatPrice(order.price)}</span>
+        </div>
+        {order.tif && <div className="mt-1 text-fg-muted">{order.tif}</div>}
+      </div>
+      <button
+        type="button"
+        onClick={doCancel}
+        disabled={state.status === 'submitting'}
+        className="btn-ghost btn-sm text-[11px] disabled:opacity-50"
+      >
+        {state.status === 'submitting' ? 'Cancelling…' : 'Cancel'}
+      </button>
+    </div>
   );
 }
 
 // =============================================================================
-// Order form
+// Order form — real submit via useBulkOrder
 // =============================================================================
 
-function PanelOrderForm({ symbol, mark }: { readonly symbol: string; readonly mark: number }) {
+function PanelOrderForm({
+  symbol,
+  mark,
+  connected,
+  onResult,
+}: {
+  readonly symbol: string;
+  readonly mark: number;
+  readonly connected: boolean;
+  readonly onResult: (r: SubmitOrderResult) => void;
+}) {
   const [side, setSide] = useState<'long' | 'short'>('long');
   const [type, setType] = useState<'limit' | 'market'>('limit');
+  const [tif, setTif] = useState<'GTC' | 'IOC' | 'ALO'>('GTC');
   const [price, setPrice] = useState(mark);
   const [size, setSize] = useState(0.05);
   const [lev, setLev] = useState(5);
+  const [reduceOnly, setReduceOnly] = useState(false);
 
+  const { submit, state, usingAgent } = useBulkOrder();
+
+  const maxLev = maxLeverageFor(symbol);
+
+  // Reset price + clamp leverage when the symbol changes.
   useEffect(() => {
     setPrice(mark);
-  }, [mark, symbol]);
+    setLev((cur) => Math.min(cur, maxLeverageFor(symbol)));
+  }, [symbol, mark]);
+
+  const refPx = type === 'limit' ? price : mark;
+  const notional = size * refPx;
+  const margin = lev > 0 ? notional / lev : 0;
+
+  async function onSubmit() {
+    if (!connected) {
+      onResult({
+        ok: false,
+        reason: 'rejected_invalid',
+        message: 'Connect a wallet first.',
+      });
+      return;
+    }
+    if (state.status === 'submitting') return;
+    const req = {
+      symbol,
+      side,
+      orderType: type,
+      size,
+      ...(type === 'limit' ? { price, timeInForce: tif } : {}),
+      ...(reduceOnly ? { reduceOnly: true } : {}),
+    };
+    const r = await submit(req);
+    onResult(r);
+  }
+
+  const submitting = state.status === 'submitting';
+  const buttonLabel = !connected
+    ? 'Connect wallet'
+    : submitting
+      ? usingAgent
+        ? 'Submitting…'
+        : 'Sign in wallet…'
+      : `${side === 'long' ? 'Buy' : 'Sell'} ${baseLabelFor(symbol)} · ${type}`;
 
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
-      <PanelHead>Order · {symbol}</PanelHead>
+      <PanelHead>
+        <div className="flex items-center justify-between">
+          <span>Order · {symbol}</span>
+          {usingAgent && <span className="text-accent">Agent · silent</span>}
+        </div>
+      </PanelHead>
       <div className="flex-1 space-y-3 overflow-auto p-4">
         <div className="grid grid-cols-2 overflow-hidden rounded-klub border border-border">
           <button
-            onClick={() => {
-              setSide('long');
-            }}
+            onClick={() => setSide('long')}
             className={`py-2 text-[12px] font-medium transition-colors ${
               side === 'long' ? 'bg-pnl-long/15 text-pnl-long' : 'text-fg-secondary hover:text-fg-primary'
             }`}
@@ -536,9 +836,7 @@ function PanelOrderForm({ symbol, mark }: { readonly symbol: string; readonly ma
             Long
           </button>
           <button
-            onClick={() => {
-              setSide('short');
-            }}
+            onClick={() => setSide('short')}
             className={`border-l border-border py-2 text-[12px] font-medium transition-colors ${
               side === 'short' ? 'bg-pnl-short/15 text-pnl-short' : 'text-fg-secondary hover:text-fg-primary'
             }`}
@@ -546,13 +844,12 @@ function PanelOrderForm({ symbol, mark }: { readonly symbol: string; readonly ma
             Short
           </button>
         </div>
+
         <div className="grid grid-cols-2 overflow-hidden rounded-klub border border-border">
           {(['limit', 'market'] as const).map((t, i) => (
             <button
               key={t}
-              onClick={() => {
-                setType(t);
-              }}
+              onClick={() => setType(t)}
               className={`${i === 1 ? 'border-l border-border' : ''} py-1.5 text-[11px] font-medium transition-colors ${
                 type === t ? 'bg-accent/15 text-accent' : 'text-fg-secondary hover:text-fg-primary'
               }`}
@@ -563,77 +860,85 @@ function PanelOrderForm({ symbol, mark }: { readonly symbol: string; readonly ma
         </div>
 
         {type === 'limit' && (
-          <ProField
-            label="Price"
-            value={price}
-            onChange={setPrice}
-            suffix="USD"
-          />
+          <ProField label="Price" value={price} onChange={setPrice} suffix="USD" decimals={2} />
         )}
         <ProField
           label="Size"
           value={size}
           onChange={setSize}
-          suffix={symbol.split('-')[0] ?? symbol}
+          suffix={baseLabelFor(symbol)}
           step={0.001}
           decimals={4}
         />
 
         <div>
           <div className="flex items-baseline justify-between">
-            <span className="text-[10px] uppercase tracking-[0.06em] text-fg-muted">Leverage</span>
+            <span className="text-[10px] uppercase tracking-[0.06em] text-fg-muted">
+              Leverage · max {maxLev}×
+            </span>
             <span className="font-mono text-[14px] text-accent">{lev}×</span>
           </div>
           <input
             type="range"
             min={1}
-            max={50}
+            max={maxLev}
             step={0.5}
             value={lev}
-            onChange={(e) => {
-              setLev(Number(e.target.value));
-            }}
+            onChange={(e) => setLev(Number(e.target.value))}
             className="mt-1.5 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
           />
         </div>
 
-        <div className="grid grid-cols-4 gap-1">
-          {[10, 25, 50, 100].map((p) => (
-            <button
-              key={p}
-              type="button"
-              className="rounded-md border border-border-subtle bg-bg-surface py-1 text-[10px] font-medium text-fg-secondary transition-colors hover:border-border hover:text-fg-primary"
-            >
-              {p}%
-            </button>
-          ))}
-        </div>
+        {type === 'limit' && (
+          <div className="grid grid-cols-3 overflow-hidden rounded-klub border border-border-subtle">
+            {(['GTC', 'IOC', 'ALO'] as const).map((t, i) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTif(t)}
+                className={`${i > 0 ? 'border-l border-border-subtle' : ''} py-1 text-[10px] font-medium transition-colors ${
+                  tif === t ? 'bg-bg-elevated text-fg-primary' : 'text-fg-muted hover:text-fg-primary'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <label className="flex cursor-pointer items-center gap-2 text-[11px] text-fg-secondary">
+          <input
+            type="checkbox"
+            checked={reduceOnly}
+            onChange={(e) => setReduceOnly(e.target.checked)}
+            className="h-3.5 w-3.5 cursor-pointer accent-accent"
+          />
+          Reduce only
+        </label>
 
         <button
           type="button"
-          className={`btn-block mt-4 py-2.5 text-[13px] font-medium ${
+          onClick={onSubmit}
+          disabled={submitting}
+          className={`btn-block mt-4 py-2.5 text-[13px] font-medium disabled:opacity-50 ${
             side === 'long' ? 'btn-primary' : 'btn-danger'
           }`}
         >
-          {side === 'long' ? 'Buy' : 'Sell'} {symbol} · {type}
+          {buttonLabel}
         </button>
 
         <div className="border-t border-border-subtle pt-3 font-mono text-[11px] text-fg-muted">
           <div className="flex items-baseline justify-between">
             <span>Notional</span>
-            <span className="text-fg-secondary">
-              ${(size * (type === 'limit' ? price : mark) * 1).toFixed(2)}
-            </span>
+            <span className="text-fg-secondary">${notional.toFixed(2)}</span>
           </div>
           <div className="mt-1 flex items-baseline justify-between">
             <span>Margin</span>
-            <span className="text-fg-secondary">
-              ${((size * (type === 'limit' ? price : mark)) / lev).toFixed(2)}
-            </span>
+            <span className="text-fg-secondary">${margin.toFixed(2)}</span>
           </div>
           <div className="mt-1 flex items-baseline justify-between">
-            <span>Fee · maker/taker</span>
-            <span className="text-fg-secondary">2bps / 5bps</span>
+            <span>Mark</span>
+            <span className="text-fg-secondary">${formatPrice(mark)}</span>
           </div>
         </div>
       </div>
@@ -656,6 +961,17 @@ function ProField({
   readonly step?: number;
   readonly decimals?: number;
 }) {
+  // Mirrors the /trade NumField pattern: while focused, show the user's
+  // raw text via `draft` state so toFixed() doesn't append zeros and
+  // fight keystrokes. On blur, reformat to canonical form.
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState<string>('');
+  const display = focused
+    ? draft
+    : decimals !== undefined
+      ? value.toFixed(decimals)
+      : String(value);
+
   return (
     <div>
       <span className="text-[10px] uppercase tracking-[0.06em] text-fg-muted">{label}</span>
@@ -664,12 +980,19 @@ function ProField({
           type="number"
           inputMode="decimal"
           step={step}
-          value={decimals !== undefined ? value.toFixed(decimals) : value}
+          value={display}
+          onFocus={(e) => {
+            setFocused(true);
+            setDraft(e.target.value);
+            requestAnimationFrame(() => e.target.select());
+          }}
+          onBlur={() => setFocused(false)}
           onChange={(e) => {
+            setDraft(e.target.value);
             const n = Number(e.target.value);
             if (Number.isFinite(n)) onChange(n);
           }}
-          className="w-full rounded-klub border border-border bg-bg-surface px-2.5 py-1.5 pr-10 font-mono text-[12px] text-fg-primary focus:border-accent focus:outline-none"
+          className="w-full rounded-klub border border-border bg-bg-surface px-2.5 py-1.5 pr-12 font-mono text-[12px] text-fg-primary focus:border-accent focus:outline-none"
         />
         {suffix && (
           <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.06em] text-fg-muted">
@@ -682,7 +1005,7 @@ function ProField({
 }
 
 // =============================================================================
-// Panel head + Command Palette
+// Panel head
 // =============================================================================
 
 function PanelHead({ children }: { readonly children: React.ReactNode }) {
@@ -693,10 +1016,16 @@ function PanelHead({ children }: { readonly children: React.ReactNode }) {
   );
 }
 
+// =============================================================================
+// Command palette
+// =============================================================================
+
 function CommandPalette({
+  livePrices,
   onClose,
   onSymbol,
 }: {
+  readonly livePrices: Record<string, LivePrice | undefined>;
   readonly onClose: () => void;
   readonly onSymbol: (s: string) => void;
 }) {
@@ -709,61 +1038,28 @@ function CommandPalette({
 
   const commands = useMemo(
     () => [
-      ...WATCHLIST.map((w) => ({
-        id: `sym-${w.sym}`,
-        label: `Go to ${w.sym}`,
-        hint: `$${formatPrice(w.mark)}`,
-        run: () => {
-          onSymbol(w.sym);
-        },
-      })),
-      {
-        id: 'nav-home',
-        label: 'Go to Home',
-        hint: '/home',
-        run: () => {
-          window.location.href = '/home';
-        },
-      },
-      {
-        id: 'nav-basis',
-        label: 'Go to Basis',
-        hint: '/basis',
-        run: () => {
-          window.location.href = '/basis';
-        },
-      },
-      {
-        id: 'nav-desk',
-        label: 'Go to The Desk',
-        hint: '/desk',
-        run: () => {
-          window.location.href = '/desk';
-        },
-      },
-      {
-        id: 'nav-ramp',
-        label: 'Add funds',
-        hint: '/ramp',
-        run: () => {
-          window.location.href = '/ramp';
-        },
-      },
-      {
-        id: 'act-close-all',
-        label: 'Close all positions',
-        hint: 'action',
-        run: () => {
-          onClose();
-        },
-      },
+      ...MARKETS.map((m) => {
+        const live = livePrices[m.symbol]?.mark ?? m.seedPrice;
+        return {
+          id: `sym-${m.symbol}`,
+          label: `Go to ${m.symbol}`,
+          hint: `$${formatPrice(live)}`,
+          run: () => onSymbol(m.symbol),
+        };
+      }),
+      { id: 'nav-trade', label: 'Open Trade screen', hint: '/trade', run: () => { window.location.href = '/trade'; } },
+      { id: 'nav-quick', label: 'Open Quick Trade', hint: '/quick-trade', run: () => { window.location.href = '/quick-trade'; } },
+      { id: 'nav-home', label: 'Go to Home', hint: '/home', run: () => { window.location.href = '/home'; } },
+      { id: 'nav-follow', label: 'Browse leaders', hint: '/follow', run: () => { window.location.href = '/follow'; } },
+      { id: 'nav-health', label: 'Account health', hint: '/health', run: () => { window.location.href = '/health'; } },
+      { id: 'nav-ramp', label: 'Add funds', hint: '/ramp', run: () => { window.location.href = '/ramp'; } },
     ],
-    [onSymbol, onClose],
+    [livePrices, onSymbol],
   );
 
   const filtered = q
     ? commands.filter((c) => c.label.toLowerCase().includes(q.toLowerCase()))
-    : commands.slice(0, 10);
+    : commands.slice(0, 12);
 
   return (
     <div
@@ -772,18 +1068,14 @@ function CommandPalette({
     >
       <div
         className="w-full max-w-lg overflow-hidden rounded-klub-lg border border-border bg-bg-surface shadow-[0_20px_80px_rgba(0,0,0,0.6)]"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
+        onClick={(e) => e.stopPropagation()}
       >
         <input
           ref={inputRef}
           type="text"
           value={q}
           placeholder="Search markets, run commands…"
-          onChange={(e) => {
-            setQ(e.target.value);
-          }}
+          onChange={(e) => setQ(e.target.value)}
           className="w-full border-b border-border-subtle bg-transparent px-4 py-4 text-[15px] text-fg-primary outline-none placeholder:text-fg-muted"
         />
         <div className="max-h-[50vh] overflow-auto">
@@ -794,9 +1086,7 @@ function CommandPalette({
               <button
                 key={c.id}
                 type="button"
-                onClick={() => {
-                  c.run();
-                }}
+                onClick={() => c.run()}
                 className="flex w-full items-center justify-between px-4 py-2.5 text-left font-mono text-[13px] transition-colors hover:bg-bg-elevated"
               >
                 <span className="text-fg-primary">{c.label}</span>
@@ -806,7 +1096,7 @@ function CommandPalette({
           )}
         </div>
         <div className="flex items-center justify-between border-t border-border-subtle px-4 py-2 font-mono text-[10px] text-fg-muted">
-          <span>↵ run · ↑↓ navigate · esc close</span>
+          <span>↵ run · esc close</span>
           <span>⌘K</span>
         </div>
       </div>
@@ -814,9 +1104,121 @@ function CommandPalette({
   );
 }
 
+// =============================================================================
+// Result modal — order placement outcome
+// =============================================================================
+
+function ResultModal({
+  result,
+  onClose,
+}: {
+  readonly result: SubmitOrderResult;
+  readonly onClose: () => void;
+}) {
+  const testnetUrl = process.env['NEXT_PUBLIC_BULK_TESTNET_APP_URL'] ?? 'https://early.bulk.trade';
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-klub-lg border border-border bg-bg-surface p-6 shadow-[0_20px_80px_rgba(0,0,0,0.6)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {result.ok ? (
+          <>
+            <div className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-pnl-long">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-pnl-long" />
+              Order placed
+            </div>
+            <h2 className="mt-4 text-xl font-semibold tracking-tight text-fg-primary">
+              You&rsquo;re in the trade.
+            </h2>
+            <p className="mt-3 text-[13px] leading-relaxed text-fg-secondary">
+              Bulk accepted your order. Fill status will appear in Positions.
+            </p>
+            {result.orderId && (
+              <div className="mt-5 rounded-klub border border-border-subtle bg-bg-base p-2.5">
+                <div className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">Order ID</div>
+                <div className="mt-1 break-all font-mono text-[11px] text-fg-primary">{result.orderId}</div>
+              </div>
+            )}
+            <div className="mt-6 flex gap-2">
+              <a href={testnetUrl} target="_blank" rel="noreferrer noopener" className="btn-secondary btn-block">
+                View on Bulk ↗
+              </a>
+              <button type="button" onClick={onClose} className="btn-primary btn-block">
+                Done
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-pnl-short">
+              <span className="h-1.5 w-1.5 rounded-full bg-pnl-short" />
+              Not placed
+            </div>
+            <h2 className="mt-4 text-xl font-semibold tracking-tight text-fg-primary">
+              {titleForReason(result.reason)}
+            </h2>
+            <p className="mt-3 text-[13px] leading-relaxed text-fg-secondary">
+              {humanizeReason(result.reason, result.message)}
+            </p>
+            <div className="mt-4 rounded-klub border border-border-subtle bg-bg-base p-2.5">
+              <div className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">Details</div>
+              <div className="mt-1 break-words font-mono text-[11px] text-fg-muted">{result.message}</div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <button type="button" onClick={onClose} className="btn-primary btn-block">
+                Try again
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function titleForReason(reason: Extract<SubmitOrderResult, { ok: false }>['reason']): string {
+  switch (reason) {
+    case 'rejected_risk_limit': return 'Too much risk for your account';
+    case 'rejected_crossing': return 'Price moved too far';
+    case 'user_rejected': return 'You cancelled the signature';
+    case 'network_error': return 'Network error';
+    case 'rejected_invalid':
+    default: return 'Order was rejected';
+  }
+}
+
+function humanizeReason(
+  reason: Extract<SubmitOrderResult, { ok: false }>['reason'],
+  raw: string,
+): string {
+  switch (reason) {
+    case 'rejected_risk_limit': return 'This trade is larger than your account can back. Lower the amount or reduce leverage.';
+    case 'rejected_crossing': return 'The market moved between preview and submit. Try again.';
+    case 'user_rejected': return 'No order was submitted.';
+    case 'network_error': return 'We could not reach the exchange. Check your connection.';
+    case 'rejected_invalid':
+    default: return raw || 'Bulk rejected this order. See details below.';
+  }
+}
+
+// =============================================================================
+// Format helpers
+// =============================================================================
+
 function formatPrice(p: number): string {
-  if (p === 0) return '0.00';
+  if (!Number.isFinite(p) || p === 0) return '0.00';
   if (p < 1) return p.toFixed(4);
   if (p < 100) return p.toFixed(2);
   return p.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatUsd(n: number): string {
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 }
