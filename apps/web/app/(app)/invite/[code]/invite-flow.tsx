@@ -123,7 +123,7 @@ function SuccessPanel() {
       <p className="mt-4 text-[15px] leading-relaxed text-fg-secondary">
         Check your email for the sign-in link. Set up takes about a minute.
       </p>
-      <a href="/home" className="btn-primary btn-block btn-lg mt-8">
+      <a href="/cash" className="btn-primary btn-block btn-lg mt-8">
         Continue to home
       </a>
     </div>

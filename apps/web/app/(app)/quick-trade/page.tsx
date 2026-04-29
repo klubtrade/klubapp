@@ -3,13 +3,13 @@
 import { calculate, type Side } from '@klub/calc';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 
 import { useBulkAccount, type BulkPosition, type BulkOpenOrder } from '@/hooks/use-bulk-account';
 import { useBulkCancel } from '@/hooks/use-bulk-cancel';
 import { useBulkOrder } from '@/hooks/use-bulk-order';
 import { useTickers } from '@/hooks/use-tickers';
 import { useToast } from '@/components/toast';
+import { useActiveAccount } from '@/hooks/use-active-account';
 import { useWalletGate } from '@/hooks/use-wallet-gate';
 import { RISK_PRESETS, useUserPrefs } from '@/lib/user-prefs';
 import type { SubmitOrderResult } from '@/lib/bulk/orders';
@@ -59,12 +59,10 @@ export default function QuickTradePage() {
   const toast = useToast();
   const riskPreset = RISK_PRESETS[prefs.riskProfile];
 
-  // Wallet + account context.
-  const wallet = useWallet();
+  // Wallet + account context. Active account = master or selected pot.
   const { connected, mounted, promptConnect } = useWalletGate();
-  const { state: accountState, refresh: refreshAccount } = useBulkAccount(
-    connected && wallet.publicKey ? wallet.publicKey.toBase58() : null,
-  );
+  const { pubkey: activePubkey } = useActiveAccount();
+  const { state: accountState, refresh: refreshAccount } = useBulkAccount(activePubkey);
   const equityUsd = accountState.data?.equityUsd ?? FALLBACK_EQUITY;
   const positions = accountState.data?.positions ?? [];
   const openOrders = accountState.data?.openOrders ?? [];

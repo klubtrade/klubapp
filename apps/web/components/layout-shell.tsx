@@ -29,7 +29,7 @@ export function LayoutShell({ children }: { readonly children: React.ReactNode }
       <div className="fixed right-4 top-4 z-50 flex items-center gap-3 md:right-6 md:top-6">
         <WalletButton variant="primary" size="sm" />
         <Link
-          href="/home"
+          href="/cash"
           aria-label="KLUB home"
           className="flex items-center gap-2 font-semibold tracking-[-0.02em] text-fg-primary transition-opacity hover:opacity-70"
         >

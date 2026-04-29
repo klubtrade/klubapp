@@ -29,9 +29,15 @@ const NAV_GROUPS: readonly {
   readonly items: readonly { readonly href: string; readonly label: string }[];
 }[] = [
   {
+    label: 'Account',
+    items: [
+      { href: '/cash', label: 'Cash' },
+      { href: '/home', label: 'Home' },
+    ],
+  },
+  {
     label: 'Trade',
     items: [
-      { href: '/home', label: 'Home' },
       { href: '/quick-trade', label: 'Quick trade' },
       { href: '/trade', label: 'Expert trade' },
       { href: '/follow', label: 'Follow leaders' },

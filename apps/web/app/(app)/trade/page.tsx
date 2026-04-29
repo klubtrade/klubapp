@@ -1,9 +1,9 @@
 'use client';
 
 import { calculate, type Side } from '@klub/calc';
-import type { UserFill } from '@klub/api-client';
+import type { CandleInterval, UserFill } from '@klub/api-client';
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 
 import {
   useBulkAccount,
@@ -12,13 +12,29 @@ import {
 } from '@/hooks/use-bulk-account';
 import { useBulkCancel } from '@/hooks/use-bulk-cancel';
 import { useBulkOrder } from '@/hooks/use-bulk-order';
+import { useCandles } from '@/hooks/use-candles';
 import { useConnectionState } from '@/hooks/use-connection-state';
 import { useTickers } from '@/hooks/use-tickers';
 import { useToast } from '@/components/toast';
 import { useUserFills } from '@/hooks/use-user-fills';
+import { useActiveAccount } from '@/hooks/use-active-account';
 import { useWalletGate } from '@/hooks/use-wallet-gate';
 import type { SubmitOrderResult } from '@/lib/bulk/orders';
 import { MARKETS, SEED_PRICES, type MarketSymbol } from '@/lib/markets';
+
+// CandleChart wraps `lightweight-charts`, which uses canvas APIs and
+// won't run on the server. Dynamic-import with `ssr: false` keeps the
+// module out of Next's static-prerender pass — without this, build
+// fails with `ReferenceError: window is not defined` during page
+// generation.
+const CandleChart = dynamic(() => import('@/components/candle-chart'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[320px] items-center justify-center text-[11px] text-fg-muted">
+      Loading chart…
+    </div>
+  ),
+});
 
 /**
  * /trade — central trading screen.
@@ -68,9 +84,12 @@ const INITIAL_PRICES = SEED_PRICES;
 type BottomTab = 'activity' | 'trades' | 'math';
 
 export default function TradePage() {
-  const wallet = useWallet();
   const { connected, mounted, promptConnect } = useWalletGate();
-  const pubkey = connected && wallet.publicKey ? wallet.publicKey.toBase58() : null;
+  // The active account drives all queries + the `account` field on
+  // signed transactions. Master by default; switches to a sub-account
+  // ("pot") when the user picks one in the AccountSwitcher.
+  const { pubkey: activePubkey } = useActiveAccount();
+  const pubkey = activePubkey;
 
   const { state: accountState, refresh: refreshAccount } = useBulkAccount(pubkey);
   const { state: fillsState, refresh: refreshFills } = useUserFills(pubkey);
@@ -170,7 +189,7 @@ export default function TradePage() {
 
           {/* 2. CHART + tabs — second on mobile, second column on desktop */}
           <div className="order-2 lg:order-2 lg:col-start-2 flex flex-col gap-4">
-            <ChartPlaceholder mark={mark} symbol={symbol} />
+            <ChartPanel mark={mark} symbol={symbol} />
             <BottomPanel
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -393,30 +412,51 @@ function generateBook(mark: number): {
 // =============================================================================
 
 /**
- * Chart placeholder. Timeframes are clickable and the active state
- * is reflected — but the underlying SVG is still a placeholder
- * sketch (real candle rendering lands when we integrate
- * lightweight-charts in a follow-up session). For now selecting "1h"
- * vs "5m" updates the highlight + label; the candles stay constant.
+ * Chart panel — real candlestick chart via TradingView Lightweight
+ * Charts.
+ *
+ * Timeframe state is local to this component so symbol switches
+ * preserve the user's selected interval (most users have a "I always
+ * trade on 15m" preference). Bulk's CandleInterval uses lowercase
+ * `1d` (not `1D`); the UI label keeps the conventional `1D` casing.
+ *
+ * The chart key forces a fresh chart instance whenever symbol or
+ * interval changes — this is intentional: lightweight-charts keeps
+ * the user's pan/zoom on `setData()` calls, but we WANT a reset when
+ * switching markets so the new asset's price range fits cleanly.
  */
-const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1D'] as const;
-type Timeframe = (typeof TIMEFRAMES)[number];
+const TIMEFRAMES: ReadonlyArray<{
+  readonly label: string;
+  readonly api: CandleInterval;
+}> = [
+  { label: '1m', api: '1m' },
+  { label: '5m', api: '5m' },
+  { label: '15m', api: '15m' },
+  { label: '1h', api: '1h' },
+  { label: '4h', api: '4h' },
+  { label: '1D', api: '1d' },
+];
 
-function ChartPlaceholder({ mark, symbol }: { readonly mark: number; readonly symbol: Sym }) {
-  const [timeframe, setTimeframe] = useState<Timeframe>('15m');
+function ChartPanel({ mark, symbol }: { readonly mark: number; readonly symbol: Sym }) {
+  const [interval, setInterval] = useState<CandleInterval>('15m');
+  const { state } = useCandles(symbol, interval);
+  const candles = state.candles;
+  const isLoading = state.status === 'loading' && candles.length === 0;
+  const isError = state.status === 'error' && candles.length === 0;
+
   return (
-    <div className="flex min-h-[260px] flex-col justify-between rounded-klub-lg border border-border-subtle bg-bg-surface p-4 md:min-h-[340px] md:p-6">
+    <div className="flex min-h-[260px] flex-col rounded-klub-lg border border-border-subtle bg-bg-surface p-4 md:min-h-[380px] md:p-5">
       <div className="flex items-center justify-between">
-        <PanelHead>Chart · {symbol} · {timeframe}</PanelHead>
+        <PanelHead>Chart · {symbol} · {currentLabel(interval)}</PanelHead>
         <div className="flex gap-1">
           {TIMEFRAMES.map((tf, i) => {
-            const active = tf === timeframe;
+            const active = tf.api === interval;
             return (
               <button
-                key={tf}
+                key={tf.api}
                 type="button"
                 onClick={() => {
-                  setTimeframe(tf);
+                  setInterval(tf.api);
                 }}
                 aria-pressed={active}
                 className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors md:px-2.5 md:text-[12px] ${
@@ -425,51 +465,48 @@ function ChartPlaceholder({ mark, symbol }: { readonly mark: number; readonly sy
                     : 'text-fg-muted hover:bg-bg-elevated hover:text-fg-primary'
                 } ${i < 2 || i > 3 ? 'hidden md:inline-flex' : ''}`}
               >
-                {tf}
+                {tf.label}
               </button>
             );
           })}
         </div>
       </div>
-      <div className="flex-1 py-4">
-        <svg viewBox="0 0 400 150" className="h-full w-full">
-          <defs>
-            <linearGradient id="chart-fade" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M 0 120 Q 40 80 80 90 T 160 70 T 240 60 T 320 50 T 400 40 L 400 150 L 0 150 Z"
-            fill="url(#chart-fade)"
+      <div className="relative mt-3 flex-1">
+        {isLoading ? (
+          <div className="flex h-[260px] items-center justify-center text-[12px] text-fg-muted md:h-[320px]">
+            Loading {symbol} {currentLabel(interval)}…
+          </div>
+        ) : isError ? (
+          <div className="flex h-[260px] flex-col items-center justify-center gap-2 text-[12px] md:h-[320px]">
+            <span className="text-pnl-short">Couldn&rsquo;t load candles</span>
+            <span className="text-fg-muted">
+              Bulk&rsquo;s API may be slow or your connection dropped. Retrying.
+            </span>
+          </div>
+        ) : (
+          <CandleChart
+            // Force a fresh chart when symbol OR interval changes so the
+            // new data fits cleanly without the previous market's zoom
+            // being preserved.
+            key={`${symbol}-${interval}`}
+            candles={candles}
           />
-          <path
-            d="M 0 120 Q 40 80 80 90 T 160 70 T 240 60 T 320 50 T 400 40"
-            stroke="var(--accent)"
-            strokeWidth="1.5"
-            fill="none"
-          />
-          {[30, 60, 90, 120].map((y) => (
-            <line
-              key={y}
-              x1="0"
-              y1={y}
-              x2="400"
-              y2={y}
-              stroke="var(--border-subtle)"
-              strokeDasharray="2,4"
-            />
-          ))}
-        </svg>
+        )}
       </div>
-      <div className="flex items-baseline justify-between text-[10px] text-fg-muted md:text-[11px]">
+      <div className="mt-3 flex items-baseline justify-between text-[10px] text-fg-muted md:text-[11px]">
         <span>
-          Mark <span className="text-fg-primary">${formatPrice(mark)}</span>
+          Mark <span className="font-mono text-fg-primary">${formatPrice(mark)}</span>
         </span>
-        <span className="hidden md:inline">lightweight-charts integration in Phase 3.5</span>
+        <span className="hidden md:inline">
+          {candles.length > 0 ? `${candles.length} candles · TradingView` : 'TradingView'}
+        </span>
       </div>
     </div>
   );
+}
+
+function currentLabel(interval: CandleInterval): string {
+  return TIMEFRAMES.find((t) => t.api === interval)?.label ?? interval;
 }
 
 // =============================================================================

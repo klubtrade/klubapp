@@ -67,6 +67,17 @@ export interface BulkOpenOrder {
   readonly raw: Record<string, unknown>;
 }
 
+/**
+ * Sub-account row returned in `fullAccount.subAccounts` (Bulk v1.0.14,
+ * 28 Apr 2026). Each child sub-account is identified by pubkey and
+ * carries an optional name. KLUB uses these as on-chain "pots" — Cash,
+ * Trading, per-leader copy-trade pools.
+ */
+export interface BulkSubAccount {
+  readonly pubkey: string;
+  readonly name: string | null;
+}
+
 export interface BulkAccountSnapshot {
   /** Equity / collateral in USD-equivalent (mock USDC on testnet). */
   readonly equityUsd: number | null;
@@ -78,6 +89,19 @@ export interface BulkAccountSnapshot {
   readonly positions: readonly BulkPosition[];
   /** Parsed resting orders. Empty array if none or if parse failed. */
   readonly openOrders: readonly BulkOpenOrder[];
+  /**
+   * Account kind — `MasterEOA` for the user's primary wallet, or
+   * `SubAccount` if they're querying a sub-account directly. v1.0.14+.
+   * `null` for older Bulk responses.
+   */
+  readonly kind: 'MasterEOA' | 'SubAccount' | null;
+  /** Parent pubkey if this is a sub-account, else null. */
+  readonly parent: string | null;
+  /**
+   * Sub-accounts owned by this master account. Empty if none or if the
+   * Bulk response predates v1.0.14.
+   */
+  readonly subAccounts: readonly BulkSubAccount[];
   /** Raw response kept for debugging. */
   readonly raw: unknown;
 }
@@ -256,6 +280,9 @@ function normalizeAccount(raw: unknown): BulkAccountSnapshot {
 
   const positions = parsePositions(acct['positions']);
   const openOrders = parseOpenOrders(acct['openOrders']);
+  const kind = parseKind(acct['kind']);
+  const parent = typeof acct['parent'] === 'string' ? acct['parent'] : null;
+  const subAccounts = parseSubAccounts(acct['subAccounts']);
 
   return {
     equityUsd,
@@ -263,8 +290,36 @@ function normalizeAccount(raw: unknown): BulkAccountSnapshot {
     freeMarginUsd,
     positions,
     openOrders,
+    kind,
+    parent,
+    subAccounts,
     raw,
   };
+}
+
+function parseKind(v: unknown): 'MasterEOA' | 'SubAccount' | null {
+  if (v === 'MasterEOA' || v === 'SubAccount') return v;
+  return null;
+}
+
+/**
+ * Parse `fullAccount.subAccounts`. Bulk v1.0.14 returns
+ * `[{pubkey, name?}, ...]`. We accept either field key for `name`
+ * (`name` or `label`) and filter out rows missing a pubkey.
+ */
+function parseSubAccounts(raw: unknown): readonly BulkSubAccount[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BulkSubAccount[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const r = item as Record<string, unknown>;
+    const pubkey = typeof r['pubkey'] === 'string' ? r['pubkey'] : null;
+    if (!pubkey) continue;
+    const nameRaw = r['name'] ?? r['label'];
+    const name = typeof nameRaw === 'string' && nameRaw.length > 0 ? nameRaw : null;
+    out.push({ pubkey, name });
+  }
+  return out;
 }
 
 /**

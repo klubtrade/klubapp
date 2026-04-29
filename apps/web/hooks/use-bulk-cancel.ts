@@ -3,6 +3,7 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useCallback, useState } from 'react';
 
+import { useActiveAccount } from '@/hooks/use-active-account';
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
 import { submitCancel, type SubmitCancelInput, type SubmitOrderResult } from '@/lib/bulk/orders';
 
@@ -22,7 +23,10 @@ export type BulkCancelState =
   | { readonly status: 'success'; readonly result: Extract<SubmitOrderResult, { ok: true }> }
   | { readonly status: 'error'; readonly result: Extract<SubmitOrderResult, { ok: false }> };
 
-export type BulkCancelRequest = Omit<SubmitCancelInput, 'signer' | 'account'>;
+export type BulkCancelRequest = Omit<SubmitCancelInput, 'signer' | 'account'> & {
+  /** Optional account override — pot pubkey when cancelling from a sub-account. */
+  readonly account?: string;
+};
 
 export function useBulkCancel(): {
   readonly state: BulkCancelState;
@@ -32,6 +36,7 @@ export function useBulkCancel(): {
 } {
   const { publicKey, signMessage, connected } = useWallet();
   const { agent, agentSigner } = useAgentWallet();
+  const { pubkey: activePubkey } = useActiveAccount();
   const [state, setState] = useState<BulkCancelState>({ status: 'idle' });
 
   const reset = useCallback(() => {
@@ -51,6 +56,7 @@ export function useBulkCancel(): {
       }
 
       const mainPubkey = publicKey.toBase58();
+      const account = req.account ?? activePubkey ?? mainPubkey;
       setState({ status: 'submitting' });
 
       const canUseAgent =
@@ -60,7 +66,7 @@ export function useBulkCancel(): {
         const result = await submitCancel({
           ...req,
           signer: agentSigner,
-          account: mainPubkey,
+          account,
         });
         if (result.ok) setState({ status: 'success', result });
         else setState({ status: 'error', result });
@@ -79,6 +85,7 @@ export function useBulkCancel(): {
 
       const result = await submitCancel({
         ...req,
+        account,
         signer: {
           publicKeyBase58: mainPubkey,
           signMessage,
@@ -89,7 +96,7 @@ export function useBulkCancel(): {
       else setState({ status: 'error', result });
       return result;
     },
-    [agent, agentSigner, connected, publicKey, signMessage],
+    [activePubkey, agent, agentSigner, connected, publicKey, signMessage],
   );
 
   const usingAgent =

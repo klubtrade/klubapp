@@ -78,7 +78,7 @@ function LandingNav() {
           KLUB
         </Link>
         <Link
-          href="/home"
+          href="/cash"
           className="group inline-flex items-center gap-2 rounded-klub bg-accent px-[18px] py-2.5 text-sm font-medium text-bg-base transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-bright"
         >
           Enter the app
@@ -158,7 +158,7 @@ function Hero() {
           className="mb-20 flex flex-wrap justify-center gap-3"
         >
           <Link
-            href="/home"
+            href="/cash"
             className="group inline-flex items-center gap-2 rounded-klub bg-accent px-[18px] py-2.5 text-sm font-medium text-bg-base transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-bright"
           >
             Enter the app
@@ -477,7 +477,7 @@ function CtaBlock() {
           Testnet invites go to the waitlist before mainnet. Two-minute signup, zero spam.
         </p>
         <Link
-          href="/home"
+          href="/cash"
           className="group inline-flex items-center gap-2 rounded-klub bg-accent px-5 py-3 text-sm font-medium text-bg-base transition-all duration-200 hover:-translate-y-[1px] hover:bg-accent-bright"
         >
           Enter the app

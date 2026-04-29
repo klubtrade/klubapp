@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 
+import { AccountSwitcher } from '@/components/account-switcher';
 import { CopyTradeBanner } from '@/components/copy-trade-banner';
 import { CopyTradeProvider } from '@/components/copy-trade-provider';
 import { NavDrawer } from '@/components/nav-drawer';
 import { ToastProvider } from '@/components/toast';
 import { WalletButton } from '@/components/wallet-button';
+import { ActiveAccountProvider } from '@/hooks/use-active-account';
 
 /**
  * Layout for the (app) route group.
@@ -36,16 +38,21 @@ export default function AppLayout({
 }) {
   return (
     <ToastProvider>
-      <CopyTradeProvider>
-        <NavDrawer />
-        <div className="pointer-events-none fixed right-4 top-4 z-30 md:right-6 md:top-6">
-          <div className="pointer-events-auto">
-            <WalletButton variant="secondary" size="sm" />
+      <ActiveAccountProvider>
+        <CopyTradeProvider>
+          <NavDrawer />
+          <div className="pointer-events-none fixed right-4 top-4 z-30 flex items-center gap-2 md:right-6 md:top-6">
+            <div className="pointer-events-auto">
+              <AccountSwitcher />
+            </div>
+            <div className="pointer-events-auto">
+              <WalletButton variant="secondary" size="sm" />
+            </div>
           </div>
-        </div>
-        {children}
-        <CopyTradeBanner />
-      </CopyTradeProvider>
+          {children}
+          <CopyTradeBanner />
+        </CopyTradeProvider>
+      </ActiveAccountProvider>
     </ToastProvider>
   );
 }
