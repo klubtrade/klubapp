@@ -11,3 +11,5 @@ coverage/
 !.env.example
 .vscode/
 .idea/
+.claude/
+*.tsbuildinfo
