@@ -47,7 +47,7 @@ export class BulkClient {
     this.baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '');
     this.signer = config.signer;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.fetchImpl = config.fetch ?? globalThis.fetch;
+    this.fetchImpl = config.fetch ?? globalThis.fetch.bind(globalThis);
     this.integratorId = config.integratorId;
   }
 

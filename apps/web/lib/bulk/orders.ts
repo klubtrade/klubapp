@@ -176,8 +176,39 @@ export interface FaucetClaimAction {
 }
 
 /**
- * Anything our signing path accepts. Used by submitOrder,
- * submitCancel, submitAgentWalletAuth, and submitFaucetClaim.
+ * Create a sub-account on the user's master account. Bulk v1.0.14
+ * action — `prepareCreateSubAccount` in `bulk-keychain-wasm` v0.1.15+.
+ *
+ * Wire format (compact JSON the server reconstructs canonical bytes
+ * from): `{createSubAccount: {n: name}}` for the no-margin case. With
+ * optional initial margin seed: `{createSubAccount: {n, ms, ma}}`
+ * where `ms` is the margin symbol and `ma` is the amount (raw f64).
+ */
+export interface CreateSubAccountAction {
+  readonly type: 'createSubAccount';
+  readonly name: string;
+  readonly marginSymbol?: string;
+  readonly marginAmount?: number;
+}
+
+/**
+ * Transfer margin between accounts. Bulk v1.0.14 action — internal
+ * (master ↔ sub-account) or external (any network address).
+ *
+ * Wire format: `{transfer: {k: kind, f: from, t: to, ms: marginSymbol, ma: amount}}`.
+ * `kind` is 0 = internal, 1 = external.
+ */
+export interface TransferAction {
+  readonly type: 'transfer';
+  readonly kind: 'internal' | 'external';
+  readonly from: string;
+  readonly to: string;
+  readonly marginSymbol: string;
+  readonly amount: number;
+}
+
+/**
+ * Anything our signing path accepts.
  */
 export type Order = LimitOrder | MarketOrder;
 export type OrderOrCancel = Order | CancelOrderAction;
@@ -185,7 +216,9 @@ export type SignableAction =
   | Order
   | CancelOrderAction
   | AgentWalletCreationAction
-  | FaucetClaimAction;
+  | FaucetClaimAction
+  | CreateSubAccountAction
+  | TransferAction;
 
 /**
  * Shape of a `SignedTransaction` returned by `prepared.finalize(...)`.
@@ -659,6 +692,180 @@ export async function submitFaucetClaim(
 }
 
 // -------------------------------------------------------------------------
+// Sub-accounts (Bulk v1.0.14)
+// -------------------------------------------------------------------------
+
+export interface SubmitCreateSubAccountInput {
+  readonly name: string;
+  readonly marginSymbol?: string;
+  readonly marginAmount?: number;
+  readonly signer: BulkWalletSigner;
+  readonly account?: string;
+}
+
+/**
+ * Create a named sub-account ("Pot") on the user's master account.
+ *
+ * Same prepare → wallet.signMessage → finalize → POST flow as the
+ * other actions. The wasm bindings `prepareCreateSubAccount(name, opts)`
+ * accept just `name` in the basic form; `marginSymbol`/`marginAmount`
+ * are passed through as part of `opts` if the wasm version supports
+ * them (v0.1.15 does, per the release notes).
+ */
+export async function submitCreateSubAccount(
+  input: SubmitCreateSubAccountInput,
+): Promise<SubmitOrderResult> {
+  if (!input.name || typeof input.name !== 'string') {
+    throw new Error('Sub-account name is required');
+  }
+
+  const keychain = await loadKeychain();
+  if (typeof keychain.prepareCreateSubAccount !== 'function') {
+    return {
+      ok: false,
+      reason: 'rejected_invalid',
+      message:
+        'bulk-keychain-wasm does not export prepareCreateSubAccount. Library may be out of date; bump to ≥ v0.1.15.',
+    };
+  }
+
+  const account = input.account ?? input.signer.publicKeyBase58;
+  const nonce = Date.now();
+
+  // The wasm signature is `prepareCreateSubAccount(name, options)`. We
+  // pass the optional margin-seed fields inside the options bag — older
+  // wasm builds will ignore them silently; v0.1.15 reads them.
+  const opts: Record<string, unknown> = {
+    account,
+    signer: input.signer.publicKeyBase58,
+    nonce,
+  };
+  if (input.marginSymbol) opts['marginSymbol'] = input.marginSymbol;
+  if (input.marginAmount !== undefined) opts['marginAmount'] = input.marginAmount;
+
+  const prepared = keychain.prepareCreateSubAccount(input.name, opts);
+
+  let signatureBytes: Uint8Array;
+  try {
+    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: 'user_rejected',
+      message: err instanceof Error ? err.message : 'Signature was rejected',
+    };
+  }
+
+  const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
+
+  const wireAction: CreateSubAccountAction = {
+    type: 'createSubAccount',
+    name: input.name,
+    ...(input.marginSymbol ? { marginSymbol: input.marginSymbol } : {}),
+    ...(input.marginAmount !== undefined ? { marginAmount: input.marginAmount } : {}),
+  };
+
+  return submitSignedTransaction({
+    wireActions: toWireActions(wireAction),
+    nonce: signed.nonce,
+    account: signed.account,
+    signer: signed.signer,
+    signature: signed.signature,
+  });
+}
+
+// -------------------------------------------------------------------------
+// Transfers (Bulk v1.0.14)
+// -------------------------------------------------------------------------
+
+export interface SubmitTransferInput {
+  readonly kind: 'internal' | 'external';
+  /** Source pubkey — usually the connected wallet or one of its sub-accounts. */
+  readonly from: string;
+  /** Destination pubkey. For external transfers, must be a Solana address. */
+  readonly to: string;
+  /** Margin symbol (e.g. 'USDC'). */
+  readonly marginSymbol: string;
+  /** Amount in margin-symbol units (raw f64, NOT scaled). */
+  readonly amount: number;
+  readonly signer: BulkWalletSigner;
+  readonly account?: string;
+}
+
+/**
+ * Transfer margin between accounts. Internal transfers move between
+ * a master and one of its sub-accounts; external transfers route to
+ * any network address (rejected for off-curve non-protocol accounts
+ * by Bulk per the v1.0.14 changelog).
+ */
+export async function submitTransfer(
+  input: SubmitTransferInput,
+): Promise<SubmitOrderResult> {
+  if (!input.from || !input.to) {
+    throw new Error('Transfer requires from + to pubkeys');
+  }
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error('Transfer amount must be a positive number');
+  }
+
+  const keychain = await loadKeychain();
+  if (typeof keychain.prepareTransfer !== 'function') {
+    return {
+      ok: false,
+      reason: 'rejected_invalid',
+      message:
+        'bulk-keychain-wasm does not export prepareTransfer. Library may be out of date; bump to ≥ v0.1.15.',
+    };
+  }
+
+  const account = input.account ?? input.signer.publicKeyBase58;
+  const nonce = Date.now();
+
+  const prepared = keychain.prepareTransfer(
+    input.from,
+    input.to,
+    input.marginSymbol,
+    input.amount,
+    {
+      account,
+      signer: input.signer.publicKeyBase58,
+      nonce,
+      kind: input.kind,
+    },
+  );
+
+  let signatureBytes: Uint8Array;
+  try {
+    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: 'user_rejected',
+      message: err instanceof Error ? err.message : 'Signature was rejected',
+    };
+  }
+
+  const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
+
+  const wireAction: TransferAction = {
+    type: 'transfer',
+    kind: input.kind,
+    from: input.from,
+    to: input.to,
+    marginSymbol: input.marginSymbol,
+    amount: input.amount,
+  };
+
+  return submitSignedTransaction({
+    wireActions: toWireActions(wireAction),
+    nonce: signed.nonce,
+    account: signed.account,
+    signer: signed.signer,
+    signature: signed.signature,
+  });
+}
+
+// -------------------------------------------------------------------------
 // Wire-format builder + signed envelope POSTer
 // -------------------------------------------------------------------------
 
@@ -722,6 +929,38 @@ function toWireActions(action: SignableAction): unknown[] {
     return [{ faucet: { u: action.user } }];
   }
 
+  if (action.type === 'createSubAccount') {
+    // Wire shape verified against live Bulk rejection (29 Apr 2026):
+    // server expects `name`, NOT the `n` short key the older actions
+    // (l/m/cx/faucet) use. v1.0.14 admin actions use full field names
+    // matching the binary-layout names (`name`, `marginSymbol`,
+    // `marginAmount`).
+    const body: Record<string, unknown> = { name: action.name };
+    if (action.marginSymbol) body['marginSymbol'] = action.marginSymbol;
+    if (action.marginAmount !== undefined) body['marginAmount'] = action.marginAmount;
+    return [{ createSubAccount: body }];
+  }
+
+  if (action.type === 'transfer') {
+    // Wire shape verified against live Bulk rejection (29 Apr 2026):
+    // - Field names are full (`kind`/`from`/`to`/`marginSymbol`/`marginAmount`),
+    //   matching createSubAccount's convention.
+    // - `kind` is the string variant ('internal'|'external'), NOT the
+    //   binary-layout integer 0/1. Same shape the wasm bindings'
+    //   `prepareTransfer` accepts in its options bag.
+    return [
+      {
+        transfer: {
+          kind: action.kind,
+          from: action.from,
+          to: action.to,
+          marginSymbol: action.marginSymbol,
+          marginAmount: action.amount,
+        },
+      },
+    ];
+  }
+
   const reduceOnly = action.reduceOnly ?? false;
 
   if (action.orderType.type === 'limit') {
@@ -742,6 +981,12 @@ function toWireActions(action: SignableAction): unknown[] {
           sz: toFixedPointString(action.size),
           tif: action.orderType.tif,
           r: reduceOnly,
+          // Bulk v1.0.14 (28 Apr 2026) made `i` part of the canonical
+          // signed binary message. Omitting it produces a "bad
+          // signature" error even when the rest of the payload is
+          // valid. false = cross margin (current behavior); true would
+          // route into a per-instrument isolated sub-account.
+          i: false,
         },
       },
     ];
@@ -754,6 +999,7 @@ function toWireActions(action: SignableAction): unknown[] {
         b: action.isBuy,
         sz: toFixedPointString(action.size),
         r: reduceOnly,
+        i: false,
       },
     },
   ];
@@ -798,6 +1044,18 @@ async function submitSignedTransaction(env: SignedEnvelope): Promise<SubmitOrder
     signer: env.signer,
     signature: env.signature,
   };
+
+  // Diagnostic: log the wire shape on every submit when debug flag is on.
+  // Set `localStorage.klubDebugSubmit = '1'` in the browser console to
+  // enable. Off by default so prod doesn't get noisy console output.
+  if (typeof window !== 'undefined' && window.localStorage?.getItem('klubDebugSubmit') === '1') {
+    // eslint-disable-next-line no-console
+    console.group('[submit] outgoing');
+    // eslint-disable-next-line no-console
+    console.log('body:', JSON.stringify(body, null, 2));
+    // eslint-disable-next-line no-console
+    console.groupEnd();
+  }
 
   let response: Response;
   try {
