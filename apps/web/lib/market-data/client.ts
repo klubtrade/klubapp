@@ -260,7 +260,7 @@ class MarketDataClient {
         oi: seed.oi,
         lastPrice: seed.price,
         priceChange: drift * 40,
-        priceChangePercent: (drift * 40) / seed.price,
+        priceChangePercent: ((drift * 40) / seed.price) * 100,
       });
     }
 
@@ -273,7 +273,7 @@ class MarketDataClient {
       if (!seed) continue;
       const ticker: Ticker = {
         priceChange: seed.price * 0.02,
-        priceChangePercent: 0.02,
+        priceChangePercent: 2,
         lastPrice: seed.price,
         highPrice: seed.price * 1.03,
         lowPrice: seed.price * 0.97,

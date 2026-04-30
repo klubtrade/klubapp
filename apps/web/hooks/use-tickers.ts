@@ -29,7 +29,12 @@ export interface LivePrice {
   readonly last: number;
   /** Per-interval funding rate as a fraction. */
   readonly fundingRate: number;
-  /** 24h percent change (e.g. 0.03 = 3%). */
+  /**
+   * 24h percent change in PERCENT units (e.g. -1.36 = -1.36%, not the
+   * fractional 0.0136 the original comment claimed). Matches what Bulk
+   * sends on the wire under `priceChangePercent`. Display directly with
+   * `.toFixed(2)` — do NOT multiply by 100.
+   */
   readonly change24hPct: number;
   /** 24h volume in quote currency (USD). */
   readonly volume24h: number;

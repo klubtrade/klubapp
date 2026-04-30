@@ -208,35 +208,32 @@ function ProHeader({
   readonly mark: number;
   readonly onOpenPalette: () => void;
 }) {
+  // Header sits at top:0 but the global chrome (nav-drawer hamburger +
+  // wordmark on the left, layout-shell wallet pill + wordmark on the
+  // right) is `position: fixed; z-50`, sitting on top of this row. Pad
+  // past both zones so this header's content never overlaps that fixed
+  // chrome. The previous version had both corners colliding.
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border-subtle bg-bg-base px-4">
-      <div className="flex items-center gap-6">
-        <Link href="/home" className="flex items-center gap-2 text-[15px] font-semibold">
-          <span className="live-dot" />
-          KLUB <span className="text-fg-muted">/</span> Pro
-        </Link>
-        <div className="font-mono text-[13px] text-fg-muted">
-          <span className="text-fg-primary">{symbol}</span>
-          {mark > 0 && (
-            <span className="ml-2 text-accent">${formatPrice(mark)}</span>
-          )}
-        </div>
+    <header className="flex h-14 items-center justify-between gap-4 border-b border-border-subtle bg-bg-base pl-36 pr-72 md:pl-40 md:pr-[22rem]">
+      <div className="flex min-w-0 items-center gap-3 font-mono text-[13px] text-fg-muted">
+        <span className="text-[11px] font-medium uppercase tracking-[0.12em]">
+          Pro
+        </span>
+        <span className="text-fg-primary">{symbol}</span>
+        {mark > 0 && (
+          <span className="text-accent">${formatPrice(mark)}</span>
+        )}
       </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onOpenPalette}
-          className="flex items-center gap-2 rounded-klub border border-border-subtle bg-bg-surface px-3 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-border hover:text-fg-primary"
-        >
-          <span>Search or run command</span>
-          <kbd className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px]">
-            ⌘K
-          </kbd>
-        </button>
-        <Link href="/home" className="btn-ghost btn-sm">
-          Exit
-        </Link>
-      </div>
+      <button
+        type="button"
+        onClick={onOpenPalette}
+        className="flex shrink-0 items-center gap-2 rounded-klub border border-border-subtle bg-bg-surface px-3 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-border hover:text-fg-primary"
+      >
+        <span>Search or run command</span>
+        <kbd className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px]">
+          ⌘K
+        </kbd>
+      </button>
     </header>
   );
 }
@@ -338,7 +335,7 @@ function PanelWatchlist({
                 <span className={chgTone}>
                   {chg === undefined
                     ? '—'
-                    : `${chg >= 0 ? '+' : ''}${(chg * 100).toFixed(2)}%`}
+                    : `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%`}
                 </span>
               </span>
             </button>
