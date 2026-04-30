@@ -416,15 +416,14 @@ function PanelChart({
 function PanelOrderbook({ symbol, mark }: { readonly symbol: string; readonly mark: number }) {
   const { state } = useL2Book(symbol, { depth: 15 });
   const ladder = useMemo(() => buildLadder(state.book), [state.book]);
+  const errorMsg = state.status === 'error' ? state.error : null;
 
   return (
     <section className="flex flex-col overflow-hidden bg-bg-base">
       <PanelHead>
         <div className="flex items-center justify-between">
           <span>Order book</span>
-          {state.status === 'error' && (
-            <span className="text-pnl-short">stale</span>
-          )}
+          {errorMsg && <span className="text-pnl-short">stale</span>}
         </div>
       </PanelHead>
       <div className="grid grid-cols-3 border-b border-border-subtle px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
@@ -455,6 +454,11 @@ function PanelOrderbook({ symbol, mark }: { readonly symbol: string; readonly ma
           )}
         </div>
       </div>
+      {errorMsg && (
+        <div className="border-t border-pnl-short/30 bg-pnl-short/5 px-3 py-1.5 font-mono text-[10px] leading-relaxed text-pnl-short/90">
+          {errorMsg}
+        </div>
+      )}
     </section>
   );
 }

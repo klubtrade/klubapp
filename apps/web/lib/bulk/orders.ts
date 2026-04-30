@@ -1080,14 +1080,21 @@ async function submitSignedTransaction(env: SignedEnvelope): Promise<SubmitOrder
     raw = null;
   }
 
-  if (!response.ok) {
-    // Log both the request body we sent and the response body we got.
-    // The rejection modal only shows a short message; we need full
-    // shapes to diagnose what Bulk or our proxy is complaining about.
-    // Only fires on failure so there's no prod noise.
+  // Failure can arrive as non-2xx OR as a 2xx with a rejection
+  // payload (Bulk routinely returns 200 with { status: 'err',
+  // response: 'Bad signature' } when the envelope-level signature
+  // doesn't verify — Solflare on mobile produces this against an
+  // identical wire shape that desktop Solflare signs cleanly).
+  // Treat both shapes as failure so the user sees the real reason
+  // instead of a misleading "Submitted ✓" toast.
+  const payloadRejection = response.ok ? detectPayloadRejection(raw) : null;
+
+  if (!response.ok || payloadRejection) {
     try {
       // eslint-disable-next-line no-console
-      console.group(`[submitOrder] ${status} rejection`);
+      console.group(
+        `[submitOrder] ${response.ok ? `${status} payload-rejection` : `${status} rejection`}`,
+      );
       // eslint-disable-next-line no-console
       console.log('Request body:', JSON.stringify(body, null, 2));
       // eslint-disable-next-line no-console
@@ -1124,6 +1131,54 @@ async function submitSignedTransaction(env: SignedEnvelope): Promise<SubmitOrder
     raw,
     status,
   };
+}
+
+/**
+ * Inspect a 2xx response body for explicit rejection markers. Returns
+ * the rejection message if found, or null if the body looks clean.
+ *
+ * Bulk inherits Hyperliquid's envelope: `{ status: 'ok' | 'err',
+ * response: ... }`. A signature verification failure surfaces as
+ * `{ status: 'err', response: 'Bad signature' }` with HTTP 200. Per-
+ * action errors in batch submits surface as
+ * `{ status: 'ok', response: { data: { statuses: [{ error: '...' }] }}}`.
+ *
+ * Conservative: only treats explicit failure markers as rejection. An
+ * unfamiliar shape with no failure flag is assumed successful so we
+ * don't false-positive transfer/sub-account responses that lack an
+ * orderId in their happy payload.
+ */
+function detectPayloadRejection(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+
+  if (r['status'] === 'err') {
+    return extractErrorMessage(raw) ?? 'Bulk rejected the transaction';
+  }
+  if (r['success'] === false || r['ok'] === false) {
+    return extractErrorMessage(raw) ?? 'Bulk rejected the transaction';
+  }
+
+  // Per-action error inside a 'status: ok' batch envelope.
+  const response = r['response'];
+  if (response && typeof response === 'object') {
+    const resp = response as Record<string, unknown>;
+    const data = resp['data'];
+    if (data && typeof data === 'object') {
+      const d = data as Record<string, unknown>;
+      const statuses = d['statuses'];
+      if (Array.isArray(statuses)) {
+        for (const s of statuses) {
+          if (s && typeof s === 'object') {
+            const sErr = (s as Record<string, unknown>)['error'];
+            if (typeof sErr === 'string' && sErr.length > 0) return sErr;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 function extractOrderId(raw: unknown): string | null {
