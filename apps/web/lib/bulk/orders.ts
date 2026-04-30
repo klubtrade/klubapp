@@ -38,6 +38,42 @@
  */
 
 import bs58 from 'bs58';
+import nacl from 'tweetnacl';
+
+// -------------------------------------------------------------------------
+// Local signature verification — catches mobile-wallet message drift
+// -------------------------------------------------------------------------
+
+/**
+ * Verify the wallet's signature against `prepared.messageBytes` before
+ * we ship it to Bulk. If the wallet wrapped, hashed, or otherwise
+ * mangled the message before signing, the signature won't verify
+ * against our raw canonical bytes — Bulk will return "unauthorized
+ * signer" with no breadcrumb and the user sees an inscrutable failure.
+ *
+ * Mobile Solflare is the canonical case (April 2026): when triggered
+ * via the wallet adapter from a mobile browser tab, it signs the
+ * message under Solana's off-chain message envelope (SIMD-0048 style)
+ * rather than the raw bytes we hand it. Desktop Solflare signs raw
+ * bytes. Same wallet, same key, different on-the-wire signature.
+ */
+function verifyLocalSignature(
+  message: Uint8Array,
+  signature: Uint8Array,
+  signerPubkeyBase58: string,
+): boolean {
+  try {
+    const pub = bs58.decode(signerPubkeyBase58);
+    return nacl.sign.detached.verify(message, signature, pub);
+  } catch {
+    return false;
+  }
+}
+
+const MOBILE_SOLFLARE_HINT =
+  'Your wallet signed a different message than KLUB prepared. ' +
+  'This is a known issue with mobile Solflare via deep-link — ' +
+  "open this page in Solflare's in-app browser, or use desktop.";
 
 // -------------------------------------------------------------------------
 // WASM module loader
@@ -443,6 +479,9 @@ export async function submitOrder(input: SubmitOrderInput): Promise<SubmitOrderR
   let signatureBytes: Uint8Array;
   try {
     signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
+    if (!verifyLocalSignature(prepared.messageBytes, signatureBytes, input.signer.publicKeyBase58)) {
+      throw new Error(MOBILE_SOLFLARE_HINT);
+    }
   } catch (err) {
     // Phantom / Backpack throw a generic Error with code 4001 when
     // the user rejects. We don't over-parse — any sign failure is
@@ -527,6 +566,9 @@ export async function submitCancel(input: SubmitCancelInput): Promise<SubmitOrde
   let signatureBytes: Uint8Array;
   try {
     signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
+    if (!verifyLocalSignature(prepared.messageBytes, signatureBytes, input.signer.publicKeyBase58)) {
+      throw new Error(MOBILE_SOLFLARE_HINT);
+    }
   } catch (err) {
     return {
       ok: false,
@@ -603,6 +645,9 @@ export async function submitAgentWalletAuth(
   let signatureBytes: Uint8Array;
   try {
     signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
+    if (!verifyLocalSignature(prepared.messageBytes, signatureBytes, input.signer.publicKeyBase58)) {
+      throw new Error(MOBILE_SOLFLARE_HINT);
+    }
   } catch (err) {
     return {
       ok: false,
@@ -704,6 +749,9 @@ export async function submitFaucetClaim(
   let signatureBytes: Uint8Array;
   try {
     signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
+    if (!verifyLocalSignature(prepared.messageBytes, signatureBytes, input.signer.publicKeyBase58)) {
+      throw new Error(MOBILE_SOLFLARE_HINT);
+    }
   } catch (err) {
     return {
       ok: false,
@@ -782,6 +830,9 @@ export async function submitCreateSubAccount(
   let signatureBytes: Uint8Array;
   try {
     signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
+    if (!verifyLocalSignature(prepared.messageBytes, signatureBytes, input.signer.publicKeyBase58)) {
+      throw new Error(MOBILE_SOLFLARE_HINT);
+    }
   } catch (err) {
     return {
       ok: false,
@@ -871,6 +922,9 @@ export async function submitTransfer(
   let signatureBytes: Uint8Array;
   try {
     signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
+    if (!verifyLocalSignature(prepared.messageBytes, signatureBytes, input.signer.publicKeyBase58)) {
+      throw new Error(MOBILE_SOLFLARE_HINT);
+    }
   } catch (err) {
     return {
       ok: false,
@@ -1186,14 +1240,20 @@ function detectPayloadRejection(raw: unknown): string | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
 
-  if (r['status'] === 'err') {
+  // Bulk uses both 'err' (Hyperliquid-style) and 'error' (full word)
+  // depending on the action / version. Catch both.
+  if (r['status'] === 'err' || r['status'] === 'error') {
     return extractErrorMessage(raw) ?? 'Bulk rejected the transaction';
   }
   if (r['success'] === false || r['ok'] === false) {
     return extractErrorMessage(raw) ?? 'Bulk rejected the transaction';
   }
 
-  // Per-action error inside a 'status: ok' batch envelope.
+  // Per-action error inside a batch envelope (the 'status: error'
+  // response Bulk returns for unauthorized signer puts the real
+  // reason here under data.statuses[i].error). The error field
+  // arrives in two shapes — bare string or nested {message: string} —
+  // depending on the failure type. Probe both.
   const response = r['response'];
   if (response && typeof response === 'object') {
     const resp = response as Record<string, unknown>;
@@ -1206,6 +1266,10 @@ function detectPayloadRejection(raw: unknown): string | null {
           if (s && typeof s === 'object') {
             const sErr = (s as Record<string, unknown>)['error'];
             if (typeof sErr === 'string' && sErr.length > 0) return sErr;
+            if (sErr && typeof sErr === 'object') {
+              const nested = (sErr as Record<string, unknown>)['message'];
+              if (typeof nested === 'string' && nested.length > 0) return nested;
+            }
           }
         }
       }
