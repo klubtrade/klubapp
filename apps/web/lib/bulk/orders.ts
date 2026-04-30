@@ -843,15 +843,29 @@ export async function submitCreateSubAccount(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  const wireAction: CreateSubAccountAction = {
-    type: 'createSubAccount',
-    name: input.name,
-    ...(input.marginSymbol ? { marginSymbol: input.marginSymbol } : {}),
-    ...(input.marginAmount !== undefined ? { marginAmount: input.marginAmount } : {}),
-  };
+  // For v1.0.14 admin actions (createSubAccount, transfer) the
+  // keychain's `prepared.actions` IS the canonical wire shape it
+  // signed against — use it directly instead of rebuilding via
+  // toWireActions. The hand-rolled shape worked while Bulk's wire
+  // matched our guess, but any field-name drift between keychain
+  // releases and Bulk releases produces an "unauthorized signer"
+  // rejection because Bulk re-derives canonical bytes from the wire
+  // and they no longer match what the keychain signed. Reuse exactly
+  // what the keychain emitted to lock the two together.
+  const keychainWire = prepared.actions;
+  const wireActions: unknown[] = Array.isArray(keychainWire)
+    ? keychainWire
+    : keychainWire && typeof keychainWire === 'object'
+      ? [keychainWire]
+      : toWireActions({
+          type: 'createSubAccount',
+          name: input.name,
+          ...(input.marginSymbol ? { marginSymbol: input.marginSymbol } : {}),
+          ...(input.marginAmount !== undefined ? { marginAmount: input.marginAmount } : {}),
+        });
 
   return submitSignedTransaction({
-    wireActions: toWireActions(wireAction),
+    wireActions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -935,17 +949,25 @@ export async function submitTransfer(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  const wireAction: TransferAction = {
-    type: 'transfer',
-    kind: input.kind,
-    from: input.from,
-    to: input.to,
-    marginSymbol: input.marginSymbol,
-    amount: input.amount,
-  };
+  // Same pattern as submitCreateSubAccount: use the keychain's own
+  // canonical wire shape so Bulk's reconstruction matches what was
+  // signed.
+  const keychainWire = prepared.actions;
+  const wireActions: unknown[] = Array.isArray(keychainWire)
+    ? keychainWire
+    : keychainWire && typeof keychainWire === 'object'
+      ? [keychainWire]
+      : toWireActions({
+          type: 'transfer',
+          kind: input.kind,
+          from: input.from,
+          to: input.to,
+          marginSymbol: input.marginSymbol,
+          amount: input.amount,
+        });
 
   return submitSignedTransaction({
-    wireActions: toWireActions(wireAction),
+    wireActions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
