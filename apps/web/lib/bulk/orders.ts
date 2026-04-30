@@ -85,6 +85,40 @@ async function loadKeychain(): Promise<KeychainModule> {
 }
 
 // -------------------------------------------------------------------------
+// signMessage with a hard timeout
+// -------------------------------------------------------------------------
+
+/**
+ * Mobile wallets that round-trip via deep-link (Solflare on iOS is the
+ * canonical case) sometimes never resolve the signMessage promise — the
+ * user signs in the wallet app but the response never makes it back to
+ * the browser tab. The promise hangs indefinitely, the UI sits in
+ * "Signing…" forever, and the user thinks the app is broken.
+ *
+ * Wrap every signMessage call in a Promise.race with a 60s timeout so
+ * those hangs surface as a real error the toast can display.
+ */
+const SIGN_TIMEOUT_MS = 60_000;
+
+async function signWithTimeout(
+  signer: BulkWalletSigner,
+  message: Uint8Array,
+): Promise<Uint8Array> {
+  return Promise.race([
+    signer.signMessage(message),
+    new Promise<Uint8Array>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(
+            `Wallet did not respond in ${SIGN_TIMEOUT_MS / 1000}s. If you're on mobile, return to this tab after signing in your wallet app — or try again from a desktop browser.`,
+          ),
+        );
+      }, SIGN_TIMEOUT_MS);
+    }),
+  ]);
+}
+
+// -------------------------------------------------------------------------
 // Types — mirror the bulk-keychain-wasm README "External Wallet" section
 // -------------------------------------------------------------------------
 
@@ -408,7 +442,7 @@ export async function submitOrder(input: SubmitOrderInput): Promise<SubmitOrderR
   // Step 2: ask the wallet to sign the canonical message bytes.
   let signatureBytes: Uint8Array;
   try {
-    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+    signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
   } catch (err) {
     // Phantom / Backpack throw a generic Error with code 4001 when
     // the user rejects. We don't over-parse — any sign failure is
@@ -492,7 +526,7 @@ export async function submitCancel(input: SubmitCancelInput): Promise<SubmitOrde
 
   let signatureBytes: Uint8Array;
   try {
-    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+    signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
   } catch (err) {
     return {
       ok: false,
@@ -568,7 +602,7 @@ export async function submitAgentWalletAuth(
 
   let signatureBytes: Uint8Array;
   try {
-    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+    signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
   } catch (err) {
     return {
       ok: false,
@@ -669,7 +703,7 @@ export async function submitFaucetClaim(
 
   let signatureBytes: Uint8Array;
   try {
-    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+    signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
   } catch (err) {
     return {
       ok: false,
@@ -747,7 +781,7 @@ export async function submitCreateSubAccount(
 
   let signatureBytes: Uint8Array;
   try {
-    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+    signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
   } catch (err) {
     return {
       ok: false,
@@ -836,7 +870,7 @@ export async function submitTransfer(
 
   let signatureBytes: Uint8Array;
   try {
-    signatureBytes = await input.signer.signMessage(prepared.messageBytes);
+    signatureBytes = await signWithTimeout(input.signer, prepared.messageBytes);
   } catch (err) {
     return {
       ok: false,

@@ -3,7 +3,7 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { useActiveAccount } from '@/hooks/use-active-account';
 import { useBulkAccount } from '@/hooks/use-bulk-account';
@@ -776,39 +776,88 @@ function ResultToast({
   readonly result: SubmitOrderResult;
   readonly onClose: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const rawText = useMemo(() => {
+    const raw = result.ok ? result.raw : result.raw;
+    if (raw === null || raw === undefined) return null;
+    try {
+      return JSON.stringify(raw, null, 2);
+    } catch {
+      return String(raw);
+    }
+  }, [result]);
+
+  // Stays up longer (12s) so users can read response details. Click
+  // anywhere on the pill to dismiss.
   useEffect(() => {
-    const id = setTimeout(onClose, 4500);
+    if (expanded) return;
+    const id = setTimeout(onClose, 12_000);
     return () => clearTimeout(id);
-  }, [onClose]);
+  }, [onClose, expanded]);
+
+  // Mirror to console so the user can copy/paste the full request +
+  // response cleanly without expanding the toast on a small screen.
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.group(`[result] ${result.ok ? 'ok' : 'fail'}`);
+    // eslint-disable-next-line no-console
+    console.log(result);
+    // eslint-disable-next-line no-console
+    console.groupEnd();
+  }, [result]);
 
   return (
     <div
-      className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 px-4"
+      className="fixed bottom-6 left-1/2 z-[60] w-[min(92vw,520px)] -translate-x-1/2 px-2"
       role="status"
     >
-      <button
-        type="button"
-        onClick={onClose}
-        className={`flex max-w-md items-start gap-3 rounded-klub-lg border px-4 py-3 text-left text-[12px] shadow-[0_12px_40px_rgba(0,0,0,0.6)] ${
+      <div
+        className={`rounded-klub-lg border px-4 py-3 text-left text-[12px] shadow-[0_12px_40px_rgba(0,0,0,0.6)] ${
           result.ok
             ? 'border-pnl-long/40 bg-pnl-long/10 text-pnl-long'
             : 'border-pnl-short/40 bg-pnl-short/10 text-pnl-short'
         }`}
       >
-        <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-current" />
-        <span>
-          <strong className="font-semibold">
-            {result.ok ? 'Submitted' : 'Failed'}
-          </strong>
-          <span className="ml-2 text-fg-secondary">
-            {result.ok
-              ? result.orderId
-                ? `· ${result.orderId.slice(0, 12)}…`
-                : '· accepted by Bulk'
-              : `· ${result.message}`}
-          </span>
-        </span>
-      </button>
+        <div className="flex items-start gap-3">
+          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-current" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <strong className="font-semibold">
+                {result.ok ? 'Submitted' : 'Failed'}
+              </strong>
+              <span className="truncate text-fg-secondary">
+                {result.ok
+                  ? result.orderId
+                    ? `· ${result.orderId.slice(0, 16)}…`
+                    : '· accepted by Bulk (no orderId — likely faucet/transfer/sub-account)'
+                  : `· ${result.message}`}
+              </span>
+            </div>
+            {rawText && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted hover:text-fg-primary"
+              >
+                {expanded ? '▼ Hide response' : '▶ Show response'}
+              </button>
+            )}
+            {expanded && rawText && (
+              <pre className="mt-2 max-h-64 overflow-auto rounded border border-border-subtle bg-bg-base/60 p-2 font-mono text-[10px] leading-relaxed text-fg-secondary">
+                {rawText}
+              </pre>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 text-fg-muted transition-colors hover:text-fg-primary"
+          >
+            ×
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
