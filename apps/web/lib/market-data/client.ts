@@ -4,6 +4,7 @@ import {
   BulkWebSocket,
   type ConnectionState,
   type FrontendContextRow,
+  type L2Snapshot,
   type LiveRiskSurface,
   type RiskStream,
   type TradeUpdate,
@@ -55,6 +56,7 @@ class MarketDataClient {
   private demoTickerListeners = new Map<string, Set<Listener<Ticker>>>();
   private demoTradesListeners = new Map<string, Set<Listener<readonly TradeUpdate[]>>>();
   private demoRiskListeners = new Map<string, Set<Listener<RiskStream>>>();
+  private demoL2Listeners = new Map<string, Set<Listener<L2Snapshot>>>();
 
   private readonly wsUrl: string;
 
@@ -128,6 +130,45 @@ class MarketDataClient {
     }
     this.ensureWs();
     return this.ws!.onTrades(symbol, handler);
+  }
+
+  /**
+   * Per-symbol L2 order book snapshot stream. Bulk re-broadcasts a
+   * full snapshot every ~100ms while subscribed, so consumers can
+   * treat each emit as the authoritative book and skip delta-merge
+   * bookkeeping. `nlevels` caps depth on each side; `aggregation`
+   * lets Bulk pre-bucket prices server-side (off by default).
+   *
+   * Demo-mode emits a synthesized snapshot every 2s drifting around
+   * the seed price.
+   */
+  onL2Snapshot(
+    symbol: string,
+    opts: { readonly nlevels?: number; readonly aggregation?: number },
+    handler: Listener<L2Snapshot>,
+  ): () => void {
+    if (!this.wsUrl) {
+      let bucket = this.demoL2Listeners.get(symbol);
+      if (!bucket) {
+        bucket = new Set();
+        this.demoL2Listeners.set(symbol, bucket);
+      }
+      bucket.add(handler);
+      this.ensureDemoMode();
+      // Emit one synthetic snapshot immediately so the UI doesn't wait
+      // for the next demo tick to render anything.
+      setTimeout(() => {
+        const snap = this.synthDemoL2(symbol, opts.nlevels ?? 15);
+        if (snap) handler(snap);
+      }, 50);
+      return () => {
+        bucket?.delete(handler);
+        if (bucket?.size === 0) this.demoL2Listeners.delete(symbol);
+        this.maybeStopDemoMode();
+      };
+    }
+    this.ensureWs();
+    return this.ws!.onL2Snapshot(symbol, opts, handler);
   }
 
   /**
@@ -238,7 +279,8 @@ class MarketDataClient {
       this.demoCtxListeners.size > 0 ||
       this.demoTickerListeners.size > 0 ||
       this.demoTradesListeners.size > 0 ||
-      this.demoRiskListeners.size > 0;
+      this.demoRiskListeners.size > 0 ||
+      this.demoL2Listeners.size > 0;
     if (stillInUse) return;
     if (this.demoTimer) clearInterval(this.demoTimer);
     this.demoTimer = null;
@@ -312,6 +354,46 @@ class MarketDataClient {
       ];
       for (const l of bucket) l(trades);
     }
+
+    // fan out per-symbol L2 snapshot subs
+    for (const [symbol, bucket] of this.demoL2Listeners) {
+      const snap = this.synthDemoL2(symbol, 15);
+      if (!snap) continue;
+      for (const l of bucket) l(snap);
+    }
+  }
+
+  /**
+   * Build a plausible L2 snapshot around the symbol's seed price.
+   * Steps tighten as you walk away from mid (typical book shape) and
+   * sizes grow (deeper levels carry more resting size). Returns null
+   * for unknown symbols so demo doesn't fabricate data we can't seed.
+   */
+  private synthDemoL2(symbol: string, depth: number): L2Snapshot | null {
+    const seed = DEMO_SEED[symbol];
+    if (!seed) return null;
+    const mid = seed.price;
+    // Tick size: ~1bp of mid, rounded to a sensible decimal so prices
+    // print cleanly (e.g. $0.01 on BTC, $0.0001 on DOGE).
+    const tickRaw = mid * 0.0001;
+    const decimals = mid >= 100 ? 2 : mid >= 1 ? 4 : 6;
+    const tick = Number(tickRaw.toFixed(decimals));
+    const bids = [] as { px: number; sz: number; n: number }[];
+    const asks = [] as { px: number; sz: number; n: number }[];
+    for (let i = 1; i <= depth; i += 1) {
+      const offset = tick * i;
+      bids.push({
+        px: Number((mid - offset).toFixed(decimals)),
+        sz: Number((0.05 * i + Math.random() * 0.1).toFixed(4)),
+        n: 1 + Math.floor(Math.random() * 4),
+      });
+      asks.push({
+        px: Number((mid + offset).toFixed(decimals)),
+        sz: Number((0.05 * i + Math.random() * 0.1).toFixed(4)),
+        n: 1 + Math.floor(Math.random() * 4),
+      });
+    }
+    return { s: symbol, ts: Date.now(), levels: [bids, asks] };
   }
 }
 
