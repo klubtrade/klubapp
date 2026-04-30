@@ -683,18 +683,44 @@ export class BulkWebSocket {
         return;
       }
 
-      case 'l2Snapshot': {
-        const entry = this.subs.get(`l2snapshot.${msg.data.s}`);
-        if (entry) {
-          for (const h of entry.handlers) h(msg.data);
-        }
-        return;
-      }
-
+      case 'l2Snapshot':
       case 'l2Delta': {
-        const entry = this.subs.get(`l2delta.${msg.data.s}`);
+        // Bulk's actual wire shape (verified against live testnet
+        // April 2026):
+        //   { type: 'l2Snapshot' | 'l2Delta',
+        //     data: { book: { updateType, symbol, levels: [bids, asks] }}}
+        // The static IncomingMessage type was modeled on an older
+        // doc that said `data.s` / `data.levels` — that path now
+        // returns undefined and the original lookup
+        // `l2snapshot.${msg.data.s}` resolved to `l2snapshot.undefined`,
+        // so /pro's order book stayed empty even though Bulk was
+        // streaming ~5 snapshots/sec for BTC-USD. We probe both shapes
+        // and normalize to the L2Snapshot/L2Delta interface our
+        // consumers already expect.
+        type L2Inner = {
+          readonly book?: { readonly symbol?: string; readonly levels?: unknown; readonly ts?: number };
+          readonly s?: string;
+          readonly levels?: unknown;
+          readonly ts?: number;
+        };
+        const data = msg.data as unknown as L2Inner;
+        const book = data.book;
+        const symbol = book?.symbol ?? data.s;
+        const levels = book?.levels ?? data.levels;
+        const ts = book?.ts ?? data.ts ?? Date.now();
+        if (!symbol || !levels) {
+          this.log(`ws: ${msg.type} frame missing symbol/levels`, { parsed: msg });
+          return;
+        }
+        const normalized = {
+          s: symbol,
+          ts,
+          levels: levels as L2Snapshot['levels'],
+        };
+        const prefix = msg.type === 'l2Snapshot' ? 'l2snapshot' : 'l2delta';
+        const entry = this.subs.get(`${prefix}.${symbol}`);
         if (entry) {
-          for (const h of entry.handlers) h(msg.data);
+          for (const h of entry.handlers) h(normalized);
         }
         return;
       }
