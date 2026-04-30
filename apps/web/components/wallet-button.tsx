@@ -503,7 +503,7 @@ function FaucetRow({ onClaimSuccess }: { readonly onClaimSuccess: () => void }) 
                 : 'Waiting for wallet…'
               : usingAgent
                 ? 'Silent claim'
-                : '~1,000 mockUSDC'}
+                : '10,000 mockUSDC · 24h limit'}
           </div>
         </div>
         <button

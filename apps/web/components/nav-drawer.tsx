@@ -31,8 +31,8 @@ const NAV_GROUPS: readonly {
   {
     label: 'Account',
     items: [
-      { href: '/cash', label: 'Cash' },
       { href: '/home', label: 'Home' },
+      { href: '/cash', label: 'Cash' },
     ],
   },
   {

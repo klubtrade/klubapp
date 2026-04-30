@@ -32,7 +32,16 @@ export type BulkFaucetState =
   | { readonly status: 'success'; readonly result: Extract<SubmitOrderResult, { ok: true }> }
   | { readonly status: 'error'; readonly result: Extract<SubmitOrderResult, { ok: false }> };
 
-export function useBulkFaucet(): {
+/**
+ * Optional `account` override targets the drip at a specific sub-account
+ * (Pot). The signer is always the master wallet (or its agent); Bulk
+ * authorizes the master to claim into any of its sub-accounts.
+ */
+export interface UseBulkFaucetOptions {
+  readonly account?: string | null;
+}
+
+export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
   readonly state: BulkFaucetState;
   readonly claim: () => Promise<SubmitOrderResult>;
   readonly reset: () => void;
@@ -41,6 +50,7 @@ export function useBulkFaucet(): {
   const { publicKey, signMessage, connected } = useWallet();
   const { agent, agentSigner } = useAgentWallet();
   const [state, setState] = useState<BulkFaucetState>({ status: 'idle' });
+  const accountOverride = options.account ?? null;
 
   const reset = useCallback(() => {
     setState({ status: 'idle' });
@@ -58,6 +68,7 @@ export function useBulkFaucet(): {
     }
 
     const mainPubkey = publicKey.toBase58();
+    const targetAccount = accountOverride ?? mainPubkey;
     setState({ status: 'claiming' });
 
     const canUseAgent =
@@ -66,12 +77,12 @@ export function useBulkFaucet(): {
     if (canUseAgent) {
       // eslint-disable-next-line no-console
       console.debug('[useBulkFaucet] signing path: agent', {
-        account: mainPubkey.slice(0, 8),
+        target: targetAccount.slice(0, 8),
         agent: agent.agentPublicKeyBase58.slice(0, 8),
       });
       const result = await submitFaucetClaim({
         signer: agentSigner,
-        account: mainPubkey,
+        account: targetAccount,
       });
       if (result.ok) setState({ status: 'success', result });
       else setState({ status: 'error', result });
@@ -90,7 +101,7 @@ export function useBulkFaucet(): {
 
     // eslint-disable-next-line no-console
     console.debug('[useBulkFaucet] signing path: wallet (no agent)', {
-      mainAccount: mainPubkey.slice(0, 8),
+      target: targetAccount.slice(0, 8),
     });
 
     const result = await submitFaucetClaim({
@@ -98,12 +109,13 @@ export function useBulkFaucet(): {
         publicKeyBase58: mainPubkey,
         signMessage,
       },
+      account: targetAccount,
     });
 
     if (result.ok) setState({ status: 'success', result });
     else setState({ status: 'error', result });
     return result;
-  }, [agent, agentSigner, connected, publicKey, signMessage]);
+  }, [accountOverride, agent, agentSigner, connected, publicKey, signMessage]);
 
   const usingAgent =
     agent !== null &&

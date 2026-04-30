@@ -11,6 +11,7 @@ import {
   useCreatePot,
   useTransfer,
 } from '@/hooks/use-bulk-account-actions';
+import { useBulkFaucet } from '@/hooks/use-bulk-faucet';
 import { useSubAccounts } from '@/hooks/use-sub-accounts';
 import type { SubmitOrderResult } from '@/lib/bulk/orders';
 import { isValidHandle, normalizeHandle, resolveHandle } from '@/lib/handles';
@@ -152,6 +153,14 @@ function CashPageInner() {
             <ActionLink label="Add" href="/ramp" />
             <ActionLink label="Trade" href="/trade" />
           </div>
+
+          <FaucetClaimRow
+            pubkey={pubkey}
+            connected={connected}
+            label={activeName}
+            isMaster={isMaster}
+            onResult={onActionResult}
+          />
         </section>
 
         <section className="mt-6">
@@ -336,6 +345,58 @@ function PotEmptyState({ connected }: { readonly connected: boolean }) {
         ? 'No pots yet. Split your account by strategy.'
         : 'Connect a wallet to see your pots.'}
     </div>
+  );
+}
+
+// =============================================================================
+// Faucet claim row
+// =============================================================================
+
+function FaucetClaimRow({
+  pubkey,
+  connected,
+  label,
+  isMaster,
+  onResult,
+}: {
+  readonly pubkey: string | null;
+  readonly connected: boolean;
+  readonly label: string;
+  readonly isMaster: boolean;
+  readonly onResult: (r: SubmitOrderResult) => void;
+}) {
+  const { claim, state, usingAgent } = useBulkFaucet({ account: pubkey });
+  const claiming = state.status === 'claiming';
+  const target = isMaster ? 'Master' : label;
+
+  async function onClick() {
+    const r = await claim();
+    onResult(r);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void onClick();
+      }}
+      disabled={!connected || !pubkey || claiming}
+      className="mt-2 flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-elevated px-3 py-2 text-left transition-colors hover:border-border disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <div className="min-w-0">
+        <div className="text-[11px] font-medium text-fg-primary">
+          {claiming
+            ? usingAgent
+              ? `Claiming for ${target}…`
+              : `Sign in wallet to claim for ${target}…`
+            : `Claim 10,000 mockUSDC → ${target}`}
+        </div>
+        <div className="mt-0.5 text-[10px] text-fg-muted">
+          Testnet faucet · 24h limit per account
+        </div>
+      </div>
+      <span className="shrink-0 text-[11px] text-accent">{claiming ? '…' : 'Claim'}</span>
+    </button>
   );
 }
 
