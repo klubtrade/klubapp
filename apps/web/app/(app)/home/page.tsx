@@ -111,10 +111,11 @@ function ConnectedHome() {
         </div>
       </section>
 
-      <section className="mt-10 grid grid-cols-4 gap-3">
+      <section className="mt-10 grid grid-cols-5 gap-2">
         <NavCircle href="/cash" label="Cash" icon={<IconWallet />} />
         <NavCircle href="/quick-trade" label="Trade" icon={<IconTrade />} />
         <NavCircle href="/follow" label="Follow" icon={<IconUsers />} />
+        <NavCircle href="/earn" label="Earn" icon={<IconEarn />} />
         <NavCircle href="/pro" label="Pro" icon={<IconTerminal />} />
       </section>
 
@@ -237,6 +238,20 @@ function IconUsers() {
         d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 6.5a3 3 0 1 1 3 5.2M21.5 20a5 5 0 0 0-4-4.9"
         stroke="currentColor"
         strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconEarn() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 18c2-6 6-9 18-12M21 6v5m0-5h-5"
+        stroke="currentColor"
+        strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

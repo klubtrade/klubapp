@@ -50,6 +50,7 @@ const MORE_GROUPS = [
   {
     label: 'Earn',
     items: [
+      { href: '/earn', label: 'Earn overview' },
       { href: '/basis', label: 'Basis vault' },
       { href: '/desk', label: 'Funding desk' },
     ],
