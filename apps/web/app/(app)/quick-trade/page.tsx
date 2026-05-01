@@ -438,10 +438,10 @@ export default function QuickTradePage() {
 
         <div className="mt-6 pb-6 text-center">
           <Link
-            href="/trade"
+            href="/pro"
             className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
           >
-            Expert view →
+            Pro terminal →
           </Link>
         </div>
       </div>

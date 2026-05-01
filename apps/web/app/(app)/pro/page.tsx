@@ -1048,7 +1048,6 @@ function CommandPalette({
           run: () => onSymbol(m.symbol),
         };
       }),
-      { id: 'nav-trade', label: 'Open Trade screen', hint: '/trade', run: () => { window.location.href = '/trade'; } },
       { id: 'nav-quick', label: 'Open Quick Trade', hint: '/quick-trade', run: () => { window.location.href = '/quick-trade'; } },
       { id: 'nav-home', label: 'Go to Home', hint: '/home', run: () => { window.location.href = '/home'; } },
       { id: 'nav-follow', label: 'Browse leaders', hint: '/follow', run: () => { window.location.href = '/follow'; } },

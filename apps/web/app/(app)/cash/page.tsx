@@ -151,7 +151,7 @@ function CashPageInner() {
               onClick={() => setShowReceive(true)}
             />
             <ActionLink label="Add" href="/ramp" />
-            <ActionLink label="Trade" href="/trade" />
+            <ActionLink label="Trade" href="/quick-trade" />
           </div>
 
           <FaucetClaimRow

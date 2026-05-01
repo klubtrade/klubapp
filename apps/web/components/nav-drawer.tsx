@@ -38,8 +38,7 @@ const NAV_GROUPS: readonly {
   {
     label: 'Trade',
     items: [
-      { href: '/quick-trade', label: 'Quick trade' },
-      { href: '/trade', label: 'Expert trade' },
+      { href: '/quick-trade', label: 'Trade' },
       { href: '/follow', label: 'Follow leaders' },
       { href: '/copy-trade', label: 'Copy trade' },
       { href: '/health', label: 'Portfolio health' },
@@ -101,9 +100,12 @@ export function NavDrawer() {
 
   return (
     <>
-      {/* Hamburger + KLUB wordmark — grouped top-left so the
-          top-right stays clear for the account pill added in Week 1. */}
-      <div className="fixed left-4 top-4 z-30 flex items-center gap-3 md:left-6 md:top-6">
+      {/* Hamburger + KLUB wordmark — mobile only. On md+ DesktopNav
+          renders a pinned top bar with brand and primary routes
+          inline, so the hamburger is redundant and the drawer is
+          unreachable (which is intentional — desktop should not need
+          a sliding panel for nav). */}
+      <div className="fixed left-4 top-4 z-30 flex items-center gap-3 md:hidden">
         <button
           type="button"
           aria-label="Open menu"
