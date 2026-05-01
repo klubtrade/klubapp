@@ -83,6 +83,7 @@ export default function QuickTradePage() {
   const [tpPct, setTpPct] = useState(riskPreset.defaultStopDistancePct * 2);
   const [slPct, setSlPct] = useState(riskPreset.defaultStopDistancePct);
   const [showMath, setShowMath] = useState(false);
+  const [showTrades, setShowTrades] = useState(false);
   const [resultModal, setResultModal] = useState<SubmitOrderResult | null>(null);
 
   const allSymbols = useMemo(() => MARKETS.map((m) => m.symbol), []);
@@ -269,239 +270,203 @@ export default function QuickTradePage() {
 
   return (
     <main className="min-h-screen bg-bg-base">
-      {/* Desktop: 3-column grid at lg+. Mobile: single column.
-          max-w-6xl gives each column ~360-380px of breathing room
-          at the lg breakpoint. Padding-top clears the global chrome
-          — DesktopNav (md+) is h-14 fixed top-0; mobile's hamburger
-          + wordmark sit at top-4 with h-10. pt-20 / md:pt-24 covers
-          both with a consistent rhythm of breathing room below. */}
-      <div className="mx-auto max-w-6xl px-4 pb-12 pt-20 md:px-8 md:pt-24">
-        <header className="mb-6">
-          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+      {/* Single-column layout. On desktop the form is sized to fit
+          inside one viewport (no scroll); Math + My trades live as
+          collapse buttons immediately below the submit so they're
+          one tap away without pushing anything offscreen. On mobile
+          the same column scrolls naturally — the no-scroll target is
+          a desktop concern. */}
+      <div className="mx-auto w-full max-w-md px-4 pb-10 pt-20 md:px-8 md:pt-24">
+        <header className="mb-4">
+          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[28px]">
             Trade
           </h1>
-          <p className="mt-1 text-[13px] text-fg-muted">
+          <p className="mt-0.5 text-[12px] text-fg-muted">
             Pick a direction, size it, ship it.
           </p>
         </header>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(360px,420px)_1fr] lg:gap-8">
-          {/* LEFT COLUMN (desktop only) — The Math, always visible.
-              Hidden on mobile since the disclosure below renders
-              the same content on small screens. */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-20 rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
-              <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-                The Math
-              </div>
-              {mathContent}
-            </div>
-          </aside>
 
-          {/* CENTER COLUMN — the trade form. Same content as before
-              plus a new leverage slider under the amount input. */}
-          <section>
-            {/* Direction */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDirection('long');
-                }}
-                className={`rounded-klub-lg border px-4 py-6 text-center transition-colors ${
-                  direction === 'long'
-                    ? 'border-pnl-long bg-pnl-long/10 text-pnl-long'
-                    : 'border-border-subtle bg-bg-surface text-fg-secondary hover:border-border'
-                }`}
-              >
-                <div className="text-2xl leading-none">↗</div>
-                <div className="mt-2 text-[15px] font-semibold">Up</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDirection('short');
-                }}
-                className={`rounded-klub-lg border px-4 py-6 text-center transition-colors ${
-                  direction === 'short'
-                    ? 'border-pnl-short bg-pnl-short/10 text-pnl-short'
-                    : 'border-border-subtle bg-bg-surface text-fg-secondary hover:border-border'
-                }`}
-              >
-                <div className="text-2xl leading-none">↘</div>
-                <div className="mt-2 text-[15px] font-semibold">Down</div>
-              </button>
-            </div>
-
-            {/* Market picker */}
-            <div className="mt-3">
-              <div className="mb-1.5 text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-                Select asset
-              </div>
-              <MarketPicker
-                markets={MARKETS}
-                selected={market}
-                onSelect={(m) => {
-                  setMarket(m);
-                }}
-                livePrices={livePrices}
-              />
-            </div>
-
-            {/* Margin — slider + numeric label. Same as Amount in the
-                old layout, just renamed for clarity. This is what the
-                user is putting on the line. */}
-            <div className="mt-6">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-                  Your margin
-                </span>
-                <span className="text-[12px] text-fg-muted">{amountPct}% of account</span>
-              </div>
-              <div className="mt-1 font-mono text-[28px] font-semibold text-fg-primary">
-                ${amountUsd.toFixed(0)}
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={50}
-                step={1}
-                value={amountPct}
-                onChange={(e) => {
-                  setAmountPct(Number(e.target.value));
-                }}
-                className="mt-3 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
-              />
-            </div>
-
-            {/* Leverage — clamped to market max (BTC 50×, DOGE 10×). */}
-            <div className="mt-6">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-                  Leverage
-                </span>
-                <span className="font-mono text-[15px] text-accent">{leverage}×</span>
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={market.defaultLeverage}
-                step={0.5}
-                value={leverage}
-                onChange={(e) => {
-                  setLeverage(Number(e.target.value));
-                }}
-                className="mt-3 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
-              />
-              <div className="mt-1.5 flex justify-between text-[10px] text-fg-muted">
-                <span>1×</span>
-                <span>{market.defaultLeverage}× max · {market.label}</span>
-              </div>
-            </div>
-
-            {/* Position size — prominent live readout. This is the
-                visible answer to "what does my leverage actually do?"
-                — slide leverage up, the big number ticks up; slide
-                margin up, ticks up. Frames the trade as "you're
-                controlling $X of BTC with $Y of your money". */}
-            <div className="mt-6 rounded-klub-lg border border-accent/30 bg-accent/5 p-4 text-center">
-              <div className="text-[10px] uppercase tracking-[0.12em] text-accent">
-                Position size
-              </div>
-              <div className="mt-1 font-mono text-[34px] font-semibold leading-none tracking-[-0.02em] text-fg-primary">
-                ${notional.toFixed(0)}
-              </div>
-              <div className="mt-2 text-[11px] text-fg-muted">
-                ${amountUsd.toFixed(0)} margin × {leverage}× ={' '}
-                <span className="text-accent">${notional.toFixed(0)}</span> exposure
-              </div>
-            </div>
-
-            {/* Take profit + stop loss as percent moves from entry.
-                Retail framing — "lock in 5% gain", "cap loss at 2%".
-                The dollar P/L mirrors live in the math panel below
-                so the user sees exactly what each percent translates
-                to in cash terms. */}
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <PercentField
-                label="Take profit"
-                value={tpPct}
-                onChange={setTpPct}
-                tone="long"
-                suffix={`+$${Math.abs(wouldMake).toFixed(0)}`}
-              />
-              <PercentField
-                label="Stop loss"
-                value={slPct}
-                onChange={setSlPct}
-                tone="short"
-                suffix={`−$${couldLose.toFixed(0)}`}
-              />
-            </div>
-
-            {/* Submit */}
+        <section>
+          {/* Direction — slim toggle. Was a pair of py-6 cards with
+              big arrows; now compact pill row that frees ~80px of
+              vertical real estate so the rest of the form fits in
+              a single viewport. */}
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => {
-                if (!mounted) return;
-                if (!connected) {
-                  promptConnect();
-                  return;
-                }
-                setConfirming(true);
-              }}
-              disabled={orderState.status === 'submitting' || !mounted}
-              className="btn-primary btn-block btn-lg mt-8 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => setDirection('long')}
+              className={`rounded-klub-lg border py-2.5 text-center text-[14px] font-semibold transition-colors ${
+                direction === 'long'
+                  ? 'border-pnl-long bg-pnl-long/10 text-pnl-long'
+                  : 'border-border-subtle bg-bg-surface text-fg-secondary hover:border-border'
+              }`}
             >
-              {!mounted
-                ? '…'
-                : !connected
-                  ? 'Connect wallet to trade'
-                  : orderState.status === 'submitting'
-                    ? 'Submitting…'
-                    : `${direction === 'long' ? 'Buy' : 'Sell'} ${market.label}`}
+              ↗ Up
             </button>
+            <button
+              type="button"
+              onClick={() => setDirection('short')}
+              className={`rounded-klub-lg border py-2.5 text-center text-[14px] font-semibold transition-colors ${
+                direction === 'short'
+                  ? 'border-pnl-short bg-pnl-short/10 text-pnl-short'
+                  : 'border-border-subtle bg-bg-surface text-fg-secondary hover:border-border'
+              }`}
+            >
+              ↘ Down
+            </button>
+          </div>
 
-            {/* Mobile-only math disclosure. On desktop the math is
-                always visible in the left column, so we hide the
-                disclosure there with `lg:hidden`. */}
-            <div className="lg:hidden">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMath((v) => !v);
-                }}
-                aria-expanded={showMath}
-                className="mt-6 self-start text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
-              >
-                {showMath ? 'Hide math' : 'Show math'}
-              </button>
+          {/* Market picker */}
+          <div className="mt-3">
+            <MarketPicker
+              markets={MARKETS}
+              selected={market}
+              onSelect={setMarket}
+              livePrices={livePrices}
+            />
+          </div>
 
-              {showMath && (
-                <div className="mt-4 border-t border-border-subtle pt-5">{mathContent}</div>
-              )}
+          {/* Margin slider — collateral the user is putting up. */}
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
+                Margin
+              </span>
+              <span className="text-[11px] text-fg-muted">
+                {amountPct}% of account
+              </span>
             </div>
-          </section>
+            <div className="mt-0.5 font-mono text-[22px] font-semibold text-fg-primary">
+              ${amountUsd.toFixed(0)}
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={50}
+              step={1}
+              value={amountPct}
+              onChange={(e) => setAmountPct(Number(e.target.value))}
+              className="mt-2 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
+            />
+          </div>
 
-          {/* RIGHT COLUMN (desktop only) — Your trades + Waiting
-              orders. Sticky so scrolling a long trade history
-              doesn't leave the left-column math behind. */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-28 space-y-6">{tradesContent}</div>
-          </aside>
-        </div>
+          {/* Leverage slider — capped per market. */}
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
+                Leverage
+              </span>
+              <span className="font-mono text-[14px] text-accent">{leverage}×</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={market.defaultLeverage}
+              step={0.5}
+              value={leverage}
+              onChange={(e) => setLeverage(Number(e.target.value))}
+              className="mt-2 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
+            />
+            <div className="mt-1 flex justify-between text-[10px] text-fg-muted">
+              <span>1×</span>
+              <span>
+                {market.defaultLeverage}× max · {market.label}
+              </span>
+            </div>
+          </div>
 
-        {/* Mobile-only: Your trades + Waiting orders, below the form.
-            Desktop renders these in the right column above. */}
-        <div className="mt-10 space-y-6 lg:hidden">{tradesContent}</div>
+          {/* Position size — accent card. Live, updates with margin
+              + leverage so the user sees what their leverage is
+              actually doing. */}
+          <div className="mt-4 rounded-klub-lg border border-accent/30 bg-accent/5 p-3 text-center">
+            <div className="text-[10px] uppercase tracking-[0.12em] text-accent">
+              Position size
+            </div>
+            <div className="mt-0.5 font-mono text-[26px] font-semibold leading-none tracking-[-0.02em] text-fg-primary">
+              ${notional.toFixed(0)}
+            </div>
+            <div className="mt-1 text-[10px] text-fg-muted">
+              ${amountUsd.toFixed(0)} × {leverage}× ={' '}
+              <span className="text-accent">${notional.toFixed(0)}</span>
+            </div>
+          </div>
 
-        <div className="mt-6 pb-6 text-center">
-          <Link
-            href="/pro"
-            className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
+          {/* TP / SL as percents — retail framing. */}
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <PercentField
+              label="Take profit"
+              value={tpPct}
+              onChange={setTpPct}
+              tone="long"
+              suffix={`+$${Math.abs(wouldMake).toFixed(0)}`}
+            />
+            <PercentField
+              label="Stop loss"
+              value={slPct}
+              onChange={setSlPct}
+              tone="short"
+              suffix={`−$${couldLose.toFixed(0)}`}
+            />
+          </div>
+
+          {/* Submit */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!mounted) return;
+              if (!connected) {
+                promptConnect();
+                return;
+              }
+              setConfirming(true);
+            }}
+            disabled={orderState.status === 'submitting' || !mounted}
+            className="btn-primary btn-block btn-lg mt-5 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Pro terminal →
-          </Link>
-        </div>
+            {!mounted
+              ? '…'
+              : !connected
+                ? 'Connect wallet to trade'
+                : orderState.status === 'submitting'
+                  ? 'Submitting…'
+                  : `${direction === 'long' ? 'Buy' : 'Sell'} ${market.label}`}
+          </button>
+
+          {/* Math + My trades — collapse rows. Click to expand inline
+              below the trade panel. Replaces the desktop-only sidebar
+              columns; same content, less viewport pressure. */}
+          <div className="mt-4 space-y-2">
+            <CollapseRow
+              label="Math"
+              hint={`Liq ${liqMovePct.toFixed(1)}% · Notional $${notional.toFixed(0)}`}
+              open={showMath}
+              onToggle={() => setShowMath((v) => !v)}
+            >
+              {mathContent}
+            </CollapseRow>
+            <CollapseRow
+              label="My trades"
+              hint={
+                positions.length === 0 && openOrders.length === 0
+                  ? 'No open trades'
+                  : `${positions.length} position${positions.length === 1 ? '' : 's'} · ${openOrders.length} order${openOrders.length === 1 ? '' : 's'}`
+              }
+              open={showTrades}
+              onToggle={() => setShowTrades((v) => !v)}
+            >
+              {tradesContent}
+            </CollapseRow>
+          </div>
+
+          <div className="mt-4 text-center">
+            <Link
+              href="/pro"
+              className="text-[11px] text-fg-muted transition-colors hover:text-fg-primary"
+            >
+              Pro terminal →
+            </Link>
+          </div>
+        </section>
       </div>
 
       {confirming && (
@@ -544,6 +509,49 @@ export default function QuickTradePage() {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * <CollapseRow /> — a tappable row that reveals its content inline
+ * below. Used for Math + My trades on /quick-trade so they sit one
+ * tap away from the trade panel without forcing a scroll.
+ */
+function CollapseRow({
+  label,
+  hint,
+  open,
+  onToggle,
+  children,
+}: {
+  readonly label: string;
+  readonly hint?: string;
+  readonly open: boolean;
+  readonly onToggle: () => void;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-klub border border-border-subtle bg-bg-surface/40">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-bg-surface"
+      >
+        <span className="text-[12px] font-medium text-fg-secondary">{label}</span>
+        <span className="flex items-center gap-2 text-[10px] text-fg-muted">
+          {hint && <span className="truncate">{hint}</span>}
+          <span aria-hidden className="text-[10px]">
+            {open ? '▲' : '▼'}
+          </span>
+        </span>
+      </button>
+      {open && (
+        <div className="border-t border-border-subtle px-3.5 py-3.5">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * <PercentField /> — labeled percent input for take-profit / stop-loss.

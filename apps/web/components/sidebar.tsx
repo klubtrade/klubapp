@@ -148,7 +148,7 @@ export function Sidebar() {
           {moreOpen && (
             <div
               role="menu"
-              className="absolute left-full top-0 z-50 ml-2 w-[260px] rounded-klub-lg border border-border-subtle bg-bg-elevated p-2 shadow-[0_16px_48px_rgba(0,0,0,0.55)]"
+              className="absolute left-full top-0 z-50 ml-2 max-h-[calc(100vh-2rem)] w-[260px] overflow-y-auto rounded-klub-lg border border-border-subtle bg-bg-elevated p-2 shadow-[0_16px_48px_rgba(0,0,0,0.55)]"
             >
               {MORE_GROUPS.map((group) => (
                 <div key={group.label} className="mb-2 last:mb-0">
