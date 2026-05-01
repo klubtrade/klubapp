@@ -76,50 +76,24 @@ const MOBILE_SOLFLARE_HINT =
   "open this page in Solflare's in-app browser, or use desktop.";
 
 /**
- * Pull the canonical wire `actions` array out of a WasmPreparedMessage.
+ * Why we don't use prepared.actions:
  *
- * The keychain's `prepared.actions` getter is the only authoritative
- * source for what JSON Bulk will reconstruct canonical bytes from.
- * Hand-rolling the wire shape in toWireActions causes "unauthorized
- * signer" rejections when our shape doesn't match what
- * prepare*({...}) signed — every field-name drift between releases
- * (short keys vs full keys, missing iso flag, etc.) is a silent
- * verification failure.
+ * In bulk-keychain-wasm browser builds (wasm-pack bundler target),
+ * the WasmPreparedMessage.actions getter returns an opaque proxy
+ * over the wasm-managed memory. typeof === 'object' is true but
+ * its own-enumerable keys are empty, so JSON.stringify renders it
+ * as `{}` and Bulk's parser rejects with
+ * "actions[0]: expected value at line 1 column 14".
  *
- * The getter can return:
- *   - an array (browser wasm-pack bundler target — most common)
- *   - a single object that should be wrapped in an array
- *   - a JSON-encoded string (some Node SDK builds)
- *   - undefined / null (older builds where the getter wasn't wired)
+ * We tried trusting that getter in 91758e3 / bd1c3a6 to dodge
+ * field-name drift between keychain releases — it broke create-pot
+ * and faucet for every desktop user. Reverted in d07afc2 (this
+ * file). All submit functions now hand-roll the wire shape via
+ * toWireActions and that's the only currently-working path.
  *
- * Probe each shape; fall back to the hand-rolled wire only as a last
- * resort, and warn loudly so we can see when the fallback fires
- * (which guarantees "unauthorized signer" if the shapes have drifted).
+ * If a future keychain release fixes the getter, revisit this.
+ * Until then: do NOT pass prepared.actions to submitSignedTransaction.
  */
-function keychainWireActions(
-  prepared: { readonly actions: unknown },
-  fallbackLabel: string,
-  fallback: () => unknown[],
-): unknown[] {
-  const raw = prepared.actions;
-  if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === 'object') return [raw];
-  if (typeof raw === 'string' && raw.length > 0) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-      if (parsed && typeof parsed === 'object') return [parsed];
-    } catch {
-      // fall through to hand-rolled fallback
-    }
-  }
-  // eslint-disable-next-line no-console
-  console.warn(
-    `[bulk] keychain prepared.actions unusable for ${fallbackLabel}; using hand-rolled wire (likely to be rejected)`,
-    { raw },
-  );
-  return fallback();
-}
 
 // -------------------------------------------------------------------------
 // WASM module loader
@@ -600,17 +574,15 @@ export async function submitOrder(input: SubmitOrderInput): Promise<SubmitOrderR
   // signed bytes internally; we extract the envelope fields we need.
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Step 4: POST via our proxy. Use the keychain's canonical
-  // prepared.actions when available (covers any future field-name
-  // drift, esp. for the new trigger order type whose wire shape we
-  // don't have first-party docs for); fall back to the hand-rolled
-  // toWireActions for older keychain builds.
-  const wireActions = keychainWireActions(prepared, 'order', () =>
-    toWireActions(order),
-  );
-
+  // Step 4: POST via our proxy. We hand-roll the wire shape via
+  // toWireActions instead of trusting the keychain's prepared.actions
+  // getter — in browser wasm-pack builds that getter returns an opaque
+  // proxy that JSON.stringifies as `{}`, which Bulk's parser rejects
+  // with "actions[0]: expected value at line 1 column 14". Hand-rolled
+  // wire is the only currently-reliable path. (See similar reverts on
+  // submitFaucetClaim / submitCreateSubAccount / submitTransfer.)
   return submitSignedTransaction({
-    wireActions,
+    wireActions: toWireActions(order),
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -862,18 +834,11 @@ export async function submitFaucetClaim(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as SignedTransaction;
 
-  // Use the keychain's own canonical wire (prepared.actions) so the
-  // bytes Bulk reconstructs from the wire match the bytes the wallet
-  // signed. The hand-rolled `{faucet: {u: account}}` shape was
-  // producing "unauthorized signer" rejections on mobile because the
-  // keychain v0.1.15 emits a different field layout for faucet than
-  // what older docs described. See keychainWireActions JSDoc.
-  const wireActions = keychainWireActions(prepared, 'faucet', () =>
-    toWireActions({ type: 'faucet', user: account }),
-  );
-
+  // Hand-rolled wire — the keychain's prepared.actions getter is an
+  // opaque proxy in browser wasm-pack builds that serializes as `{}`.
+  // See submitOrder for the full story on why we don't trust it.
   return submitSignedTransaction({
-    wireActions,
+    wireActions: toWireActions({ type: 'faucet', user: account }),
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -951,20 +916,15 @@ export async function submitCreateSubAccount(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Canonical wire from the keychain — see keychainWireActions JSDoc
-  // for why the hand-rolled toWireActions shape can drift and produce
-  // "unauthorized signer" rejections.
-  const wireActions = keychainWireActions(prepared, 'createSubAccount', () =>
-    toWireActions({
+  // Hand-rolled wire — see submitOrder comment for why we never use
+  // the keychain's prepared.actions getter in browser builds.
+  return submitSignedTransaction({
+    wireActions: toWireActions({
       type: 'createSubAccount',
       name: input.name,
       ...(input.marginSymbol ? { marginSymbol: input.marginSymbol } : {}),
       ...(input.marginAmount !== undefined ? { marginAmount: input.marginAmount } : {}),
     }),
-  );
-
-  return submitSignedTransaction({
-    wireActions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -1048,9 +1008,9 @@ export async function submitTransfer(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Canonical wire from the keychain — see keychainWireActions JSDoc.
-  const wireActions = keychainWireActions(prepared, 'transfer', () =>
-    toWireActions({
+  // Hand-rolled wire — see submitOrder comment.
+  return submitSignedTransaction({
+    wireActions: toWireActions({
       type: 'transfer',
       kind: input.kind,
       from: input.from,
@@ -1058,10 +1018,6 @@ export async function submitTransfer(
       marginSymbol: input.marginSymbol,
       amount: input.amount,
     }),
-  );
-
-  return submitSignedTransaction({
-    wireActions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
