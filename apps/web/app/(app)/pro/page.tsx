@@ -817,6 +817,36 @@ function PanelOrderForm({
     };
     const r = await submit(req);
     onResult(r);
+
+    // Bracket legs — fire reduce-only TP + SL after the main fills.
+    // Failures don't unwind the main; user gets a separate result for
+    // each leg via the same modal pipe.
+    if (!r.ok) return;
+    const closeSide: 'long' | 'short' = side === 'long' ? 'short' : 'long';
+    if (tpPrice > 0 && Number.isFinite(tpPrice)) {
+      const tp = await submit({
+        symbol,
+        side: closeSide,
+        orderType: 'limit',
+        size,
+        price: tpPrice,
+        timeInForce: 'GTC',
+        reduceOnly: true,
+      });
+      if (!tp.ok) onResult(tp);
+    }
+    if (slPrice > 0 && Number.isFinite(slPrice)) {
+      const sl = await submit({
+        symbol,
+        side: closeSide,
+        orderType: 'trigger',
+        size,
+        triggerPrice: slPrice,
+        tpSl: 'sl',
+        reduceOnly: true,
+      });
+      if (!sl.ok) onResult(sl);
+    }
   }
 
   const submitting = state.status === 'submitting';
@@ -985,9 +1015,10 @@ function PanelOrderForm({
 
         {(tpPrice > 0 || slPrice > 0) && (
           <p className="text-[10px] leading-relaxed text-fg-muted">
-            TP/SL shown for reference. Today they don&rsquo;t auto-fire on
-            Bulk — close manually from the Positions panel when price
-            hits.
+            TP/SL fire as reduce-only legs after the main order fills.
+            Stop-loss uses Bulk&rsquo;s trigger order; if Bulk rejects the
+            shape, the toast shows the reason and you can close
+            manually from the Positions panel.
           </p>
         )}
       </div>

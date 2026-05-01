@@ -170,6 +170,7 @@ export default function QuickTradePage() {
       return;
     }
 
+    // 1. Main market order.
     const outcome = await submit({
       symbol: market.symbol,
       side: direction,
@@ -177,6 +178,42 @@ export default function QuickTradePage() {
       size: sizeBase,
     });
     setResultModal(outcome);
+
+    // 2. If main filled, fire TP + SL as reduce-only brackets. Failures
+    // here don't roll back the main position — Bulk has the trade
+    // open and the user can close manually from My trades. We toast
+    // each failure individually so the user knows the bracket leg
+    // didn't land.
+    if (!outcome.ok) return;
+    const closeSide: Side = direction === 'long' ? 'short' : 'long';
+    if (tpPct > 0 && Number.isFinite(targetPrice) && targetPrice > 0) {
+      const tp = await submit({
+        symbol: market.symbol,
+        side: closeSide,
+        orderType: 'limit',
+        size: sizeBase,
+        price: targetPrice,
+        timeInForce: 'GTC',
+        reduceOnly: true,
+      });
+      if (!tp.ok) {
+        toast.warning('Main order filled, but take-profit leg failed', tp.message);
+      }
+    }
+    if (slPct > 0 && Number.isFinite(stopPrice) && stopPrice > 0) {
+      const sl = await submit({
+        symbol: market.symbol,
+        side: closeSide,
+        orderType: 'trigger',
+        size: sizeBase,
+        triggerPrice: stopPrice,
+        tpSl: 'sl',
+        reduceOnly: true,
+      });
+      if (!sl.ok) {
+        toast.warning('Main order filled, but stop-loss leg failed', sl.message);
+      }
+    }
   }
 
   if (!ready) {

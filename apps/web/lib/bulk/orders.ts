@@ -216,6 +216,29 @@ export interface LimitOrder {
   readonly reduceOnly?: boolean;
 }
 
+/**
+ * Trigger order — Bulk's stop-loss / take-profit order type. Resting
+ * server-side; fires as a market when `triggerPx` is crossed in the
+ * direction `tpsl` implies.
+ *
+ * Wire shape (Hyperliquid-inherited; the keychain emits the canonical
+ * form via prepared.actions, we don't hand-roll it).
+ */
+export interface TriggerOrder {
+  readonly type: 'order';
+  readonly symbol: string;
+  readonly isBuy: boolean;
+  readonly price: 0;
+  readonly size: number;
+  readonly orderType: {
+    readonly type: 'trigger';
+    readonly isMarket: true;
+    readonly triggerPx: number;
+    readonly tpsl: 'tp' | 'sl';
+  };
+  readonly reduceOnly?: boolean;
+}
+
 export interface MarketOrder {
   readonly type: 'order';
   readonly symbol: string;
@@ -326,7 +349,7 @@ export interface TransferAction {
 /**
  * Anything our signing path accepts.
  */
-export type Order = LimitOrder | MarketOrder;
+export type Order = LimitOrder | MarketOrder | TriggerOrder;
 export type OrderOrCancel = Order | CancelOrderAction;
 export type SignableAction =
   | Order
@@ -384,9 +407,14 @@ export interface BulkWalletSigner {
 export interface SubmitOrderInput {
   readonly symbol: string;
   readonly side: 'long' | 'short';
-  readonly orderType: 'limit' | 'market';
+  readonly orderType: 'limit' | 'market' | 'trigger';
   readonly size: number;
-  readonly price?: number; // required for limit; ignored for market
+  readonly price?: number; // required for limit; ignored for market/trigger
+  /** Required when orderType === 'trigger'. Bulk fires market when crossed. */
+  readonly triggerPrice?: number;
+  /** 'tp' = take-profit fires when price reaches triggerPrice from below
+   *  (long) or above (short); 'sl' = stop-loss inverse. Required for trigger. */
+  readonly tpSl?: 'tp' | 'sl';
   readonly timeInForce?: TimeInForce; // default GTC
   readonly reduceOnly?: boolean;
   readonly signer: BulkWalletSigner;
@@ -458,6 +486,33 @@ function buildMarketOrder(i: SubmitOrderInput): MarketOrder {
   };
 }
 
+function buildTriggerOrder(i: SubmitOrderInput): TriggerOrder {
+  if (
+    typeof i.triggerPrice !== 'number' ||
+    !Number.isFinite(i.triggerPrice) ||
+    i.triggerPrice <= 0
+  ) {
+    throw new Error('Trigger orders require a positive triggerPrice');
+  }
+  if (i.tpSl !== 'tp' && i.tpSl !== 'sl') {
+    throw new Error('Trigger orders require tpSl: "tp" | "sl"');
+  }
+  return {
+    type: 'order',
+    symbol: i.symbol,
+    isBuy: i.side === 'long',
+    price: 0,
+    size: i.size,
+    orderType: {
+      type: 'trigger',
+      isMarket: true,
+      triggerPx: i.triggerPrice,
+      tpsl: i.tpSl,
+    },
+    ...(i.reduceOnly !== undefined ? { reduceOnly: i.reduceOnly } : {}),
+  };
+}
+
 // -------------------------------------------------------------------------
 // Submit flow
 // -------------------------------------------------------------------------
@@ -484,8 +539,10 @@ export async function submitOrder(input: SubmitOrderInput): Promise<SubmitOrderR
   // we `await init()` once and cache the module.
   const keychain = await loadKeychain();
 
-  const order: Order =
-    input.orderType === 'limit' ? buildLimitOrder(input) : buildMarketOrder(input);
+  let order: Order;
+  if (input.orderType === 'limit') order = buildLimitOrder(input);
+  else if (input.orderType === 'trigger') order = buildTriggerOrder(input);
+  else order = buildMarketOrder(input);
 
   // Nonce: millisecond timestamp.
   //
@@ -543,20 +600,17 @@ export async function submitOrder(input: SubmitOrderInput): Promise<SubmitOrderR
   // signed bytes internally; we extract the envelope fields we need.
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Step 4: POST via our proxy.
-  //
-  // We deliberately do NOT forward `signed.actions` as-is. In
-  // bulk-keychain-wasm 0.1.12, that field is a wasm-bindgen opaque
-  // object whose own-enumerable keys are empty — JSON.stringify
-  // renders it as `{}` and Bulk's parser rejects with
-  // "expected value at line 1 column 14" because actions[0] is empty.
-  //
-  // Instead, we reconstruct the wire-shape `actions` array from the
-  // original Order we already have. This is the compact-field
-  // notation Bulk's HTTP API expects (see bulk-integration-notes §5
-  // and docs.bulk.trade/api-reference/placeOrder).
+  // Step 4: POST via our proxy. Use the keychain's canonical
+  // prepared.actions when available (covers any future field-name
+  // drift, esp. for the new trigger order type whose wire shape we
+  // don't have first-party docs for); fall back to the hand-rolled
+  // toWireActions for older keychain builds.
+  const wireActions = keychainWireActions(prepared, 'order', () =>
+    toWireActions(order),
+  );
+
   return submitSignedTransaction({
-    wireActions: toWireActions(order),
+    wireActions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -1141,6 +1195,27 @@ function toWireActions(action: SignableAction): unknown[] {
       },
     ];
   }
+  if (action.orderType.type === 'trigger') {
+    // Trigger order — speculative wire shape modeled on Hyperliquid's
+    // canonical form. The keychain's prepared.actions is the actual
+    // source of truth (we route through keychainWireActions in
+    // submitOrder); this branch is only the last-resort fallback when
+    // the keychain returns something unusable.
+    return [
+      {
+        t: {
+          c: action.symbol,
+          b: action.isBuy,
+          sz: toFixedPointString(action.size),
+          tx: toFixedPointString(action.orderType.triggerPx),
+          tpsl: action.orderType.tpsl,
+          r: reduceOnly,
+          i: false,
+        },
+      },
+    ];
+  }
+
   // market
   return [
     {
