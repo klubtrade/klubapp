@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
 import { WalletButton } from '@/components/wallet-button';
 
@@ -33,11 +34,61 @@ const ITEMS = [
   { href: '/pro', label: 'Pro' },
 ] as const;
 
+const MORE_GROUPS = [
+  {
+    label: 'Trade',
+    items: [
+      { href: '/copy-trade', label: 'Copy trade' },
+      { href: '/health', label: 'Portfolio health' },
+    ],
+  },
+  {
+    label: 'Earn',
+    items: [
+      { href: '/basis', label: 'Basis vault' },
+      { href: '/desk', label: 'Funding desk' },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { href: '/calculator', label: 'The Math' },
+      { href: '/practice', label: 'Practice' },
+      { href: '/ramp', label: 'Add funds' },
+      { href: '/invite', label: 'Invite friends' },
+      { href: '/onboarding', label: 'Onboarding' },
+    ],
+  },
+] as const;
+
 export function DesktopNav() {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLLIElement>(null);
+
+  // Click-outside dismisses the More dropdown.
+  useEffect(() => {
+    if (!moreOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [moreOpen]);
+
+  // Close on route change so the dropdown doesn't linger after nav.
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
 
   // /pro owns its own header — don't double-stack chrome.
   if (pathname?.startsWith('/pro')) return null;
+
+  const moreActive = MORE_GROUPS.some((g) =>
+    g.items.some((i) => pathname === i.href || pathname?.startsWith(i.href + '/')),
+  );
 
   return (
     <nav className="fixed inset-x-0 top-0 z-40 hidden h-14 items-center justify-between gap-6 border-b border-border-subtle bg-bg-base/95 px-6 backdrop-blur-md md:flex">
@@ -73,6 +124,63 @@ export function DesktopNav() {
               </li>
             );
           })}
+          <li ref={moreRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-expanded={moreOpen}
+              aria-haspopup="menu"
+              className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                moreActive || moreOpen
+                  ? 'bg-bg-surface text-accent'
+                  : 'text-fg-secondary hover:bg-bg-surface hover:text-fg-primary'
+              }`}
+            >
+              More
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+                <path
+                  d="M2 3.5l3 3 3-3"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            {moreOpen && (
+              <div
+                role="menu"
+                className="absolute left-0 top-full z-50 mt-2 w-[260px] rounded-klub-lg border border-border-subtle bg-bg-elevated p-2 shadow-[0_16px_48px_rgba(0,0,0,0.55)]"
+              >
+                {MORE_GROUPS.map((group) => (
+                  <div key={group.label} className="mb-2 last:mb-0">
+                    <div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
+                      {group.label}
+                    </div>
+                    <ul>
+                      {group.items.map((item) => {
+                        const active = pathname === item.href || pathname?.startsWith(item.href + '/');
+                        return (
+                          <li key={item.href}>
+                            <Link
+                              href={item.href}
+                              className={`block rounded-md px-2 py-1.5 text-[13px] transition-colors ${
+                                active
+                                  ? 'bg-bg-surface text-accent'
+                                  : 'text-fg-primary hover:bg-bg-surface'
+                              }`}
+                            >
+                              {item.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </li>
         </ul>
       </div>
       <div className="flex items-center gap-3">

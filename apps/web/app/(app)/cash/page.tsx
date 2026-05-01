@@ -103,78 +103,89 @@ function CashPageInner() {
   const refreshing = state.status === 'loading';
 
   return (
-    <main className="min-h-screen bg-bg-base px-4 pt-14 pb-20 md:px-8 md:pt-20">
-      <div className="mx-auto w-full max-w-2xl">
-        <header className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-[20px] font-semibold tracking-tight md:text-[28px]">
-              Cash
-            </h1>
-            <div className="mt-0.5 truncate text-[11px] text-fg-muted">
-              Viewing · <span className={isMaster ? 'text-fg-secondary' : 'text-accent'}>{activeName}</span>
-            </div>
-          </div>
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <div className="mx-auto w-full max-w-md">
+        {/* Account chip + refresh — kept lightweight; the active account
+            label is a nav element (taps to AccountSwitcher behavior in
+            future), refresh is a quiet revert action. */}
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-fg-muted">
+          <span className="truncate">
+            <span className="opacity-60">Viewing · </span>
+            <span className={isMaster ? 'text-fg-secondary' : 'text-accent'}>
+              {activeName}
+            </span>
+          </span>
           <button
             type="button"
             onClick={refresh}
             disabled={!connected || refreshing}
-            className="shrink-0 text-[11px] text-fg-muted transition-colors hover:text-fg-primary disabled:opacity-40"
+            aria-label="Refresh balance"
+            className="shrink-0 transition-colors hover:text-fg-primary disabled:opacity-40"
           >
-            {refreshing ? 'Refreshing…' : 'Refresh'}
+            {refreshing ? 'Refreshing…' : '↻ Refresh'}
           </button>
-        </header>
+        </div>
 
-        <section className="mt-4 rounded-klub-lg border border-border-subtle bg-bg-surface p-5 md:mt-6 md:p-7">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-fg-muted">
-            Total balance
+        {/* Hero balance — Revolut-style. The number IS the headline; no
+            label cluttering. Available balance reads as caption below. */}
+        <section className="mt-8 text-center md:mt-12">
+          <div className="font-mono text-[48px] font-semibold leading-none tracking-[-0.02em] text-fg-primary md:text-[64px]">
+            {!connected ? '$—' : equity === null ? '$—' : `$${formatUsd(equity)}`}
           </div>
-          <div className="mt-1.5 font-mono text-[26px] font-semibold leading-none tracking-tight text-fg-primary md:text-[36px]">
-            {!connected ? '—' : equity === null ? '$—' : `$${formatUsd(equity)}`}
-          </div>
-          <div className="mt-2 text-[11px] text-fg-muted">
+          <div className="mt-3 text-[12px] text-fg-muted">
             {!connected
-              ? 'Connect a wallet to see your balance.'
+              ? 'Connect a wallet to see your balance'
               : free !== null
-                ? `Available · $${formatUsd(free)}`
-                : 'Loading available balance…'}
+                ? `$${formatUsd(free)} available`
+                : 'Loading…'}
           </div>
-
-          <div className="mt-5 grid grid-cols-4 gap-1.5">
-            <ActionButton
-              label="Send"
-              disabled={!connected}
-              onClick={() => setShowSend(true)}
-            />
-            <ActionButton
-              label="Receive"
-              disabled={!connected}
-              onClick={() => setShowReceive(true)}
-            />
-            <ActionLink label="Add" href="/ramp" />
-            <ActionLink label="Trade" href="/quick-trade" />
-          </div>
-
-          <FaucetClaimRow
-            pubkey={pubkey}
-            connected={connected}
-            label={activeName}
-            isMaster={isMaster}
-            onResult={onActionResult}
-          />
         </section>
 
-        <section className="mt-6">
+        {/* Icon-circle actions — Phantom/Revolut/Venmo pattern. Big tap
+            targets, recognizable iconography, label below. */}
+        <section className="mt-10 grid grid-cols-4 gap-3">
+          <ActionCircle
+            label="Send"
+            disabled={!connected}
+            onClick={() => setShowSend(true)}
+            icon={<IconSend />}
+          />
+          <ActionCircle
+            label="Receive"
+            disabled={!connected}
+            onClick={() => setShowReceive(true)}
+            icon={<IconReceive />}
+          />
+          <ActionCircle label="Add" href="/ramp" icon={<IconAdd />} />
+          <ActionCircle label="Trade" href="/quick-trade" icon={<IconTrade />} />
+        </section>
+
+        {/* Faucet — testnet utility, demoted to a thin row below the
+            primary actions so it doesn't compete for attention. */}
+        <FaucetClaimRow
+          pubkey={pubkey}
+          connected={connected}
+          label={activeName}
+          isMaster={isMaster}
+          onResult={onActionResult}
+        />
+
+        {/* Pots — Revolut "Vaults" style. Card per pot, big touch target,
+            active state highlighted. Header above with count. */}
+        <section className="mt-10">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-[14px] font-medium tracking-tight">Pots</h2>
-            <span className="text-[10px] uppercase tracking-[0.12em] text-fg-muted">
-              {subAccounts.length} on-chain
-            </span>
+            <h2 className="text-[15px] font-semibold tracking-tight">Pots</h2>
+            {subAccounts.length > 0 && (
+              <span className="text-[10px] uppercase tracking-[0.12em] text-fg-muted">
+                {subAccounts.length} on-chain
+              </span>
+            )}
           </div>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-fg-muted">
+          <p className="mt-1 text-[11px] leading-relaxed text-fg-muted">
             Isolate strategies, copy-trade pools, or shared funds.
           </p>
 
-          <div className="mt-3 space-y-1.5">
+          <div className="mt-4 space-y-2">
             {subAccounts.length === 0 ? (
               <PotEmptyState connected={connected} />
             ) : (
@@ -192,31 +203,49 @@ function CashPageInner() {
               <button
                 type="button"
                 onClick={() => setActivePubkey(null)}
-                className="w-full rounded-klub border border-border-subtle bg-bg-surface/40 px-3 py-2 text-[11px] text-fg-muted transition-colors hover:text-fg-primary"
+                className="w-full rounded-klub border border-border-subtle bg-bg-surface/40 px-3 py-2.5 text-[11px] text-fg-muted transition-colors hover:text-fg-primary"
               >
                 ← Switch back to Master
               </button>
             )}
-          </div>
 
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            disabled={!connected}
-            className="mt-2 w-full rounded-klub border border-dashed border-border-subtle bg-transparent py-2.5 text-[12px] text-fg-muted transition-colors hover:border-border hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            + Create pot
-          </button>
-        </section>
-
-        <section className="mt-6">
-          <h2 className="text-[14px] font-medium tracking-tight">Activity</h2>
-          <div className="mt-2 rounded-klub border border-border-subtle bg-bg-surface/60 px-4 py-5 text-center text-[11px] text-fg-muted">
-            Send and receive activity will show here once handle transfers ship.
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              disabled={!connected}
+              className="mt-1 flex w-full items-center justify-center gap-2 rounded-klub border border-dashed border-border-subtle bg-transparent py-3 text-[12px] text-fg-muted transition-colors hover:border-border hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span aria-hidden className="text-[14px] leading-none">+</span>
+              <span>Create pot</span>
+            </button>
           </div>
         </section>
 
-        <footer className="mt-8 rounded-klub border border-border-subtle bg-bg-surface/40 p-4 text-[11px] text-fg-muted">
+        {/* Activity — empty state styled to feel like a placeholder, not
+            a broken section. Real feed lands when handle-transfer ships. */}
+        <section className="mt-10">
+          <h2 className="text-[15px] font-semibold tracking-tight">Activity</h2>
+          <div className="mt-3 rounded-klub-lg border border-border-subtle bg-bg-surface/40 px-5 py-8 text-center">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-bg-elevated text-fg-muted">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
+                <path
+                  d="M3 10h14M10 3v14"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <div className="mt-3 text-[12px] text-fg-secondary">
+              No activity yet
+            </div>
+            <div className="mt-1 text-[11px] text-fg-muted">
+              Sends and receives appear here once handle transfers ship.
+            </div>
+          </div>
+        </section>
+
+        <footer className="mt-10 rounded-klub border border-border-subtle bg-bg-surface/40 p-4 text-[11px] text-fg-muted">
           <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent">
             Q1 — building
           </div>
@@ -263,40 +292,125 @@ function CashPageInner() {
 }
 
 // =============================================================================
-// Action buttons
+// Action buttons — Revolut/Venmo-style icon circles
 // =============================================================================
 
-function ActionButton({
+/**
+ * Icon-circle action button. Big tappable circle with the icon, label
+ * underneath. Same visual whether it's a button (Send/Receive) or a
+ * link (Add/Trade) so the action grid reads as one cohesive row.
+ */
+function ActionCircle({
   label,
+  icon,
   onClick,
+  href,
   disabled,
 }: {
   readonly label: string;
+  readonly icon: React.ReactNode;
   readonly onClick?: () => void;
+  readonly href?: string;
   readonly disabled?: boolean;
 }) {
+  const inner = (
+    <div className="flex flex-col items-center gap-2">
+      <div
+        className={`flex h-14 w-14 items-center justify-center rounded-full bg-accent/15 text-accent transition-all ${
+          disabled
+            ? 'opacity-40'
+            : 'hover:bg-accent/25 hover:scale-[1.04] active:scale-95'
+        }`}
+      >
+        {icon}
+      </div>
+      <span
+        className={`text-[11px] font-medium ${
+          disabled ? 'text-fg-muted/60' : 'text-fg-secondary'
+        }`}
+      >
+        {label}
+      </span>
+    </div>
+  );
+
+  if (href && !disabled) {
+    return (
+      <Link href={href} className="flex justify-center">
+        {inner}
+      </Link>
+    );
+  }
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex flex-col items-center justify-center gap-1 rounded-klub border border-border-subtle bg-bg-elevated py-2.5 text-[11px] font-medium text-fg-secondary transition-colors hover:border-border hover:text-fg-primary disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex justify-center disabled:cursor-not-allowed"
     >
-      <span>{label}</span>
+      {inner}
     </button>
   );
 }
 
-function ActionLink({ label, href }: { readonly label: string; readonly href: string }) {
+function IconSend() {
   return (
-    <Link
-      href={href}
-      className="flex flex-col items-center justify-center gap-1 rounded-klub border border-border-subtle bg-bg-elevated py-2.5 text-[11px] font-medium text-fg-secondary transition-colors hover:border-border hover:text-fg-primary"
-    >
-      <span>{label}</span>
-    </Link>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 12l14-7-7 14-2-5-5-2z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
+
+function IconReceive() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 4v13m0 0l-5-5m5 5l5-5M5 21h14"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconAdd() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 5v14M5 12h14"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconTrade() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 7h13l-3-3m6 13H6l3 3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// =============================================================================
+// Pot row — card style
+// =============================================================================
 
 function PotRow({
   pubkey,
@@ -309,26 +423,38 @@ function PotRow({
   readonly active: boolean;
   readonly onUse: () => void;
 }) {
+  const initials = (name ?? 'P').slice(0, 2).toUpperCase();
   return (
     <button
       type="button"
       onClick={onUse}
-      className={`flex w-full items-center justify-between gap-3 rounded-klub border px-3 py-2.5 text-left transition-colors ${
+      className={`flex w-full items-center gap-3 rounded-klub-lg border px-3.5 py-3 text-left transition-all ${
         active
           ? 'border-accent/50 bg-accent/10'
-          : 'border-border-subtle bg-bg-surface hover:border-border'
+          : 'border-border-subtle bg-bg-surface hover:border-border hover:bg-bg-elevated'
       }`}
     >
+      <div
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-mono text-[12px] font-semibold ${
+          active ? 'bg-accent/30 text-accent' : 'bg-bg-elevated text-fg-secondary'
+        }`}
+      >
+        {initials}
+      </div>
       <div className="min-w-0 flex-1">
-        <div className={`truncate text-[13px] font-medium ${active ? 'text-accent' : 'text-fg-primary'}`}>
+        <div
+          className={`truncate text-[14px] font-medium ${
+            active ? 'text-accent' : 'text-fg-primary'
+          }`}
+        >
           {name ?? 'Untitled pot'}
         </div>
         <div className="mt-0.5 truncate font-mono text-[10px] text-fg-muted">
-          {pubkey.slice(0, 10)}…{pubkey.slice(-6)}
+          {pubkey.slice(0, 8)}…{pubkey.slice(-6)}
         </div>
       </div>
       <span
-        className={`shrink-0 text-[9px] uppercase tracking-[0.1em] ${
+        className={`shrink-0 text-[10px] uppercase tracking-[0.1em] ${
           active ? 'text-accent' : 'text-fg-muted'
         }`}
       >
@@ -381,21 +507,21 @@ function FaucetClaimRow({
         void onClick();
       }}
       disabled={!connected || !pubkey || claiming}
-      className="mt-2 flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-elevated px-3 py-2 text-left transition-colors hover:border-border disabled:cursor-not-allowed disabled:opacity-50"
+      className="mt-8 flex w-full items-center justify-between gap-3 rounded-klub border border-border-subtle bg-bg-surface/40 px-3.5 py-2.5 text-left text-[11px] transition-colors hover:bg-bg-surface disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <div className="min-w-0">
-        <div className="text-[11px] font-medium text-fg-primary">
+      <div className="min-w-0 flex items-center gap-2">
+        <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-fg-muted">
+          Testnet
+        </span>
+        <span className="text-fg-secondary">
           {claiming
             ? usingAgent
               ? `Claiming for ${target}…`
-              : `Sign in wallet to claim for ${target}…`
-            : `Claim 10,000 mockUSDC → ${target}`}
-        </div>
-        <div className="mt-0.5 text-[10px] text-fg-muted">
-          Testnet faucet · 24h limit per account
-        </div>
+              : `Sign to claim for ${target}…`
+            : `Claim 10k mockUSDC → ${target}`}
+        </span>
       </div>
-      <span className="shrink-0 text-[11px] text-accent">{claiming ? '…' : 'Claim'}</span>
+      <span className="shrink-0 text-accent">{claiming ? '…' : 'Claim'}</span>
     </button>
   );
 }
