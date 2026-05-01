@@ -75,6 +75,52 @@ const MOBILE_SOLFLARE_HINT =
   'This is a known issue with mobile Solflare via deep-link — ' +
   "open this page in Solflare's in-app browser, or use desktop.";
 
+/**
+ * Pull the canonical wire `actions` array out of a WasmPreparedMessage.
+ *
+ * The keychain's `prepared.actions` getter is the only authoritative
+ * source for what JSON Bulk will reconstruct canonical bytes from.
+ * Hand-rolling the wire shape in toWireActions causes "unauthorized
+ * signer" rejections when our shape doesn't match what
+ * prepare*({...}) signed — every field-name drift between releases
+ * (short keys vs full keys, missing iso flag, etc.) is a silent
+ * verification failure.
+ *
+ * The getter can return:
+ *   - an array (browser wasm-pack bundler target — most common)
+ *   - a single object that should be wrapped in an array
+ *   - a JSON-encoded string (some Node SDK builds)
+ *   - undefined / null (older builds where the getter wasn't wired)
+ *
+ * Probe each shape; fall back to the hand-rolled wire only as a last
+ * resort, and warn loudly so we can see when the fallback fires
+ * (which guarantees "unauthorized signer" if the shapes have drifted).
+ */
+function keychainWireActions(
+  prepared: { readonly actions: unknown },
+  fallbackLabel: string,
+  fallback: () => unknown[],
+): unknown[] {
+  const raw = prepared.actions;
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === 'object') return [raw];
+  if (typeof raw === 'string' && raw.length > 0) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === 'object') return [parsed];
+    } catch {
+      // fall through to hand-rolled fallback
+    }
+  }
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[bulk] keychain prepared.actions unusable for ${fallbackLabel}; using hand-rolled wire (likely to be rejected)`,
+    { raw },
+  );
+  return fallback();
+}
+
 // -------------------------------------------------------------------------
 // WASM module loader
 // -------------------------------------------------------------------------
@@ -762,10 +808,18 @@ export async function submitFaucetClaim(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as SignedTransaction;
 
-  const wireAction: FaucetClaimAction = { type: 'faucet', user: account };
+  // Use the keychain's own canonical wire (prepared.actions) so the
+  // bytes Bulk reconstructs from the wire match the bytes the wallet
+  // signed. The hand-rolled `{faucet: {u: account}}` shape was
+  // producing "unauthorized signer" rejections on mobile because the
+  // keychain v0.1.15 emits a different field layout for faucet than
+  // what older docs described. See keychainWireActions JSDoc.
+  const wireActions = keychainWireActions(prepared, 'faucet', () =>
+    toWireActions({ type: 'faucet', user: account }),
+  );
 
   return submitSignedTransaction({
-    wireActions: toWireActions(wireAction),
+    wireActions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -843,26 +897,17 @@ export async function submitCreateSubAccount(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // For v1.0.14 admin actions (createSubAccount, transfer) the
-  // keychain's `prepared.actions` IS the canonical wire shape it
-  // signed against — use it directly instead of rebuilding via
-  // toWireActions. The hand-rolled shape worked while Bulk's wire
-  // matched our guess, but any field-name drift between keychain
-  // releases and Bulk releases produces an "unauthorized signer"
-  // rejection because Bulk re-derives canonical bytes from the wire
-  // and they no longer match what the keychain signed. Reuse exactly
-  // what the keychain emitted to lock the two together.
-  const keychainWire = prepared.actions;
-  const wireActions: unknown[] = Array.isArray(keychainWire)
-    ? keychainWire
-    : keychainWire && typeof keychainWire === 'object'
-      ? [keychainWire]
-      : toWireActions({
-          type: 'createSubAccount',
-          name: input.name,
-          ...(input.marginSymbol ? { marginSymbol: input.marginSymbol } : {}),
-          ...(input.marginAmount !== undefined ? { marginAmount: input.marginAmount } : {}),
-        });
+  // Canonical wire from the keychain — see keychainWireActions JSDoc
+  // for why the hand-rolled toWireActions shape can drift and produce
+  // "unauthorized signer" rejections.
+  const wireActions = keychainWireActions(prepared, 'createSubAccount', () =>
+    toWireActions({
+      type: 'createSubAccount',
+      name: input.name,
+      ...(input.marginSymbol ? { marginSymbol: input.marginSymbol } : {}),
+      ...(input.marginAmount !== undefined ? { marginAmount: input.marginAmount } : {}),
+    }),
+  );
 
   return submitSignedTransaction({
     wireActions,
@@ -949,22 +994,17 @@ export async function submitTransfer(
 
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Same pattern as submitCreateSubAccount: use the keychain's own
-  // canonical wire shape so Bulk's reconstruction matches what was
-  // signed.
-  const keychainWire = prepared.actions;
-  const wireActions: unknown[] = Array.isArray(keychainWire)
-    ? keychainWire
-    : keychainWire && typeof keychainWire === 'object'
-      ? [keychainWire]
-      : toWireActions({
-          type: 'transfer',
-          kind: input.kind,
-          from: input.from,
-          to: input.to,
-          marginSymbol: input.marginSymbol,
-          amount: input.amount,
-        });
+  // Canonical wire from the keychain — see keychainWireActions JSDoc.
+  const wireActions = keychainWireActions(prepared, 'transfer', () =>
+    toWireActions({
+      type: 'transfer',
+      kind: input.kind,
+      from: input.from,
+      to: input.to,
+      marginSymbol: input.marginSymbol,
+      amount: input.amount,
+    }),
+  );
 
   return submitSignedTransaction({
     wireActions,
