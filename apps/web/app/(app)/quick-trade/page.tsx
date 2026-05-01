@@ -174,7 +174,7 @@ export default function QuickTradePage() {
 
   if (!ready) {
     return (
-      <main className="min-h-screen px-6 pt-28">
+      <main className="min-h-screen px-4 pt-20 md:px-8 md:pt-24">
         <div className="mx-auto max-w-md text-fg-muted">Loading…</div>
       </main>
     );
@@ -261,18 +261,28 @@ export default function QuickTradePage() {
   );
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-bg-base">
       {/* Desktop: 3-column grid at lg+. Mobile: single column.
           max-w-6xl gives each column ~360-380px of breathing room
           at the lg breakpoint. Padding-top clears the global chrome
-          (wallet button top-right, hamburger top-left). */}
-      <div className="mx-auto max-w-6xl px-6 pb-12 pt-28 md:pt-32">
+          — DesktopNav (md+) is h-14 fixed top-0; mobile's hamburger
+          + wordmark sit at top-4 with h-10. pt-20 / md:pt-24 covers
+          both with a consistent rhythm of breathing room below. */}
+      <div className="mx-auto max-w-6xl px-4 pb-12 pt-20 md:px-8 md:pt-24">
+        <header className="mb-6">
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+            Trade
+          </h1>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            Pick a direction, size it, ship it.
+          </p>
+        </header>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(360px,420px)_1fr] lg:gap-8">
           {/* LEFT COLUMN (desktop only) — The Math, always visible.
               Hidden on mobile since the disclosure below renders
               the same content on small screens. */}
           <aside className="hidden lg:block">
-            <div className="sticky top-28 rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+            <div className="sticky top-20 rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
               <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
                 The Math
               </div>

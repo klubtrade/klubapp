@@ -188,35 +188,39 @@ export default function HealthPage() {
   }, [healthInput]);
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-12 pt-28 md:pt-36">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-              Portfolio health
-            </div>
-            <div className="rounded-full border border-border-subtle px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-              Current regime: {regimeLabel}
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <div className="mx-auto w-full max-w-md">
+        <header className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+              Health
+            </h1>
+            <div className="mt-1 flex items-center gap-2 text-[11px] text-fg-muted">
+              <span>Regime · {regimeLabel}</span>
+              {connected && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>
+                    {positions.length}{' '}
+                    {positions.length === 1 ? 'position' : 'positions'}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           {connected && (
-            <div className="flex items-center gap-3 text-[11px] text-fg-muted">
-              <span>
-                {positions.length} {positions.length === 1 ? 'position' : 'positions'}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  refreshAccount();
-                }}
-                className="text-fg-muted underline-offset-2 transition-colors hover:text-fg-primary hover:underline"
-                aria-label="Refresh account"
-              >
-                Refresh
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                refreshAccount();
+              }}
+              className="shrink-0 text-[11px] uppercase tracking-[0.12em] text-fg-muted transition-colors hover:text-fg-primary"
+              aria-label="Refresh account"
+            >
+              ↻ Refresh
+            </button>
           )}
-        </div>
+        </header>
 
         {!connected ? (
           <EmptyState
@@ -226,10 +230,13 @@ export default function HealthPage() {
             ctaLabel="Go to home"
           />
         ) : accountState.status === 'loading' && !snapshot ? (
-          <div className="mt-12 text-[14px] text-fg-muted">Loading your account…</div>
+          <div className="mt-12 rounded-klub-lg border border-border-subtle bg-bg-surface/40 px-5 py-12 text-center text-[13px] text-fg-muted">
+            Loading your account…
+          </div>
         ) : accountState.status === 'error' ? (
-          <div className="mt-12 rounded-klub border border-pnl-short/30 bg-pnl-short/5 p-4 text-[13px] text-pnl-short">
-            Couldn&rsquo;t load your account. {accountState.error ?? 'Try again in a moment.'}
+          <div className="mt-12 rounded-klub-lg border border-pnl-short/30 bg-pnl-short/5 p-5 text-[13px] text-pnl-short">
+            Couldn&rsquo;t load your account.{' '}
+            {accountState.error ?? 'Try again in a moment.'}
           </div>
         ) : positions.length === 0 ? (
           <EmptyState
@@ -253,11 +260,11 @@ export default function HealthPage() {
             }}
           />
         ) : (
-          <div className="mt-12 text-[14px] text-fg-muted">
+          <div className="mt-12 rounded-klub-lg border border-border-subtle bg-bg-surface/40 px-5 py-10 text-center text-[13px] text-fg-muted">
             Unable to compute. Your account data looks incomplete.
           </div>
         )}
-      </section>
+      </div>
     </main>
   );
 }
@@ -285,55 +292,61 @@ function HealthReadout({
 
   return (
     <>
-      <div className="mt-8 flex items-baseline gap-4">
-        <div className={`font-mono text-[88px] leading-none tracking-[-0.02em] ${tone}`}>
+      <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface px-6 py-10 text-center">
+        <div
+          className={`font-mono text-[96px] font-semibold leading-none tracking-[-0.03em] md:text-[120px] ${tone}`}
+        >
           {result.score}
         </div>
-        <div className="text-[14px] text-fg-muted">/ 100</div>
-      </div>
+        <div className="mt-2 text-[11px] uppercase tracking-[0.12em] text-fg-muted">
+          out of 100
+        </div>
+        <div className={`mt-5 text-[20px] font-semibold ${tone}`}>{label}</div>
+      </section>
 
-      <div className={`mt-3 text-[18px] font-semibold ${tone}`}>{label}</div>
-
-      <div className="mt-10 space-y-3">
+      <section className="mt-6 space-y-2">
         <button
           type="button"
           onClick={onToggleBreakdown}
           aria-expanded={showBreakdown}
-          className="block text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
+          className="flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-surface px-4 py-3 text-[13px] text-fg-secondary transition-colors hover:bg-bg-elevated"
         >
-          {showBreakdown ? 'Hide breakdown' : 'Show breakdown'}
+          <span>Breakdown</span>
+          <span className="text-fg-muted">{showBreakdown ? '▲' : '▼'}</span>
         </button>
-        {result.recommendations.length > 0 && (
-          <button
-            type="button"
-            onClick={onToggleAdvice}
-            aria-expanded={showAdvice}
-            className="block text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
-          >
-            {showAdvice ? 'Hide advice' : 'What should I do?'}
-          </button>
+        {showBreakdown && (
+          <div className="space-y-3 rounded-klub border border-border-subtle bg-bg-surface/40 p-4">
+            <SubscoreRow label="Liquidation proximity" sub={result.subscores.liquidationProximity} />
+            <SubscoreRow label="Leverage" sub={result.subscores.leverageExposure} />
+            <SubscoreRow label="Concentration" sub={result.subscores.concentrationRisk} />
+            <SubscoreRow label="Funding burn" sub={result.subscores.fundingBurn} />
+          </div>
         )}
-      </div>
 
-      {showBreakdown && (
-        <div className="mt-4 space-y-3 border-t border-border-subtle pt-5">
-          <SubscoreRow label="Liquidation proximity" sub={result.subscores.liquidationProximity} />
-          <SubscoreRow label="Leverage" sub={result.subscores.leverageExposure} />
-          <SubscoreRow label="Concentration" sub={result.subscores.concentrationRisk} />
-          <SubscoreRow label="Funding burn" sub={result.subscores.fundingBurn} />
-        </div>
-      )}
-
-      {showAdvice && result.recommendations.length > 0 && (
-        <ul className="mt-4 space-y-2 border-t border-border-subtle pt-5 text-[13px] leading-relaxed text-fg-secondary">
-          {result.recommendations.map((r) => (
-            <li key={r} className="flex gap-2">
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent" />
-              <span>{r}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+        {result.recommendations.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={onToggleAdvice}
+              aria-expanded={showAdvice}
+              className="flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-surface px-4 py-3 text-[13px] text-fg-secondary transition-colors hover:bg-bg-elevated"
+            >
+              <span>What should I do?</span>
+              <span className="text-fg-muted">{showAdvice ? '▲' : '▼'}</span>
+            </button>
+            {showAdvice && (
+              <ul className="space-y-2 rounded-klub border border-border-subtle bg-bg-surface/40 p-4 text-[13px] leading-relaxed text-fg-secondary">
+                {result.recommendations.map((r) => (
+                  <li key={r} className="flex gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent" />
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </section>
     </>
   );
 }
@@ -354,12 +367,24 @@ function EmptyState({
   readonly secondaryLabel?: string;
 }) {
   return (
-    <div className="mt-10">
-      <h1 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] md:text-[32px]">
+    <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface p-7 text-center md:p-10">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bg-elevated text-fg-muted">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M12 2v4m0 12v4M2 12h4m12 0h4M5 5l3 3m8 8l3 3M5 19l3-3m8-8l3-3"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+      <h2 className="mt-4 text-[22px] font-semibold leading-[1.15] tracking-[-0.02em] text-fg-primary md:text-[26px]">
         {title}
-      </h1>
-      <p className="mt-3 text-[14px] leading-relaxed text-fg-secondary">{body}</p>
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      </h2>
+      <p className="mx-auto mt-3 max-w-[36ch] text-[13px] leading-relaxed text-fg-secondary">
+        {body}
+      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <Link href={ctaHref} className="btn-primary btn-compact">
           {ctaLabel}
         </Link>
@@ -369,7 +394,7 @@ function EmptyState({
           </Link>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
