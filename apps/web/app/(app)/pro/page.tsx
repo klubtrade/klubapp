@@ -208,13 +208,13 @@ function ProHeader({
   readonly mark: number;
   readonly onOpenPalette: () => void;
 }) {
-  // Header sits at top:0 but the global chrome (nav-drawer hamburger +
-  // wordmark on the left, layout-shell wallet pill + wordmark on the
-  // right) is `position: fixed; z-50`, sitting on top of this row. Pad
-  // past both zones so this header's content never overlaps that fixed
-  // chrome. The previous version had both corners colliding.
+  // The desktop sidebar handles left-side clearance via the
+  // LayoutShell's `md:pl-14` wrapper, so this header only needs to
+  // reserve room on the right for the layout-shell wallet pill (the
+  // wallet, when connected, renders as ~250-300px of pills via
+  // WalletButton). px-6 / md:pr-[20rem] does that.
   return (
-    <header className="flex h-14 items-center justify-between gap-4 border-b border-border-subtle bg-bg-base pl-36 pr-72 md:pl-40 md:pr-[22rem]">
+    <header className="flex h-14 items-center justify-between gap-4 border-b border-border-subtle bg-bg-base pl-6 pr-72 md:pr-[20rem]">
       <div className="flex min-w-0 items-center gap-3 font-mono text-[13px] text-fg-muted">
         <span className="text-[11px] font-medium uppercase tracking-[0.12em]">
           Pro
