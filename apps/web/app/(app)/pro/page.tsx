@@ -772,15 +772,25 @@ function PanelOrderForm({
   const [size, setSize] = useState(0.05);
   const [lev, setLev] = useState(5);
   const [reduceOnly, setReduceOnly] = useState(false);
+  // TP/SL price targets. Optional — when 0/undefined the order ships
+  // without bracket legs. UI shows them as preview today; auto-
+  // execution as reduce-only follow-up orders is wired separately
+  // (the user can also Close manually from the Positions panel).
+  const [tpPrice, setTpPrice] = useState(0);
+  const [slPrice, setSlPrice] = useState(0);
 
   const { submit, state, usingAgent } = useBulkOrder();
 
   const maxLev = maxLeverageFor(symbol);
 
-  // Reset price + clamp leverage when the symbol changes.
+  // Reset price + clamp leverage when the symbol changes. Also reset
+  // TP/SL since their numeric values are tied to the prior symbol's
+  // price scale.
   useEffect(() => {
     setPrice(mark);
     setLev((cur) => Math.min(cur, maxLeverageFor(symbol)));
+    setTpPrice(0);
+    setSlPrice(0);
   }, [symbol, mark]);
 
   const refPx = type === 'limit' ? price : mark;
@@ -907,6 +917,27 @@ function PanelOrderForm({
           </div>
         )}
 
+        {/* Optional bracket — TP / SL prices. Display only for now;
+            auto-execution as reduce-only follow-up orders is a
+            separate slice. The user can Close manually from the
+            Positions panel until then. */}
+        <div className="grid grid-cols-2 gap-2">
+          <ProField
+            label="Take profit"
+            value={tpPrice}
+            onChange={setTpPrice}
+            suffix="USD"
+            decimals={2}
+          />
+          <ProField
+            label="Stop loss"
+            value={slPrice}
+            onChange={setSlPrice}
+            suffix="USD"
+            decimals={2}
+          />
+        </div>
+
         <label className="flex cursor-pointer items-center gap-2 text-[11px] text-fg-secondary">
           <input
             type="checkbox"
@@ -917,31 +948,48 @@ function PanelOrderForm({
           Reduce only
         </label>
 
+        {/* Notional / margin readout — promoted above the submit so
+            the user sees the live numbers WHILE adjusting size and
+            leverage. Notional is what the position controls; margin
+            is what the user actually puts up; these update on every
+            input change. */}
+        <div className="rounded-klub border border-accent/30 bg-accent/5 p-3">
+          <div className="flex items-baseline justify-between font-mono text-[12px]">
+            <span className="text-fg-muted">Notional</span>
+            <span className="text-[14px] font-semibold text-fg-primary">
+              ${notional.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between font-mono text-[12px]">
+            <span className="text-fg-muted">Margin</span>
+            <span className="text-[14px] font-semibold text-accent">
+              ${margin.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline justify-between font-mono text-[11px] text-fg-muted">
+            <span>Mark</span>
+            <span>${formatPrice(mark)}</span>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={onSubmit}
           disabled={submitting}
-          className={`btn-block mt-4 py-2.5 text-[13px] font-medium disabled:opacity-50 ${
+          className={`btn-block py-2.5 text-[13px] font-medium disabled:opacity-50 ${
             side === 'long' ? 'btn-primary' : 'btn-danger'
           }`}
         >
           {buttonLabel}
         </button>
 
-        <div className="border-t border-border-subtle pt-3 font-mono text-[11px] text-fg-muted">
-          <div className="flex items-baseline justify-between">
-            <span>Notional</span>
-            <span className="text-fg-secondary">${notional.toFixed(2)}</span>
-          </div>
-          <div className="mt-1 flex items-baseline justify-between">
-            <span>Margin</span>
-            <span className="text-fg-secondary">${margin.toFixed(2)}</span>
-          </div>
-          <div className="mt-1 flex items-baseline justify-between">
-            <span>Mark</span>
-            <span className="text-fg-secondary">${formatPrice(mark)}</span>
-          </div>
-        </div>
+        {(tpPrice > 0 || slPrice > 0) && (
+          <p className="text-[10px] leading-relaxed text-fg-muted">
+            TP/SL shown for reference. Today they don&rsquo;t auto-fire on
+            Bulk — close manually from the Positions panel when price
+            hits.
+          </p>
+        )}
       </div>
     </section>
   );

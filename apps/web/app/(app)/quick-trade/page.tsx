@@ -75,6 +75,13 @@ export default function QuickTradePage() {
   const [amountPct, setAmountPct] = useState(10);
   const [confirming, setConfirming] = useState(false);
   const [leverage, setLeverage] = useState(5);
+  // Take profit + stop loss expressed as percent move from entry. Retail-
+  // friendly: instead of asking for a price, ask "how much do you want
+  // to lock in / how much can you stomach losing." Defaults seed from
+  // the user's risk profile (e.g. balanced = 5% stop) but the user
+  // overrides freely. Both must be > 0; we clamp at the input layer.
+  const [tpPct, setTpPct] = useState(riskPreset.defaultStopDistancePct * 2);
+  const [slPct, setSlPct] = useState(riskPreset.defaultStopDistancePct);
   const [showMath, setShowMath] = useState(false);
   const [resultModal, setResultModal] = useState<SubmitOrderResult | null>(null);
 
@@ -112,15 +119,14 @@ export default function QuickTradePage() {
   const amountUsd = (equityUsd * amountPct) / 100;
   const notional = amountUsd * leverage;
   const sizeBase = livePrice > 0 ? notional / livePrice : 0;
-  const stopDistancePct = riskPreset.defaultStopDistancePct;
   const stopPrice =
     direction === 'long'
-      ? livePrice * (1 - stopDistancePct / 100)
-      : livePrice * (1 + stopDistancePct / 100);
+      ? livePrice * (1 - slPct / 100)
+      : livePrice * (1 + slPct / 100);
   const targetPrice =
     direction === 'long'
-      ? livePrice * (1 + (stopDistancePct * 2) / 100)
-      : livePrice * (1 - (stopDistancePct * 2) / 100);
+      ? livePrice * (1 + tpPct / 100)
+      : livePrice * (1 - tpPct / 100);
 
   const result = useMemo(() => {
     try {
@@ -182,15 +188,16 @@ export default function QuickTradePage() {
 
   // Math panel content — rendered in two places: always-visible in
   // the left column on desktop, and behind a "Show math" disclosure
-  // on mobile. Extracted so the two sites stay in sync automatically.
+  // on mobile. Reflects the live tpPct/slPct the user set, not a
+  // fixed risk-profile default.
   const mathContent = (
     <div className="space-y-3 text-[13px] leading-relaxed">
       <div className="flex items-baseline justify-between">
-        <span className="text-fg-muted">Target (+{(stopDistancePct * 2).toFixed(0)}%)</span>
+        <span className="text-fg-muted">Target (+{tpPct.toFixed(1)}%)</span>
         <span className="font-mono text-pnl-long">+${Math.abs(wouldMake).toFixed(0)}</span>
       </div>
       <div className="flex items-baseline justify-between">
-        <span className="text-fg-muted">Stop (−{stopDistancePct.toFixed(0)}%)</span>
+        <span className="text-fg-muted">Stop (−{slPct.toFixed(1)}%)</span>
         <span className="font-mono text-pnl-short">−${couldLose.toFixed(0)}</span>
       </div>
       <div className="flex items-baseline justify-between">
@@ -340,13 +347,18 @@ export default function QuickTradePage() {
               />
             </div>
 
-            {/* Amount */}
+            {/* Margin — slider + numeric label. Same as Amount in the
+                old layout, just renamed for clarity. This is what the
+                user is putting on the line. */}
             <div className="mt-6">
               <div className="flex items-baseline justify-between">
-                <span className="font-mono text-[32px] font-semibold text-accent">
-                  ${amountUsd.toFixed(0)}
+                <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
+                  Your margin
                 </span>
                 <span className="text-[12px] text-fg-muted">{amountPct}% of account</span>
+              </div>
+              <div className="mt-1 font-mono text-[28px] font-semibold text-fg-primary">
+                ${amountUsd.toFixed(0)}
               </div>
               <input
                 type="range"
@@ -361,11 +373,7 @@ export default function QuickTradePage() {
               />
             </div>
 
-            {/* Leverage — new slider, matches /trade's style.
-                `max` reflects the selected market's cap (BTC 50×,
-                DOGE 10×, etc), so the slider can never pick a
-                leverage Bulk would reject. The clamp effect above
-                handles market switches. */}
+            {/* Leverage — clamped to market max (BTC 50×, DOGE 10×). */}
             <div className="mt-6">
               <div className="flex items-baseline justify-between">
                 <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
@@ -388,6 +396,46 @@ export default function QuickTradePage() {
                 <span>1×</span>
                 <span>{market.defaultLeverage}× max · {market.label}</span>
               </div>
+            </div>
+
+            {/* Position size — prominent live readout. This is the
+                visible answer to "what does my leverage actually do?"
+                — slide leverage up, the big number ticks up; slide
+                margin up, ticks up. Frames the trade as "you're
+                controlling $X of BTC with $Y of your money". */}
+            <div className="mt-6 rounded-klub-lg border border-accent/30 bg-accent/5 p-4 text-center">
+              <div className="text-[10px] uppercase tracking-[0.12em] text-accent">
+                Position size
+              </div>
+              <div className="mt-1 font-mono text-[34px] font-semibold leading-none tracking-[-0.02em] text-fg-primary">
+                ${notional.toFixed(0)}
+              </div>
+              <div className="mt-2 text-[11px] text-fg-muted">
+                ${amountUsd.toFixed(0)} margin × {leverage}× ={' '}
+                <span className="text-accent">${notional.toFixed(0)}</span> exposure
+              </div>
+            </div>
+
+            {/* Take profit + stop loss as percent moves from entry.
+                Retail framing — "lock in 5% gain", "cap loss at 2%".
+                The dollar P/L mirrors live in the math panel below
+                so the user sees exactly what each percent translates
+                to in cash terms. */}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <PercentField
+                label="Take profit"
+                value={tpPct}
+                onChange={setTpPct}
+                tone="long"
+                suffix={`+$${Math.abs(wouldMake).toFixed(0)}`}
+              />
+              <PercentField
+                label="Stop loss"
+                value={slPct}
+                onChange={setSlPct}
+                tone="short"
+                suffix={`−$${couldLose.toFixed(0)}`}
+              />
             </div>
 
             {/* Submit */}
@@ -492,6 +540,62 @@ export default function QuickTradePage() {
         />
       )}
     </main>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * <PercentField /> — labeled percent input for take-profit / stop-loss.
+ * Tone tints the value column green (long-side gain) or red (loss).
+ * Suffix shows the live dollar P/L derived from the percent so the
+ * user sees what each notch actually means in cash.
+ */
+function PercentField({
+  label,
+  value,
+  onChange,
+  tone,
+  suffix,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly onChange: (v: number) => void;
+  readonly tone: 'long' | 'short';
+  readonly suffix: string;
+}) {
+  const ringTone =
+    tone === 'long'
+      ? 'border-pnl-long/30 focus-within:border-pnl-long'
+      : 'border-pnl-short/30 focus-within:border-pnl-short';
+  const valueTone = tone === 'long' ? 'text-pnl-long' : 'text-pnl-short';
+  return (
+    <label className="block">
+      <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
+        {label}
+      </span>
+      <div
+        className={`mt-1 flex items-center rounded-klub border bg-bg-surface px-3 py-2.5 ${ringTone}`}
+      >
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          max={100}
+          step={0.5}
+          value={Number.isFinite(value) ? value : ''}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            if (Number.isFinite(n) && n >= 0) onChange(n);
+          }}
+          className={`w-full bg-transparent font-mono text-[18px] font-semibold outline-none ${valueTone}`}
+        />
+        <span className={`ml-1 font-mono text-[14px] ${valueTone}`}>%</span>
+      </div>
+      <div className={`mt-1 text-right font-mono text-[11px] ${valueTone}`}>
+        {suffix}
+      </div>
+    </label>
   );
 }
 
