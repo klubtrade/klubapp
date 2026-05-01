@@ -101,11 +101,16 @@ export default function PracticePage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto max-w-md px-6 pb-20 pt-28 md:pt-32">
-        <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-          Practice
-        </div>
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <section className="mx-auto w-full max-w-md">
+        <header>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+            Practice
+          </h1>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            Paper-trade journal. No money at risk.
+          </p>
+        </header>
 
         {/* Open trades */}
         <div className="mt-8">

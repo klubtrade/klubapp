@@ -49,17 +49,24 @@ export default function BasisPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-12 pt-28 md:pt-36">
-        <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-          Basis · delta-neutral
-        </div>
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <section className="mx-auto w-full max-w-md">
+        <header>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+            Basis vault
+          </h1>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            Delta-neutral yield · net of fees.
+          </p>
+        </header>
 
-        <div className="mt-6">
-          <div className="font-mono text-[56px] leading-none tracking-[-0.02em] text-accent md:text-[72px]">
+        <div className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface px-6 py-8 text-center">
+          <div className="font-mono text-[64px] font-semibold leading-none tracking-[-0.03em] text-accent md:text-[80px]">
             {VAULT_APY_PCT.toFixed(1)}%
           </div>
-          <div className="mt-2 text-[13px] text-fg-muted">target APY · net of fees</div>
+          <div className="mt-2 text-[11px] uppercase tracking-[0.12em] text-fg-muted">
+            target APY
+          </div>
         </div>
 
         {/* Mode toggle */}

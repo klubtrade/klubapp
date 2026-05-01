@@ -29,39 +29,37 @@ export default function DeskPage() {
   const { isLive, isDemo, isReconnecting } = useConnectionState();
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto max-w-2xl px-6 pb-12 pt-28 md:pt-32">
-        <div className="flex items-center justify-between">
-          <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-            Funding · live
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <section className="mx-auto w-full max-w-2xl">
+        <header className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+              Funding desk
+            </h1>
+            <p className="mt-1 text-[13px] text-fg-muted">
+              Per-hour funding as published by Bulk. Positive = longs
+              pay shorts.
+            </p>
           </div>
           {isReconnecting ? (
-            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] text-alert-orange">
+            <span className="shrink-0 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] text-alert-orange">
               <span className="h-1 w-1 animate-pulse rounded-full bg-alert-orange" />
               Reconnecting
             </span>
           ) : isLive ? (
-            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] text-pnl-long">
+            <span className="shrink-0 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] text-pnl-long">
               <span className="h-1 w-1 animate-pulse-accent rounded-full bg-pnl-long" />
               Live
             </span>
           ) : isDemo ? (
             <span
-              className="text-[10px] uppercase tracking-[0.08em] text-fg-muted"
+              className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-fg-muted"
               title="No WS URL configured"
             >
               Demo
             </span>
           ) : null}
-        </div>
-
-        <h1 className="mt-3 text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] md:text-[32px]">
-          Funding rates
-        </h1>
-        <p className="mt-2 text-[13px] text-fg-muted">
-          Per-hour funding as published by Bulk. Positive means longs pay shorts. 8h and
-          annualized columns are extrapolated from the live hourly rate.
-        </p>
+        </header>
 
         <div className="mt-10">
           {/* Header row — four columns: market, 1h, 8h, annual.

@@ -33,8 +33,8 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-28 md:pt-32">
+    <main className="min-h-screen bg-bg-base">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col px-4 pt-20 md:px-8 md:pt-24">
         {/* Progress */}
         <div className="flex items-center gap-1.5">
           {[0, 1, 2].map((i) => (

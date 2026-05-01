@@ -52,16 +52,23 @@ export default function RampPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-12 pt-28 md:pt-36">
-        <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-          Add funds
-        </div>
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <section className="mx-auto w-full max-w-md">
+        <header>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+            Add funds
+          </h1>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            Deposit USDC to your KLUB account.
+          </p>
+        </header>
 
-        {/* Amount */}
-        <div className="mt-8 text-center">
+        {/* Amount — Revolut-style giant editable number, centered. */}
+        <div className="mt-10 text-center">
           <div className="flex items-center justify-center">
-            <span className="font-mono text-[48px] text-fg-muted md:text-[56px]">$</span>
+            <span className="font-mono text-[48px] font-semibold text-fg-muted md:text-[60px]">
+              $
+            </span>
             <input
               type="number"
               inputMode="decimal"
@@ -72,10 +79,12 @@ export default function RampPage() {
                 const n = Number(e.target.value);
                 if (Number.isFinite(n) && n >= 0) setAmount(n);
               }}
-              className="w-[180px] bg-transparent text-center font-mono text-[48px] text-fg-primary outline-none md:text-[56px]"
+              className="w-[200px] bg-transparent text-center font-mono text-[48px] font-semibold text-fg-primary outline-none md:text-[60px]"
             />
           </div>
-          <div className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">USD</div>
+          <div className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
+            USD
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-4 gap-2">

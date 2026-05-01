@@ -50,18 +50,23 @@ export default function SettingsPage() {
 
   if (!ready) {
     return (
-      <main className="min-h-screen px-6 pt-28">
+      <main className="min-h-screen px-4 pt-20 md:px-8 md:pt-24">
         <div className="mx-auto max-w-md text-fg-muted">Loading…</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto max-w-md px-6 pb-20 pt-28 md:pt-32">
-        <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-          Settings
-        </div>
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <section className="mx-auto w-full max-w-md">
+        <header>
+          <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
+            Settings
+          </h1>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            Wallet, handle, risk profile, alerts.
+          </p>
+        </header>
 
         {/* Wallet */}
         <div className="mt-10">
