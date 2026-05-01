@@ -56,8 +56,8 @@ export function InviteFlow({
   }
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-12 pt-28 md:pt-36">
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <section className="mx-auto w-full max-w-md">
         {status === 'ok' ? (
           <SuccessPanel />
         ) : (
@@ -66,7 +66,7 @@ export function InviteFlow({
               {label}
             </div>
 
-            <h1 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] md:text-[36px]">
+            <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
               You&rsquo;re invited.
             </h1>
 
@@ -117,7 +117,7 @@ function SuccessPanel() {
       <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-accent">
         You&rsquo;re in
       </div>
-      <h1 className="mt-3 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] md:text-[36px]">
+      <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
         Welcome to the klub.
       </h1>
       <p className="mt-4 text-[15px] leading-relaxed text-fg-secondary">

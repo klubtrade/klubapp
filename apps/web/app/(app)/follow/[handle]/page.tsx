@@ -31,8 +31,8 @@ export default function LeaderProfile({
   const pnlTone = leader.pnl30dUsd >= 0 ? 'text-pnl-long' : 'text-pnl-short';
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto max-w-md px-6 pb-20 pt-28 md:pt-32">
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <section className="mx-auto w-full max-w-md">
         <Link
           href="/follow"
           className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
@@ -41,16 +41,16 @@ export default function LeaderProfile({
         </Link>
 
         {/* Header */}
-        <div className="mt-6 flex items-center gap-3">
+        <div className="mt-4 flex items-center gap-3">
           <span
             aria-hidden
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md text-[15px] font-medium uppercase text-bg-base"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold uppercase text-bg-base"
             style={{ backgroundColor: `hsl(${leader.avatarHue}, 62%, 70%)` }}
           >
             {leader.handle.slice(0, 2)}
           </span>
           <div>
-            <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.01em]">
+            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[32px]">
               @{leader.handle}
             </h1>
             <div className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-fg-muted">

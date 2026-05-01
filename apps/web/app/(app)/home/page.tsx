@@ -49,7 +49,7 @@ export default function HomePage() {
 
   if (!ready) {
     return (
-      <main className="min-h-screen px-6 pt-28">
+      <main className="min-h-screen bg-bg-base px-4 pt-20 md:px-8 md:pt-24">
         <div className="mx-auto max-w-md text-fg-muted">Loading…</div>
       </main>
     );

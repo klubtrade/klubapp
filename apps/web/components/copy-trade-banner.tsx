@@ -111,14 +111,14 @@ function MirrorCard({
     decrease: 'reduced',
   };
   const sideBadge = signal.side === 'long' ? 'LONG' : 'SHORT';
-  const sideClass = signal.side === 'long' ? 'text-long' : 'text-short';
+  const sideClass = signal.side === 'long' ? 'text-pnl-long' : 'text-pnl-short';
   const primaryCtaLabel =
     signal.action === 'close' || signal.action === 'decrease' ? 'Unwind' : 'Mirror';
   const primaryCtaVerb =
     signal.action === 'close' || signal.action === 'decrease' ? 'Unwinding…' : 'Submitting…';
 
   return (
-    <div className="pointer-events-auto rounded-2xl border border-border-subtle bg-bg-raised p-4 shadow-2xl backdrop-blur">
+    <div className="pointer-events-auto rounded-klub-lg border border-border-subtle bg-bg-elevated p-4 shadow-2xl backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
@@ -139,14 +139,14 @@ function MirrorCard({
           type="button"
           onClick={onDismiss}
           disabled={submitting}
-          className="rounded-md px-2 py-1 text-[11px] text-fg-muted transition-colors hover:bg-bg-hover hover:text-fg-primary disabled:opacity-50"
+          className="rounded-md px-2 py-1 text-[11px] text-fg-muted transition-colors hover:bg-bg-elevated hover:text-fg-primary disabled:opacity-50"
           aria-label="Dismiss"
         >
           ✕
         </button>
       </div>
 
-      <div className="mt-3 rounded-lg border border-border-subtle bg-bg-base p-3">
+      <div className="mt-3 rounded-klub border border-border-subtle bg-bg-base p-3">
         <div className="flex items-center justify-between gap-3 text-[11px] text-fg-muted">
           <span>
             {signal.action === 'close' || signal.action === 'decrease'
@@ -169,7 +169,7 @@ function MirrorCard({
       </div>
 
       {localError && (
-        <div className="mt-3 rounded-lg border border-short/40 bg-short/10 p-2 text-[11px] text-short">
+        <div className="mt-3 rounded-klub border border-pnl-short/40 bg-pnl-short/10 p-2 text-[11px] text-pnl-short">
           {localError}
         </div>
       )}
@@ -179,7 +179,7 @@ function MirrorCard({
           type="button"
           onClick={onDismiss}
           disabled={submitting}
-          className="flex-1 rounded-lg border border-border-subtle px-3 py-2 text-sm font-medium text-fg-secondary transition-colors hover:bg-bg-hover disabled:opacity-50"
+          className="btn-secondary btn-sm flex-1"
         >
           Skip
         </button>
@@ -189,7 +189,7 @@ function MirrorCard({
             void onMirror();
           }}
           disabled={submitting || succeeded}
-          className="flex-1 rounded-lg bg-fg-primary px-3 py-2 text-sm font-medium text-bg-base transition-colors hover:opacity-90 disabled:opacity-50"
+          className="btn-primary btn-sm flex-1"
         >
           {submitting ? primaryCtaVerb : succeeded ? 'Submitted ✓' : primaryCtaLabel}
         </button>
