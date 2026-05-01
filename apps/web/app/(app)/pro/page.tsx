@@ -209,7 +209,7 @@ function ProHeader({
   readonly onOpenPalette: () => void;
 }) {
   // The desktop sidebar handles left-side clearance via the
-  // LayoutShell's `md:pl-14` wrapper, so this header only needs to
+  // (app)/layout.tsx `md:pl-20` wrapper, so this header only needs to
   // reserve room on the right for the layout-shell wallet pill (the
   // wallet, when connected, renders as ~250-300px of pills via
   // WalletButton). px-6 / md:pr-[20rem] does that.

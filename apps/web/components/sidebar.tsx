@@ -94,18 +94,18 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 z-40 hidden h-screen w-14 flex-col items-center justify-between border-r border-border-subtle bg-bg-surface/30 py-4 backdrop-blur-md md:flex"
+      className="fixed left-0 top-0 z-40 hidden h-screen w-20 flex-col items-center justify-between border-r border-border-subtle bg-bg-surface/30 py-5 backdrop-blur-md md:flex"
       aria-label="Primary navigation"
     >
-      <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-col items-center gap-2">
         <Link
           href="/home"
           aria-label="KLUB home"
-          className="mb-3 flex h-9 w-9 items-center justify-center"
+          className="mb-4 flex h-12 w-12 items-center justify-center"
         >
           <span
             aria-hidden
-            className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_12px_rgba(232,182,71,0.6)]"
+            className="h-3 w-3 rounded-full bg-accent shadow-[0_0_14px_rgba(232,182,71,0.7)]"
           />
         </Link>
         {PRIMARY.map((item) => {
@@ -118,7 +118,7 @@ export function Sidebar() {
               href={item.href}
               title={item.label}
               aria-label={item.label}
-              className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+              className={`flex h-12 w-12 items-center justify-center rounded-lg transition-colors ${
                 active
                   ? 'bg-bg-surface text-accent'
                   : 'text-fg-muted hover:bg-bg-surface hover:text-fg-primary'
@@ -136,7 +136,7 @@ export function Sidebar() {
             aria-haspopup="menu"
             title="More"
             aria-label="More"
-            className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+            className={`flex h-12 w-12 items-center justify-center rounded-lg transition-colors ${
               moreActive || moreOpen
                 ? 'bg-bg-surface text-accent'
                 : 'text-fg-muted hover:bg-bg-surface hover:text-fg-primary'
@@ -185,7 +185,7 @@ export function Sidebar() {
         href="/settings"
         title="Settings"
         aria-label="Settings"
-        className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+        className={`flex h-12 w-12 items-center justify-center rounded-lg transition-colors ${
           pathname?.startsWith('/settings')
             ? 'bg-bg-surface text-accent'
             : 'text-fg-muted hover:bg-bg-surface hover:text-fg-primary'
@@ -203,7 +203,7 @@ export function Sidebar() {
 
 function IconHome() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"
         stroke="currentColor"
@@ -217,7 +217,7 @@ function IconHome() {
 
 function IconWallet() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8z"
         stroke="currentColor"
@@ -231,7 +231,7 @@ function IconWallet() {
 
 function IconTrade() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M3 17l5-5 4 4 9-9m0 0v6m0-6h-6"
         stroke="currentColor"
@@ -245,7 +245,7 @@ function IconTrade() {
 
 function IconUsers() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 6.5a3 3 0 1 1 3 5.2M21.5 20a5 5 0 0 0-4-4.9"
         stroke="currentColor"
@@ -259,7 +259,7 @@ function IconUsers() {
 
 function IconTerminal() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect
         x="3"
         y="4"
@@ -282,7 +282,7 @@ function IconTerminal() {
 
 function IconMore() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="6" cy="12" r="1.6" fill="currentColor" />
       <circle cx="12" cy="12" r="1.6" fill="currentColor" />
       <circle cx="18" cy="12" r="1.6" fill="currentColor" />
@@ -292,7 +292,7 @@ function IconMore() {
 
 function IconCog() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
       <path
         d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.5-2.4.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.4a7 7 0 0 0-2 1.2L5 5.7l-2 3.5 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.5 2.4-.9a7 7 0 0 0 2 1.2L10 21h4l.5-2.4a7 7 0 0 0 2-1.2l2.4.9 2-3.5-2-1.6a7 7 0 0 0 .1-1.2z"
