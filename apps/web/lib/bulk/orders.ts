@@ -76,6 +76,52 @@ const MOBILE_SOLFLARE_HINT =
   "open this page in Solflare's in-app browser, or use desktop.";
 
 /**
+ * Log a compact debug summary right after signing. Lets us compare
+ * desktop vs mobile when "unauthorized signer" surfaces despite the
+ * local verifyLocalSignature passing — same line on both viewports
+ * tells us if the signer pubkey, signature length, signature bytes,
+ * or message bytes drift between platforms.
+ *
+ * Always logs (not gated by a flag) — the cost is one line per
+ * submit, the value is a fast diagnosis next time something breaks
+ * on a wallet we can't test ourselves.
+ */
+function logSignatureDebug(
+  label: string,
+  prepared: { readonly messageBytes: Uint8Array },
+  signatureBytes: Uint8Array,
+  signerPubkeyBase58: string,
+): void {
+  try {
+    const localVerifyPasses = verifyLocalSignature(
+      prepared.messageBytes,
+      signatureBytes,
+      signerPubkeyBase58,
+    );
+    // eslint-disable-next-line no-console
+    console.debug(`[bulk-submit] ${label}`, {
+      signer: signerPubkeyBase58,
+      msgLen: prepared.messageBytes.length,
+      msgHexPrefix: bytesToHex(prepared.messageBytes.slice(0, 16)),
+      sigLen: signatureBytes.length,
+      sigHexPrefix: bytesToHex(signatureBytes.slice(0, 16)),
+      sigB58: bs58.encode(signatureBytes),
+      localVerifyPasses,
+    });
+  } catch {
+    // diagnostic — never throw
+  }
+}
+
+function bytesToHex(b: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < b.length; i += 1) {
+    s += b[i]!.toString(16).padStart(2, '0');
+  }
+  return s;
+}
+
+/**
  * Why we don't use prepared.actions:
  *
  * In bulk-keychain-wasm browser builds (wasm-pack bundler target),
@@ -572,6 +618,7 @@ export async function submitOrder(input: SubmitOrderInput): Promise<SubmitOrderR
 
   // Step 3: finalize into a SignedTransaction. The library stores the
   // signed bytes internally; we extract the envelope fields we need.
+  logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
   // Step 4: POST via our proxy. We hand-roll the wire shape via
@@ -649,6 +696,7 @@ export async function submitCancel(input: SubmitCancelInput): Promise<SubmitOrde
     };
   }
 
+  logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
   return submitSignedTransaction({
@@ -728,6 +776,7 @@ export async function submitAgentWalletAuth(
     };
   }
 
+  logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as SignedTransaction;
 
   const wireAction: AgentWalletCreationAction = {
@@ -832,6 +881,7 @@ export async function submitFaucetClaim(
     };
   }
 
+  logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as SignedTransaction;
 
   // Hand-rolled wire — the keychain's prepared.actions getter is an
@@ -914,6 +964,7 @@ export async function submitCreateSubAccount(
     };
   }
 
+  logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
   // Hand-rolled wire — see submitOrder comment for why we never use
@@ -1006,6 +1057,7 @@ export async function submitTransfer(
     };
   }
 
+  logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
   // Hand-rolled wire — see submitOrder comment.
