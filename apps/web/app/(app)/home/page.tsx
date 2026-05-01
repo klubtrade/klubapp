@@ -3,44 +3,43 @@
 import { healthScore } from '@klub/calc';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 import { useBulkAccount, type BulkAccountSnapshot } from '@/hooks/use-bulk-account';
 import { useConnectionState } from '@/hooks/use-connection-state';
 import { useRiskSurfacesRest } from '@/hooks/use-risk-surfaces-rest';
 import { useTickers } from '@/hooks/use-tickers';
+import { useWalletGate } from '@/hooks/use-wallet-gate';
 import { buildHealthInput, type LivePriceMap, type RiskSurfaceMap } from '@/lib/health-input';
 import { MARKETS, SEED_PRICES, type MarketSymbol } from '@/lib/markets';
 import { useUserPrefs } from '@/lib/user-prefs';
 
 /**
- * /home — minimal dashboard.
+ * /home — account dashboard.
  *
- * Rule: nothing competes for attention on first view.
+ * Two distinct surfaces depending on connection state:
  *
- * Visible by default:
- *   - Greeting ("What do you want to do?")
- *   - A single primary action ("Open a trade")
- *   - One secondary link ("Follow someone")
+ *   - Connected: Revolut/Venmo-style account home. Hero total balance,
+ *     4-up icon-circle actions (Cash / Trade / Follow / Pro), and a
+ *     stat strip (Positions / Health / 24h PnL) above a markets
+ *     snapshot. The user sees their actual numbers immediately — no
+ *     "Show details" toggle to bury balance behind a tap.
  *
- * Behind "Show details":
- *   - Equity, PnL, positions, health score, market tickers
+ *   - Disconnected: minimal welcome with one primary CTA. "What do you
+ *     want to do?" was the original framing; kept because it's a clear
+ *     entry pitch for a brand-new visitor.
  *
- * The health score shown here is computed by the same
- * `buildHealthInput` + `healthScore()` pipeline as /health, so the
- * two pages never disagree on the number.
+ * The health score is computed by the same `buildHealthInput +
+ * healthScore()` pipeline as /health so the two pages never disagree.
  */
 
-// The markets tile shows a curated subset (BTC/ETH/SOL) rather than
-// all 10 — dashboards should be scannable, not exhaustive. /desk
-// covers full-market coverage.
 const TICKER_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD'] as const;
 
 export default function HomePage() {
   const { prefs, ready } = useUserPrefs();
   const router = useRouter();
-  const [showDetails, setShowDetails] = useState(false);
+  const { connected } = useWalletGate();
 
   useEffect(() => {
     if (ready && !prefs.onboardingComplete) {
@@ -57,208 +56,339 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-12 pt-28 md:pt-36">
-        <h1 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.025em] md:text-[40px]">
-          What do you want to do?
-        </h1>
-
-        <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Link href="/quick-trade" className="btn-primary btn-compact btn-lg">
-            Open a trade
-          </Link>
-          <Link href="/follow" className="btn-secondary btn-compact btn-lg">
-            Follow a trader
-          </Link>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            setShowDetails((v) => !v);
-          }}
-          aria-expanded={showDetails}
-          className="mt-10 self-start text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
-        >
-          {showDetails ? 'Hide details' : 'Show details'}
-        </button>
-
-        {showDetails && <DetailsPanel />}
-      </section>
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
+      <div className="mx-auto w-full max-w-md">
+        {connected ? <ConnectedHome /> : <DisconnectedHome />}
+      </div>
     </main>
   );
 }
 
 // ---------------------------------------------------------------------------
+// Connected: Revolut-style dashboard
+// ---------------------------------------------------------------------------
 
-function DetailsPanel() {
+function ConnectedHome() {
   const wallet = useWallet();
   const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
   const { state: accountState } = useBulkAccount(pubkey);
+  const snapshot = accountState.data;
 
-  // Subscribe to ALL market symbols (not just the 3 tickers shown)
-  // so the health score has live prices for every possible position.
-  // Internally this is one frontendContext subscription thanks to
-  // the Week-1 fan-out fix — cheap to ask for all 10.
   const allSymbols = useMemo<readonly MarketSymbol[]>(
     () => MARKETS.map((m) => m.symbol),
     [],
   );
-  const prices = useTickers(allSymbols);
-  const { isLive, isDemo } = useConnectionState();
+  const livePrices = useTickers(allSymbols);
+  const { params: mmSurfaces } = useRiskSurfacesRest();
 
-  // REST snapshot of per-market risk-surface grids. Same hook
-  // /health uses; shared cache via the 30s refresh. Day 3 threads
-  // the full grid (not just a scalar mmFraction) so buildHealthInput
-  // can look up position-specific mm per notional + leverage.
-  const { params: restRiskParams } = useRiskSurfacesRest();
+  const equity = snapshot?.equityUsd ?? null;
+  const totalPnl = computeTotalPnl(snapshot);
 
   return (
-    <div className="mt-6 space-y-8 border-t border-border-subtle pt-8">
-      <AccountStats
-        snapshot={accountState.data}
-        connected={wallet.connected}
-        livePrices={prices}
-        mmSurfaces={restRiskParams}
-      />
+    <>
+      <section className="text-center">
+        <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
+          Total balance
+        </div>
+        <div className="mt-2 font-mono text-[48px] font-semibold leading-none tracking-[-0.02em] text-fg-primary md:text-[60px]">
+          {equity === null ? '$—' : `$${formatUsd(equity)}`}
+        </div>
+        <div className="mt-3 text-[12px] text-fg-muted">
+          {totalPnl === null
+            ? 'Loading…'
+            : (
+                <>
+                  <span
+                    className={
+                      totalPnl >= 0 ? 'text-pnl-long' : 'text-pnl-short'
+                    }
+                  >
+                    {totalPnl >= 0 ? '+' : '−'}${formatUsd(Math.abs(totalPnl))}
+                  </span>
+                  <span className="ml-1.5">total PnL</span>
+                </>
+              )}
+        </div>
+      </section>
 
-      <div>
-        {/* Markets header — flex-between so "Live" sits flush with
-            the right edge of the container, matching the Total PnL
-            / Health alignment below. */}
-        <div className="mb-4 flex items-center justify-between gap-x-6">
-          <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-            Markets
-          </div>
-          {isLive && (
-            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] text-pnl-long">
-              <span className="h-1 w-1 animate-pulse-accent rounded-full bg-pnl-long" />
-              Live
-            </span>
-          )}
-          {isDemo && (
-            <span
-              className="text-[10px] uppercase tracking-[0.08em] text-fg-muted"
-              title="No WS URL configured"
-            >
-              Demo
-            </span>
-          )}
-        </div>
-        <div className="space-y-2">
-          {TICKER_SYMBOLS.map((sym) => (
-            <div
-              key={sym}
-              className="flex items-baseline justify-between font-mono text-[13px]"
-            >
-              <span className="text-fg-secondary">{sym.replace('-USD', '')}</span>
-              <span className="text-fg-primary">
-                ${formatPrice(prices[sym]?.mark ?? SEED_PRICES[sym as MarketSymbol] ?? 0)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      <section className="mt-10 grid grid-cols-4 gap-3">
+        <NavCircle href="/cash" label="Cash" icon={<IconWallet />} />
+        <NavCircle href="/quick-trade" label="Trade" icon={<IconTrade />} />
+        <NavCircle href="/follow" label="Follow" icon={<IconUsers />} />
+        <NavCircle href="/pro" label="Pro" icon={<IconTerminal />} />
+      </section>
+
+      <section className="mt-10 grid grid-cols-3 gap-3">
+        <StatCard snapshot={snapshot} kind="positions" />
+        <StatCard snapshot={snapshot} kind="health" livePrices={livePrices} mmSurfaces={mmSurfaces} />
+        <StatCard snapshot={snapshot} kind="margin" />
+      </section>
+
+      <section className="mt-10">
+        <MarketsBlock livePrices={livePrices} />
+      </section>
+    </>
   );
 }
 
-/**
- * Account summary card. Four tiles in a 2-col grid:
- *   col 1: Equity        col 2: Total PnL   (right-aligned)
- *   col 1: Positions     col 2: Health      (right-aligned)
- *
- * Health = `healthScore(buildHealthInput(...)).score`, so /home
- * and /health always agree. Falls back to "—" when no positions
- * (health is meaningless without positions — /health shows an
- * empty state in that case; /home just dashes the tile).
- */
-function AccountStats({
+// ---------------------------------------------------------------------------
+// Disconnected: welcome
+// ---------------------------------------------------------------------------
+
+function DisconnectedHome() {
+  const { promptConnect } = useWalletGate();
+  const livePrices = useTickers(useMemo(() => [...TICKER_SYMBOLS], []));
+
+  return (
+    <>
+      <section className="pt-12 md:pt-20">
+        <h1 className="text-[36px] font-semibold leading-[1.05] tracking-[-0.025em] md:text-[44px]">
+          Trade with the klub.
+        </h1>
+        <p className="mt-3 text-[15px] leading-relaxed text-fg-secondary">
+          Members-only on-chain perps. Copy the winners, sleep through
+          the liquidations.
+        </p>
+
+        <div className="mt-8 space-y-3">
+          <button
+            type="button"
+            onClick={promptConnect}
+            className="btn-primary btn-block btn-lg"
+          >
+            Connect wallet
+          </button>
+          <Link
+            href="/follow"
+            className="block text-center text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
+          >
+            Browse leaders without connecting →
+          </Link>
+        </div>
+      </section>
+
+      <section className="mt-12">
+        <MarketsBlock livePrices={livePrices} />
+      </section>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Action circles (Cash / Trade / Follow / Pro)
+// ---------------------------------------------------------------------------
+
+function NavCircle({
+  href,
+  label,
+  icon,
+}: {
+  readonly href: string;
+  readonly label: string;
+  readonly icon: React.ReactNode;
+}) {
+  return (
+    <Link href={href} className="flex justify-center">
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/15 text-accent transition-all hover:bg-accent/25 hover:scale-[1.04] active:scale-95">
+          {icon}
+        </div>
+        <span className="text-[11px] font-medium text-fg-secondary">{label}</span>
+      </div>
+    </Link>
+  );
+}
+
+function IconWallet() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M16 12.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"
+        fill="currentColor"
+      />
+      <path d="M3 9h18" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function IconTrade() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 17l5-5 4 4 9-9m0 0v6m0-6h-6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconUsers() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 6.5a3 3 0 1 1 3 5.2M21.5 20a5 5 0 0 0-4-4.9"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconTerminal() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M7 9l3 3-3 3M13 15h4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stat cards (Positions / Health / Margin used)
+// ---------------------------------------------------------------------------
+
+function StatCard({
   snapshot,
-  connected,
+  kind,
   livePrices,
   mmSurfaces,
 }: {
   readonly snapshot: BulkAccountSnapshot | null;
-  readonly connected: boolean;
-  readonly livePrices: LivePriceMap;
-  readonly mmSurfaces: RiskSurfaceMap;
+  readonly kind: 'positions' | 'health' | 'margin';
+  readonly livePrices?: LivePriceMap;
+  readonly mmSurfaces?: RiskSurfaceMap;
 }) {
-  let equityLabel = '—';
-  let pnlLabel = '—';
-  let pnlTone: 'long' | 'short' | 'neutral' = 'neutral';
-  let positionsLabel = '—';
-  let healthLabel = '—';
-  let healthTone: 'long' | 'short' | 'neutral' = 'neutral';
+  let label = '';
+  let value = '—';
+  let tone: 'long' | 'short' | 'neutral' = 'neutral';
 
-  if (snapshot) {
-    if (snapshot.equityUsd !== null) {
-      equityLabel = `$${formatUsd(snapshot.equityUsd)}`;
+  if (kind === 'positions') {
+    label = 'Positions';
+    if (snapshot) value = String(snapshot.positions.length);
+  } else if (kind === 'margin') {
+    label = 'Free margin';
+    if (snapshot?.freeMarginUsd !== null && snapshot?.freeMarginUsd !== undefined) {
+      value = `$${formatUsd(snapshot.freeMarginUsd)}`;
     }
-
-    // Total PnL = realized + unrealized. True 24h PnL would need
-    // server-side equity snapshots on a cadence we don't maintain
-    // yet; labeling this "Total PnL" is the honest call.
-    const realized = readPnlComponent(snapshot.raw, ['realizedPnl']);
-    const unrealized = snapshot.unrealizedPnlUsd;
-    const combined =
-      realized !== null || unrealized !== null
-        ? (realized ?? 0) + (unrealized ?? 0)
-        : null;
-    if (combined !== null) {
-      pnlLabel = `${combined >= 0 ? '+' : '−'}$${formatUsd(Math.abs(combined))}`;
-      pnlTone = combined >= 0 ? 'long' : 'short';
-    }
-
-    positionsLabel = String(snapshot.positions.length);
-
-    // Health: route through the shared adapter so /home and /health
-    // show the same number. buildHealthInput returns null when
-    // there's no usable portfolio (no equity OR no positions);
-    // we leave the tile as "—" in that case.
+  } else if (kind === 'health' && snapshot && livePrices && mmSurfaces) {
+    label = 'Health';
     const input = buildHealthInput(snapshot, livePrices, mmSurfaces);
     if (input) {
       try {
         const result = healthScore(input);
-        healthLabel = String(result.score);
-        healthTone =
-          result.score >= 75 ? 'long' : result.score >= 50 ? 'neutral' : 'short';
+        value = String(result.score);
+        tone = result.score >= 75 ? 'long' : result.score >= 50 ? 'neutral' : 'short';
       } catch {
-        // healthScore threw (malformed input); leave "—"
+        // leave default
       }
     }
+  } else if (kind === 'health') {
+    label = 'Health';
   }
 
+  const color =
+    tone === 'long'
+      ? 'text-pnl-long'
+      : tone === 'short'
+        ? 'text-pnl-short'
+        : 'text-fg-primary';
+
   return (
-    <div>
-      {/* Header flex-between — "Connect wallet to see" (when shown)
-          sits flush with the right edge, aligned with the Total PnL /
-          Health values below. */}
-      <div className="mb-4 flex items-center justify-between gap-x-6">
-        <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-          Account
-        </div>
-        {!connected && (
-          <span className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            Connect wallet to see
-          </span>
-        )}
+    <div className="rounded-klub-lg border border-border-subtle bg-bg-surface px-3 py-3 text-center">
+      <div className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+        {label}
       </div>
-      <dl className="grid grid-cols-2 gap-y-4 gap-x-6">
-        <Stat label="Equity" value={equityLabel} />
-        <Stat label="Total PnL" value={pnlLabel} tone={pnlTone} align="right" />
-        <Stat label="Positions" value={positionsLabel} />
-        <Stat label="Health" value={healthLabel} tone={healthTone} align="right" />
-      </dl>
+      <div className={`mt-1.5 font-mono text-[15px] font-semibold ${color}`}>
+        {value}
+      </div>
     </div>
   );
 }
 
-/**
- * Pull a numeric field out of the raw /account response, navigating
- * into `fullAccount.margin.*`. Used for `realizedPnl` which isn't
- * surfaced on the top-level snapshot type.
- */
+// ---------------------------------------------------------------------------
+// Markets snapshot
+// ---------------------------------------------------------------------------
+
+function MarketsBlock({ livePrices }: { readonly livePrices: Record<string, { mark: number } | undefined> }) {
+  const { isLive, isDemo } = useConnectionState();
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-[15px] font-semibold tracking-tight">Markets</div>
+        {isLive && (
+          <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] text-pnl-long">
+            <span className="h-1 w-1 animate-pulse-accent rounded-full bg-pnl-long" />
+            Live
+          </span>
+        )}
+        {isDemo && (
+          <span
+            className="text-[10px] uppercase tracking-[0.08em] text-fg-muted"
+            title="No WS URL configured"
+          >
+            Demo
+          </span>
+        )}
+      </div>
+      <ul className="overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface">
+        {TICKER_SYMBOLS.map((sym, i) => {
+          const mark = livePrices[sym]?.mark ?? SEED_PRICES[sym as MarketSymbol] ?? 0;
+          return (
+            <li
+              key={sym}
+              className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-border-subtle' : ''}`}
+            >
+              <span className="text-[13px] font-medium text-fg-primary">
+                {sym.replace('-USD', '')}
+              </span>
+              <span className="font-mono text-[13px] text-fg-secondary">
+                ${formatPrice(mark)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function computeTotalPnl(snapshot: BulkAccountSnapshot | null): number | null {
+  if (!snapshot) return null;
+  const realized = readPnlComponent(snapshot.raw, ['realizedPnl']);
+  const unrealized = snapshot.unrealizedPnlUsd;
+  if (realized === null && unrealized === null) return null;
+  return (realized ?? 0) + (unrealized ?? 0);
+}
+
 function readPnlComponent(raw: unknown, path: readonly string[]): number | null {
   if (!raw || typeof raw !== 'object') return null;
   let cursor: unknown = raw;
@@ -278,28 +408,6 @@ function readPnlComponent(raw: unknown, path: readonly string[]): number | null 
     }
   }
   return null;
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-  align,
-}: {
-  readonly label: string;
-  readonly value: string;
-  readonly tone?: 'long' | 'short' | 'neutral';
-  readonly align?: 'left' | 'right';
-}) {
-  const color =
-    tone === 'long' ? 'text-pnl-long' : tone === 'short' ? 'text-pnl-short' : 'text-fg-primary';
-  const alignClass = align === 'right' ? 'text-right' : '';
-  return (
-    <div className={alignClass}>
-      <dt className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">{label}</dt>
-      <dd className={`mt-1 font-mono text-[18px] ${color}`}>{value}</dd>
-    </div>
-  );
 }
 
 function formatPrice(p: number): string {
