@@ -1,6 +1,5 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
@@ -15,6 +14,7 @@ import { useBulkFaucet } from '@/hooks/use-bulk-faucet';
 import { useSubAccounts } from '@/hooks/use-sub-accounts';
 import type { SubmitOrderResult } from '@/lib/bulk/orders';
 import { isValidHandle, normalizeHandle, resolveHandle } from '@/lib/handles';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * /funding — balances, transfers, pots, and funding entry points.
@@ -46,7 +46,7 @@ export default function CashPage() {
 }
 
 function CashPageInner() {
-  const { connected } = useWallet();
+  const { connected } = useTradingWallet();
   // The view follows the AccountSwitcher: master by default, or whichever
   // pot the user picked. The big balance, action buttons (Send From),
   // and Pots list all reflect this active context.

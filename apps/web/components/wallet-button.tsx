@@ -1,26 +1,12 @@
 'use client';
 
-import { usePrivy } from '@privy-io/react-auth';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useEffect, useRef, useState } from 'react';
 
 import { AgentWalletPrompt } from '@/components/agent-wallet-prompt';
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
 import { useBulkAccount } from '@/hooks/use-bulk-account';
 import { useBulkFaucet } from '@/hooks/use-bulk-faucet';
-
-/**
- * Is Privy wired up for this deployment?
- *
- * We detect via the public env var — if it's unset, `PrivyProvider`
- * never gets mounted in `providers.tsx` and calling Privy hooks will
- * either throw or return stubs that throw on method call. Using the
- * env var is the clean signal; trying to try/catch the hook call at
- * runtime was unreliable because the error surfaces on `.login()`,
- * not on the hook invocation itself.
- */
-const PRIVY_ENABLED = Boolean(process.env['NEXT_PUBLIC_PRIVY_APP_ID']);
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * <WalletButton /> — single source of truth for "am I connected?".
@@ -48,84 +34,16 @@ export function WalletButton({
   readonly variant?: 'primary' | 'secondary';
   readonly size?: 'sm' | 'md' | 'lg';
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Only call `usePrivy()` when we actually have a PrivyProvider in
-  // the tree. Calling it otherwise returns a stub that throws on
-  // `.login()`. This component delegates to a child so the hook call
-  // is conditional on PRIVY_ENABLED without violating Rules of Hooks.
-  const privy = PRIVY_ENABLED ? <PrivyBranch {...{ mounted, variant, size }} /> : null;
-  if (privy) return privy;
-
-  return <WalletAdapterBranch mounted={mounted} variant={variant} size={size} />;
-}
-
-// -------------------------------------------------------------------------
-// Privy branch — used only when NEXT_PUBLIC_PRIVY_APP_ID is set
-// -------------------------------------------------------------------------
-
-function PrivyBranch({
-  mounted,
-  variant,
-  size,
-}: {
-  readonly mounted: boolean;
-  readonly variant: 'primary' | 'secondary';
-  readonly size: 'sm' | 'md' | 'lg';
-}) {
-  const privy = usePrivy();
-  const connected = privy.authenticated;
-  const address = privy.user?.wallet?.address ?? null;
+  const wallet = useTradingWallet();
   return (
     <ConnectedShell
-      mounted={mounted}
+      mounted={wallet.ready}
       variant={variant}
       size={size}
-      connected={connected}
-      address={address}
-      onConnect={() => {
-        privy.login();
-      }}
-      onDisconnect={() => {
-        void privy.logout();
-      }}
-    />
-  );
-}
-
-// -------------------------------------------------------------------------
-// Wallet-adapter branch — Phantom / Backpack / Solflare / Standard Wallets
-// -------------------------------------------------------------------------
-
-function WalletAdapterBranch({
-  mounted,
-  variant,
-  size,
-}: {
-  readonly mounted: boolean;
-  readonly variant: 'primary' | 'secondary';
-  readonly size: 'sm' | 'md' | 'lg';
-}) {
-  const wallet = useWallet();
-  const walletModal = useWalletModal();
-  const connected = wallet.connected;
-  const address = wallet.publicKey ? wallet.publicKey.toBase58() : null;
-  return (
-    <ConnectedShell
-      mounted={mounted}
-      variant={variant}
-      size={size}
-      connected={connected}
-      address={address}
-      onConnect={() => {
-        walletModal.setVisible(true);
-      }}
-      onDisconnect={() => {
-        void wallet.disconnect();
-      }}
+      connected={wallet.connected}
+      address={wallet.publicKeyBase58}
+      onConnect={wallet.promptConnect}
+      onDisconnect={() => void wallet.disconnect()}
     />
   );
 }

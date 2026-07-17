@@ -1,11 +1,11 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useCallback, useState } from 'react';
 
 import { useActiveAccount } from '@/hooks/use-active-account';
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
 import { submitOrder, type SubmitOrderInput, type SubmitOrderResult } from '@/lib/bulk/orders';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * React hook that wraps the client-side Bulk order submit flow.
@@ -59,7 +59,7 @@ export function useBulkOrder(): {
   /** True when the next submit will be silent (no wallet popup). */
   readonly usingAgent: boolean;
 } {
-  const { publicKey, signMessage, connected } = useWallet();
+  const wallet = useTradingWallet();
   const { agent, agentSigner } = useAgentWallet();
   // The trading account defaults to whatever the user has selected in
   // the AccountSwitcher (master or a pot). Per-call `req.account` still
@@ -74,7 +74,7 @@ export function useBulkOrder(): {
 
   const submit = useCallback(
     async (req: BulkOrderRequest): Promise<SubmitOrderResult> => {
-      if (!connected || !publicKey) {
+      if (!wallet.connected || !wallet.publicKeyBase58) {
         const failure: SubmitOrderResult = {
           ok: false,
           reason: 'rejected_invalid',
@@ -84,7 +84,7 @@ export function useBulkOrder(): {
         return failure;
       }
 
-      const mainPubkey = publicKey.toBase58();
+      const mainPubkey = wallet.publicKeyBase58;
       setState({ status: 'submitting' });
 
       // Prefer the agent signer when authorized. Double-check the
@@ -119,7 +119,7 @@ export function useBulkOrder(): {
       }
 
       // Fall through to wallet-signed flow.
-      if (!signMessage) {
+      if (!wallet.signMessage) {
         const failure: SubmitOrderResult = {
           ok: false,
           reason: 'rejected_invalid',
@@ -141,7 +141,7 @@ export function useBulkOrder(): {
         account,
         signer: {
           publicKeyBase58: mainPubkey,
-          signMessage,
+          signMessage: wallet.signMessage,
         },
       });
 
@@ -149,15 +149,15 @@ export function useBulkOrder(): {
       else setState({ status: 'error', result });
       return result;
     },
-    [activePubkey, agent, agentSigner, connected, publicKey, signMessage],
+    [activePubkey, agent, agentSigner, wallet],
   );
 
   const usingAgent =
     agent !== null &&
     agentSigner !== null &&
-    connected &&
-    publicKey !== null &&
-    agent.account === publicKey.toBase58();
+    wallet.connected &&
+    wallet.publicKeyBase58 !== null &&
+    agent.account === wallet.publicKeyBase58;
 
   return { state, submit, reset, usingAgent };
 }

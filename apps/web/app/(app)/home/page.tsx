@@ -2,9 +2,7 @@
 
 import { healthScore, type HealthOutput } from '@klub/calc';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useMemo } from 'react';
 
 import { useBulkAccount, type BulkAccountSnapshot } from '@/hooks/use-bulk-account';
 import { useConnectionState } from '@/hooks/use-connection-state';
@@ -14,7 +12,7 @@ import { useWalletGate } from '@/hooks/use-wallet-gate';
 import { buildHealthInput } from '@/lib/health-input';
 import { MARKETS, SEED_PRICES, type MarketSymbol } from '@/lib/markets';
 import { buildPortfolioRiskView } from '@/lib/portfolio-risk';
-import { useUserPrefs } from '@/lib/user-prefs';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * /portfolio — balance, positions, and liquidation risk in one place.
@@ -36,23 +34,9 @@ import { useUserPrefs } from '@/lib/user-prefs';
 const TICKER_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD'] as const;
 
 export default function HomePage() {
-  const { prefs, ready } = useUserPrefs();
-  const router = useRouter();
-  const { connected } = useWalletGate();
+  const { connected, mounted } = useWalletGate();
 
-  useEffect(() => {
-    if (ready && !prefs.onboardingComplete) {
-      router.replace('/onboarding');
-    }
-  }, [ready, prefs.onboardingComplete, router]);
-
-  if (!ready) {
-    return (
-      <main className="min-h-screen bg-bg-base px-4 pt-20 md:px-8 md:pt-24">
-        <div className="mx-auto max-w-md text-fg-muted">Loading…</div>
-      </main>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
@@ -68,8 +52,8 @@ export default function HomePage() {
 // ---------------------------------------------------------------------------
 
 function ConnectedHome() {
-  const wallet = useWallet();
-  const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
+  const wallet = useTradingWallet();
+  const pubkey = wallet.publicKeyBase58;
   const { state: accountState } = useBulkAccount(pubkey);
   const snapshot = accountState.data;
 

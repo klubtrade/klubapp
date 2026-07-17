@@ -8,7 +8,6 @@ import {
 } from "@klub/calc";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
 
 import { useBulkAccount } from "@/hooks/use-bulk-account";
 import { useRiskSurfacesRest } from "@/hooks/use-risk-surfaces-rest";
@@ -16,6 +15,7 @@ import { useTickers } from "@/hooks/use-tickers";
 import { buildHealthInput } from "@/lib/health-input";
 import { marketData } from "@/lib/market-data/client";
 import { MARKETS, type MarketSymbol } from "@/lib/markets";
+import { useTradingWallet } from "@/lib/trading-wallet";
 
 /**
  * /health — minimalist portfolio health.
@@ -67,8 +67,8 @@ export default function HealthPage() {
   const subscribedRef = useRef<Set<string>>(new Set());
   const unsubscribeRef = useRef(new Map<string, () => void>());
 
-  const wallet = useWallet();
-  const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
+  const wallet = useTradingWallet();
+  const pubkey = wallet.publicKeyBase58;
   const { state: accountState, refresh: refreshAccount } =
     useBulkAccount(pubkey);
 

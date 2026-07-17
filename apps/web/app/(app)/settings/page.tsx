@@ -1,6 +1,5 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useEffect, useState } from 'react';
 
 import { useToast } from '@/components/toast';
@@ -12,6 +11,7 @@ import {
   resolveHandle,
 } from '@/lib/handles';
 import { RISK_PRESETS, useUserPrefs, type RiskProfile } from '@/lib/user-prefs';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * /settings — minimalist.
@@ -183,9 +183,10 @@ function Label({ children }: { readonly children: React.ReactNode }) {
  * index (or index on `pubkey`) lets us drop the localStorage cache later.
  */
 function HandleCard() {
-  const { publicKey, connected, signMessage } = useWallet();
+  const wallet = useTradingWallet();
   const toast = useToast();
-  const pubkey = connected && publicKey ? publicKey.toBase58() : null;
+  const pubkey = wallet.connected ? wallet.publicKeyBase58 : null;
+  const signMessage = wallet.signMessage;
 
   const [claimed, setClaimed] = useState<string | null>(null);
   const [draft, setDraft] = useState('');

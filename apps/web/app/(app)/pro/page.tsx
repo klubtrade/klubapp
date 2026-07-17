@@ -1,7 +1,6 @@
 'use client';
 
 import type { CandleInterval, L2Book } from '@klub/api-client';
-import { useWallet } from '@solana/wallet-adapter-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,6 +16,7 @@ import { useRecentTrades } from '@/hooks/use-recent-trades';
 import { useTickers, type LivePrice } from '@/hooks/use-tickers';
 import { MARKETS } from '@/lib/markets';
 import type { SubmitOrderResult } from '@/lib/bulk/orders';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * /pro — KLUB Pro. Bloomberg-style trading terminal.
@@ -70,7 +70,7 @@ export default function ProPage() {
   const [showPalette, setShowPalette] = useState(false);
   const [result, setResult] = useState<SubmitOrderResult | null>(null);
 
-  const { connected } = useWallet();
+  const { connected } = useTradingWallet();
   // Active account drives positions, orders, and the trading account
   // on every signed action.
   const { pubkey } = useActiveAccount();

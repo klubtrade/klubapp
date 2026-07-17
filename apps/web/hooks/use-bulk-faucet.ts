@@ -1,10 +1,10 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useCallback, useState } from 'react';
 
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
 import { submitFaucetClaim, type SubmitOrderResult } from '@/lib/bulk/orders';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * React hook wrapping the client-side faucet claim flow.
@@ -47,7 +47,7 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
   readonly reset: () => void;
   readonly usingAgent: boolean;
 } {
-  const { publicKey, signMessage, connected } = useWallet();
+  const wallet = useTradingWallet();
   const { agent, agentSigner } = useAgentWallet();
   const [state, setState] = useState<BulkFaucetState>({ status: 'idle' });
   const accountOverride = options.account ?? null;
@@ -57,7 +57,7 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
   }, []);
 
   const claim = useCallback(async (): Promise<SubmitOrderResult> => {
-    if (!connected || !publicKey) {
+    if (!wallet.connected || !wallet.publicKeyBase58) {
       const failure: SubmitOrderResult = {
         ok: false,
         reason: 'rejected_invalid',
@@ -67,7 +67,7 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
       return failure;
     }
 
-    const mainPubkey = publicKey.toBase58();
+    const mainPubkey = wallet.publicKeyBase58;
     const targetAccount = accountOverride ?? mainPubkey;
     setState({ status: 'claiming' });
 
@@ -89,7 +89,7 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
       return result;
     }
 
-    if (!signMessage) {
+    if (!wallet.signMessage) {
       const failure: SubmitOrderResult = {
         ok: false,
         reason: 'rejected_invalid',
@@ -107,7 +107,7 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
     const result = await submitFaucetClaim({
       signer: {
         publicKeyBase58: mainPubkey,
-        signMessage,
+        signMessage: wallet.signMessage,
       },
       account: targetAccount,
     });
@@ -115,14 +115,14 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
     if (result.ok) setState({ status: 'success', result });
     else setState({ status: 'error', result });
     return result;
-  }, [accountOverride, agent, agentSigner, connected, publicKey, signMessage]);
+  }, [accountOverride, agent, agentSigner, wallet]);
 
   const usingAgent =
     agent !== null &&
     agentSigner !== null &&
-    connected &&
-    publicKey !== null &&
-    agent.account === publicKey.toBase58();
+    wallet.connected &&
+    wallet.publicKeyBase58 !== null &&
+    agent.account === wallet.publicKeyBase58;
 
   return { state, claim, reset, usingAgent };
 }
