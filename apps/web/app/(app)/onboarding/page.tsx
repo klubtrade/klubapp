@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/toast';
 import { useBulkFaucet } from '@/hooks/use-bulk-faucet';
 import { useTradingWallet } from '@/lib/trading-wallet';
-import { persistUserProfile, useUserPrefs } from '@/lib/user-prefs';
+import { useUserPrefs } from '@/lib/user-prefs';
 
 type Destination = '/portfolio' | '/trade';
 
@@ -24,7 +24,7 @@ export default function OnboardingPage() {
   const toast = useToast();
   const router = useRouter();
 
-  async function finish(destination: Destination) {
+  function finish(destination: Destination) {
     if (!wallet.publicKeyBase58) {
       wallet.promptConnect();
       return;
@@ -35,17 +35,7 @@ export default function OnboardingPage() {
       onboardingWallet: wallet.publicKeyBase58,
     });
 
-    if (wallet.signMessage) {
-      const saved = await persistUserProfile({
-        pubkey: wallet.publicKeyBase58,
-        signMessage: wallet.signMessage,
-        update: { onboardingComplete: true },
-      });
-      if (!saved.ok) {
-        toast.info('Continuing locally', 'Profile sync will retry after the database is available.');
-      }
-    }
-
+    toast.success('Setup complete', 'You can claim again after the 72 hour faucet reset.');
     router.replace(destination);
   }
 
@@ -136,14 +126,18 @@ export default function OnboardingPage() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => void finish('/portfolio')}
+                onClick={() => {
+                  finish('/portfolio');
+                }}
                 className="btn-secondary btn-block"
               >
                 Continue to Portfolio
               </button>
               <button
                 type="button"
-                onClick={() => void finish('/trade')}
+                onClick={() => {
+                  finish('/trade');
+                }}
                 className="btn-secondary btn-block"
               >
                 Start Trading

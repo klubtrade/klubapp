@@ -14,7 +14,8 @@
  *
  * Security notes (important):
  *   - Private keys in localStorage are readable by any JS on the domain.
- *     New browser-key agents are therefore disabled by default.
+ *     This legacy fast-trading path is enabled for testnet/devnet-staging
+ *     only, unless explicitly overridden by env.
  *   - Existing records are stripped to public revocation metadata by
  *     `useAgentWallet`; production signing belongs in Privy or a server
  *     signer backed by KMS/HSM, never ordinary browser storage.

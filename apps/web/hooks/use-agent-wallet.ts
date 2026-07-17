@@ -79,8 +79,7 @@ export function useAgentWallet(): UseAgentWalletResult {
   const [agent, setAgent] = useState<StoredAgentWallet | null>(null);
   const [pending, setPending] = useState(false);
   const [lastResult, setLastResult] = useState<SubmitOrderResult | null>(null);
-  const creationEnabled =
-    process.env['NEXT_PUBLIC_ENABLE_LEGACY_AGENT_WALLETS'] === 'true';
+  const creationEnabled = shouldEnableBrowserAgentWallets();
 
   // Reload from storage whenever the user switches wallets, or when
   // localStorage for this user's key changes (from another tab, or
@@ -263,4 +262,15 @@ export function useAgentWallet(): UseAgentWalletResult {
     agentSigner,
     creationEnabled,
   };
+}
+
+function shouldEnableBrowserAgentWallets(): boolean {
+  const explicit = process.env['NEXT_PUBLIC_ENABLE_LEGACY_AGENT_WALLETS'];
+  if (explicit === 'true') return true;
+  if (explicit === 'false') return false;
+
+  // The current KLUB deployment is testnet/devnet-staging. Keep the fast
+  // trading button available by default there, but require an explicit opt-in
+  // before enabling browser-stored agent keys on mainnet.
+  return process.env['NEXT_PUBLIC_BULK_NETWORK'] !== 'mainnet';
 }
