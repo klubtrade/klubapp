@@ -1033,7 +1033,6 @@ export async function submitTransfer(
   const prepared = keychain.prepareTransfer(
     input.from,
     input.to,
-    input.marginSymbol,
     input.amount,
     {
       account,

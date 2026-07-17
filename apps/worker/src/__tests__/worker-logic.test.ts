@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { formatAlertText } from "../notifications/telegram.js";
 import { signAndSubmit } from "../signing/bulk-execution.js";
+import { createNodeKeychainAdapter } from "../signing/keychain-adapter.js";
 import { composeAlertMessage, tierCrossed } from "../workers/alerts-worker.js";
 import { computeMirroredSize } from "../workers/copy-trade-worker.js";
 
@@ -50,5 +51,62 @@ describe("worker risk helpers", () => {
         leaderEventId: "leader-event-1",
       }),
     ).rejects.toThrow("execution gateway is not configured");
+  });
+});
+
+describe("Bulk native keychain adapter", () => {
+  const account = "Vote111111111111111111111111111111111111111";
+  const recipient = "11111111111111111111111111111111";
+
+  it("prepares canonical Builder Code approval and revocation actions", () => {
+    const keychain = createNodeKeychainAdapter();
+    const approval = keychain.prepareApproveBuilderCode(recipient, 5, {
+      account,
+      nonce: 42,
+    });
+    const revocation = keychain.prepareRevokeBuilderCode(recipient, {
+      account,
+      nonce: 43,
+    });
+
+    expect(JSON.parse(String(approval.actions))).toEqual([
+      { abc: { fee: 5, to: recipient } },
+    ]);
+    expect(JSON.parse(String(revocation.actions))).toEqual([
+      { rbc: { to: recipient } },
+    ]);
+    expect(approval.messageBytes.length).toBeGreaterThan(64);
+    expect(revocation.messageBytes.length).toBeGreaterThan(64);
+  });
+
+  it("includes builderCode only when explicitly supplied to an order", () => {
+    const keychain = createNodeKeychainAdapter();
+    const base = {
+      type: "order" as const,
+      symbol: "BTC-USD",
+      isBuy: true,
+      price: 0 as const,
+      size: 0.1,
+      reduceOnly: false,
+      iso: false,
+      orderType: {
+        type: "market" as const,
+        isMarket: true as const,
+        triggerPx: 0 as const,
+      },
+    };
+    const plain = keychain.prepareOrder(base, { account, nonce: 44 });
+    const routed = keychain.prepareOrder(
+      { ...base, builderCode: { to: recipient, fee: 5 } },
+      { account, nonce: 45 },
+    );
+
+    expect(JSON.parse(String(plain.actions))[0].m).not.toHaveProperty(
+      "builderCode",
+    );
+    expect(JSON.parse(String(routed.actions))[0].m.builderCode).toEqual({
+      to: recipient,
+      fee: 5,
+    });
   });
 });

@@ -20,7 +20,7 @@
     "@klub/calc": "workspace:*",
     "@klub/db": "workspace:*",
     "bs58": "^6.0.0",
-    "bulk-keychain": "*",
+    "bulk-keychain": "^0.1.19",
     "bullmq": "^5.34.0",
     "drizzle-orm": "^0.38.3",
     "ioredis": "^5.4.1",

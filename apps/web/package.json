@@ -21,7 +21,7 @@
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/web3.js": "^1.95.4",
     "bs58": "^6.0.0",
-    "bulk-keychain-wasm": "^0.1.15",
+    "bulk-keychain-wasm": "^0.1.19",
     "drizzle-orm": "^0.38.3",
     "framer-motion": "^11.11.11",
     "lightweight-charts": "^5.2.0",

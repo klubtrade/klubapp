@@ -16,6 +16,44 @@
 export { BulkClient } from "./client.js";
 export type { BulkClientConfig, Signer } from "./client.js";
 
+// Builder Codes
+export {
+  BuilderCodeError,
+  MAX_BUILDER_FEE_BPS,
+  MIN_BUILDER_FEE_BPS,
+  assertBuilderCode,
+  createApproveBuilderCodeAction,
+  createRevokeBuilderCodeAction,
+  findBuilderCodeApproval,
+  routeOrderWithBuilderCode,
+} from "./builder-codes.js";
+export type {
+  ApproveBuilderCodeAction,
+  BuilderCode,
+  BuilderCodeApproval,
+  BuilderCodePolicy,
+  BulkNetwork,
+  LimitOrderInput,
+  MarketOrderInput,
+  RevokeBuilderCodeAction,
+  RoutableOrderInput,
+  RoutedOrderInput,
+} from "./builder-codes.js";
+
+// Signed transaction gateway
+export { BulkExchangeGateway, normalizeSignedTransaction } from "./gateway.js";
+export type {
+  BulkExchangeGatewayConfig,
+  BulkKeychainAdapter,
+  PreparedBulkTransaction,
+  PrepareOptions,
+  SignedBulkTransaction,
+} from "./gateway.js";
+
+// Environments
+export { BULK_ENVIRONMENTS, getBulkEnvironment } from "./environments.js";
+export type { BulkEnvironment } from "./environments.js";
+
 // Errors
 export {
   BulkClientError,

@@ -69,8 +69,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       bulk-keychain-wasm:
-        specifier: ^0.1.15
-        version: 0.1.15
+        specifier: ^0.1.19
+        version: 0.1.19
       drizzle-orm:
         specifier: ^0.38.3
         version: 0.38.4(@types/react@18.3.28)(postgres@3.4.9)(react@18.3.1)
@@ -145,8 +145,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       bulk-keychain:
-        specifier: '*'
-        version: 0.1.12
+        specifier: ^0.1.19
+        version: 0.1.19
       bullmq:
         specifier: ^5.34.0
         version: 5.76.1
@@ -185,8 +185,8 @@ importers:
   packages/api-client:
     dependencies:
       bulk-keychain-wasm:
-        specifier: ^0.1.15
-        version: 0.1.15
+        specifier: ^0.1.19
+        version: 0.1.19
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -2916,11 +2916,11 @@ packages:
     resolution: {integrity: sha512-ZMANVnAixE6AWWnPzlW2KpUrxhm9woycYvPOo67jWHyFowASTEd9s+QN1EIMsSDtwhIxN4sWE1jotpuDUIgyIw==}
     engines: {node: '>=6.14.2'}
 
-  bulk-keychain-wasm@0.1.15:
-    resolution: {integrity: sha512-WP0cDvnXubr6zbk1aQzNI7yPPNUz+cmzstXT7DNDzMorRv3dsA0yAwLCQAYNYIzbN/KpnzqOsfZCUHiLTWnmqw==}
+  bulk-keychain-wasm@0.1.19:
+    resolution: {integrity: sha512-5VUIwZi1qbIVAKrsAJt0OkBrDlMTLWJprhUzVMLSe1vTFbF4Y6WscoDnRhpS9NPoIjOfoLyzKmYaddFcYG8I1w==}
 
-  bulk-keychain@0.1.12:
-    resolution: {integrity: sha512-918RVYy8BQGRtKsxDxY2RQZZ0nJnp+aBz0G/Hh38kvrDBe0n3SsQlvFiose5yixHamlGfw4C53wj+QpkuLmjwg==}
+  bulk-keychain@0.1.19:
+    resolution: {integrity: sha512-l7kpBps7TJl4GIXvwrHTk3GwLKFOyUV9NRXA2AkAsHrKMGPaz3v1ANAAz1FELRNu/NhCfcB/JpqaAKEMvyXrTw==}
     engines: {node: '>= 22'}
 
   bullmq@5.76.1:
@@ -9816,9 +9816,9 @@ snapshots:
     dependencies:
       node-gyp-build: 4.8.4
 
-  bulk-keychain-wasm@0.1.15: {}
+  bulk-keychain-wasm@0.1.19: {}
 
-  bulk-keychain@0.1.12: {}
+  bulk-keychain@0.1.19: {}
 
   bullmq@5.76.1:
     dependencies:
