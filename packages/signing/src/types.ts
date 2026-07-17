@@ -9,7 +9,7 @@
  */
 export interface Ed25519Keypair {
   readonly privateKey: Uint8Array; // 32 bytes
-  readonly publicKey: Uint8Array;  // 32 bytes
+  readonly publicKey: Uint8Array; // 32 bytes
 }
 
 /**
@@ -30,23 +30,6 @@ export interface Signer {
    * of the payload before signing — see `payloads.ts` for helpers.
    */
   sign(payload: Uint8Array): Promise<Uint8Array>;
-}
-
-/**
- * The envelope KLUB services pass around when a signed payload is
- * being transported (REST request body, BullMQ job, etc).
- *
- * `payload` is the canonical bytes that were signed.
- * `signature` is the 64-byte Ed25519 signature.
- * `publicKey` is the signer's 32-byte public key.
- *
- * Verifying is:
- *   ed25519.verify(signature, payload, publicKey)
- */
-export interface SignedEnvelope {
-  readonly payload: Uint8Array;
-  readonly signature: Uint8Array;
-  readonly publicKey: Uint8Array;
 }
 
 /**

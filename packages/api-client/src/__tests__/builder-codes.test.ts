@@ -12,6 +12,7 @@ import { BulkClient } from "../client.js";
 import {
   BulkExchangeGateway,
   normalizeSignedTransaction,
+  parseSignedTransaction,
   type BulkKeychainAdapter,
   type PreparedBulkTransaction,
 } from "../gateway.js";
@@ -170,5 +171,26 @@ describe("BulkExchangeGateway", () => {
         signature: "signed",
       }),
     ).toThrow(/JSON array/);
+  });
+
+  it("parses only complete canonical transaction envelopes", () => {
+    expect(
+      parseSignedTransaction({
+        actions: [{ abc: { to: RECIPIENT, fee: 5 } }],
+        nonce: "42",
+        account: ACCOUNT,
+        signer: ACCOUNT,
+        signature: "signed",
+      }),
+    ).toMatchObject({ nonce: "42", signature: "signed" });
+    expect(() =>
+      parseSignedTransaction({
+        actions: [],
+        nonce: 42,
+        account: ACCOUNT,
+        signer: ACCOUNT,
+        signature: "signed",
+      }),
+    ).toThrow(/at least one action/);
   });
 });

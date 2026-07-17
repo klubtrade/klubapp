@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   base58Decode,
   base58Encode,
-  buildAgentWalletAuthorization,
+  assertSafeAgentWalletScope,
   createEd25519Signer,
   derivePublicKey,
   shortenPubkey,
   verifyEd25519,
 } from "../index.js";
-import type { AgentWalletScope, Signer } from "../types.js";
+import type { AgentWalletScope } from "../types.js";
 
 describe("base58 encoding", () => {
   it.each([
@@ -49,12 +49,6 @@ describe("Ed25519 signer", () => {
 });
 
 describe("agent-wallet safeguards", () => {
-  const signer: Signer = {
-    publicKey: new Uint8Array(32),
-    publicKeyBase58: "11111111111111111111111111111111",
-    sign: async () => new Uint8Array(64),
-  };
-
   const validScope: AgentWalletScope = {
     userPubkey: "user",
     agentPubkey: "agent",
@@ -64,24 +58,24 @@ describe("agent-wallet safeguards", () => {
     canWithdraw: false,
   };
 
-  it("rejects withdrawal authority even when supplied at runtime", async () => {
+  it("rejects withdrawal authority even when supplied at runtime", () => {
     const unsafeScope = {
       ...validScope,
       canWithdraw: true,
     } as unknown as AgentWalletScope;
 
-    await expect(
-      buildAgentWalletAuthorization({ userSigner: signer, scope: unsafeScope }),
-    ).rejects.toThrow("cannot carry withdrawal authority");
+    expect(() => assertSafeAgentWalletScope(unsafeScope)).toThrow(
+      "cannot carry withdrawal authority",
+    );
   });
 
-  it("rejects expired delegation scopes", async () => {
-    await expect(
-      buildAgentWalletAuthorization({
-        userSigner: signer,
-        scope: { ...validScope, expiresAt: Date.now() - 1 },
+  it("rejects expired delegation scopes", () => {
+    expect(() =>
+      assertSafeAgentWalletScope({
+        ...validScope,
+        expiresAt: Date.now() - 1,
       }),
-    ).rejects.toThrow("expiry must be in the future");
+    ).toThrow("expiry must be in the future");
   });
 
   it("shortens public keys for display", () => {

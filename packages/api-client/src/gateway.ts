@@ -27,7 +27,7 @@ export interface PreparedBulkTransaction {
 
 export interface SignedBulkTransaction {
   readonly actions: readonly unknown[];
-  readonly nonce: number;
+  readonly nonce: number | string;
   readonly account: Pubkey;
   readonly signer: Pubkey;
   readonly signature: string;
@@ -136,17 +136,51 @@ export function normalizeSignedTransaction(
     readonly actions: string | readonly unknown[];
   },
 ): SignedBulkTransaction {
-  const actions =
+  const rawActions =
     typeof signed.actions === "string"
       ? parseActions(signed.actions)
       : signed.actions;
+  if (!Array.isArray(rawActions)) {
+    throw new Error("Bulk keychain actions must be an array");
+  }
+  const actions: readonly unknown[] = rawActions;
   if (actions.length === 0) {
     throw new Error("Bulk transaction must contain at least one action");
   }
   if (!signed.signature) {
     throw new Error("Bulk transaction signature is required");
   }
+  if (!signed.account || !signed.signer) {
+    throw new Error("Bulk transaction account and signer are required");
+  }
   return { ...signed, actions };
+}
+
+export function parseSignedTransaction(value: unknown): SignedBulkTransaction {
+  if (!value || typeof value !== "object") {
+    throw new Error("Bulk transaction must be an object");
+  }
+  const transaction = value as Record<string, unknown>;
+  if (
+    typeof transaction["nonce"] !== "number" &&
+    typeof transaction["nonce"] !== "string"
+  ) {
+    throw new Error("Bulk transaction nonce must be a number or string");
+  }
+  if (
+    typeof transaction["account"] !== "string" ||
+    typeof transaction["signer"] !== "string" ||
+    typeof transaction["signature"] !== "string"
+  ) {
+    throw new Error("Bulk transaction cryptographic fields are invalid");
+  }
+  return normalizeSignedTransaction({
+    actions: transaction["actions"] as string | readonly unknown[],
+    nonce: transaction["nonce"],
+    account: transaction["account"],
+    signer: transaction["signer"],
+    signature: transaction["signature"],
+  });
 }
 
 function parseActions(value: string): readonly unknown[] {

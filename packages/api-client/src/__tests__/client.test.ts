@@ -1,16 +1,11 @@
 // packages/api-client/src/__tests__/client.test.ts
 import { describe, expect, it, vi } from "vitest";
 
-import { BulkClient, type Signer } from "../client.js";
-import {
-  BulkHttpError,
-  BulkNetworkError,
-  BulkSigningRequiredError,
-} from "../errors.js";
+import { BulkClient } from "../client.js";
+import { BulkHttpError, BulkNetworkError } from "../errors.js";
 import {
   getExchangeInfo,
   getTicker,
-  placeOrders,
   queryFullAccount,
   queryUserFundingPayments,
   queryUserFills,
@@ -51,19 +46,6 @@ describe("BulkClient — HTTP transport", () => {
     expect(calledUrl).toContain("limit=5");
   });
 
-  it("forwards integrator header when set", async () => {
-    const fetchImpl = vi.fn(makeFetch({ status: 200, body: {} }));
-    const client = new BulkClient({
-      fetch: fetchImpl as typeof fetch,
-      integratorId: "cockpit-v0",
-    });
-    await client.get("/stats");
-    const init = fetchImpl.mock.calls[0]?.[1] as RequestInit;
-    expect((init.headers as Record<string, string>)["X-Bulk-Integrator"]).toBe(
-      "cockpit-v0",
-    );
-  });
-
   it("throws BulkHttpError with status and body on non-2xx", async () => {
     const client = new BulkClient({
       fetch: makeFetch({ status: 429, body: { error: "rate_limited" } }),
@@ -99,69 +81,6 @@ describe("BulkClient — HTTP transport", () => {
         })) as typeof fetch,
     });
     await expect(client.get("/stats")).rejects.toThrow(BulkNetworkError);
-  });
-
-  it("generates a nanosecond nonce", () => {
-    const nonce = BulkClient.generateNonce();
-    expect(typeof nonce).toBe("bigint");
-    // nanoseconds since epoch is a huge number — above ~1.7e18 today
-    expect(nonce > 1_700_000_000_000_000_000n).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Signing
-// ---------------------------------------------------------------------------
-
-describe("BulkClient — signed requests", () => {
-  it("throws BulkSigningRequiredError when no signer is set", async () => {
-    const client = new BulkClient({
-      fetch: makeFetch({ status: 200, body: [] }),
-    });
-    await expect(placeOrders(client, [])).rejects.toThrow(
-      BulkSigningRequiredError,
-    );
-  });
-
-  it("constructs a SignedRequest envelope with signer output", async () => {
-    const fetchImpl = vi.fn(makeFetch({ status: 200, body: [] }));
-    const signer: Signer = {
-      pubkey: "FuueqefENiGEW6uMqZQgmwjzgpnb85EgUcZa5Em4PQh7",
-      sign: vi.fn(async () => "sig_base58_mock"),
-    };
-    const client = new BulkClient({
-      fetch: fetchImpl as typeof fetch,
-      signer,
-    });
-    await placeOrders(client, [
-      {
-        c: "BTC-USD",
-        b: true,
-        sz: "0.01",
-        px: "60000",
-        r: false,
-        t: { type: "l", tif: "GTC" },
-      },
-    ]);
-    expect(signer.sign).toHaveBeenCalledOnce();
-    const body = JSON.parse(
-      (fetchImpl.mock.calls[0]?.[1] as RequestInit).body as string,
-    );
-    expect(body.signer).toBe(signer.pubkey);
-    expect(body.signature).toBe("sig_base58_mock");
-    expect(body.nonce).toMatch(/^\d+$/);
-    expect(body.action.type).toBe("order");
-  });
-
-  it("withSigner returns a new client, leaves original unsigned", () => {
-    const original = new BulkClient();
-    expect(original.hasSigner()).toBe(false);
-    const signed = original.withSigner({
-      pubkey: "pk",
-      sign: async () => "sig",
-    });
-    expect(signed.hasSigner()).toBe(true);
-    expect(original.hasSigner()).toBe(false);
   });
 });
 

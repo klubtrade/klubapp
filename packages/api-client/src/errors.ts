@@ -8,7 +8,7 @@
  */
 
 export class BulkClientError extends Error {
-  public override readonly name: string = 'BulkClientError';
+  public override readonly name: string = "BulkClientError";
   public readonly endpoint: string;
 
   constructor(message: string, endpoint: string, options?: ErrorOptions) {
@@ -18,7 +18,7 @@ export class BulkClientError extends Error {
 }
 
 export class BulkHttpError extends BulkClientError {
-  public override readonly name = 'BulkHttpError';
+  public override readonly name = "BulkHttpError";
   public readonly status: number;
   public readonly body: unknown;
 
@@ -35,20 +35,9 @@ export class BulkHttpError extends BulkClientError {
 }
 
 export class BulkNetworkError extends BulkClientError {
-  public override readonly name = 'BulkNetworkError';
+  public override readonly name = "BulkNetworkError";
 }
 
 export class BulkValidationError extends BulkClientError {
-  public override readonly name = 'BulkValidationError';
-}
-
-export class BulkSigningRequiredError extends BulkClientError {
-  public override readonly name = 'BulkSigningRequiredError';
-
-  constructor(endpoint: string) {
-    super(
-      `Signed operation '${endpoint}' requires a Signer. Pass one in BulkClient config or call .withSigner().`,
-      endpoint,
-    );
-  }
+  public override readonly name = "BulkValidationError";
 }

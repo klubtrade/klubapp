@@ -1,11 +1,17 @@
 // apps/web/app/api/portfolio/route.ts
-import { BulkClient, getRiskSurfaces, queryFullAccount } from '@klub/api-client';
 import {
-  calculateBulkPortfolioMaintenanceMargin,
-} from '@klub/calc';
-import type { BulkMarginPositionInput, HealthInput, HealthPosition } from '@klub/calc';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
+  BulkClient,
+  getRiskSurfaces,
+  queryFullAccount,
+} from "@klub/api-client";
+import { calculateBulkPortfolioMaintenanceMargin } from "@klub/calc";
+import type {
+  BulkMarginPositionInput,
+  HealthInput,
+  HealthPosition,
+} from "@klub/calc";
+import { NextResponse } from "next/server";
+import { z } from "zod";
 
 /**
  * POST /api/portfolio
@@ -17,7 +23,7 @@ import { z } from 'zod';
  * We do this server-side rather than from the browser so:
  *   (a) we can add rate-limiting in one place
  *   (b) we can swap in a cache layer later without client changes
- *   (c) the base URL / integrator ID stay off the client
+ *   (c) the base URL stays off the client
  */
 
 const Body = z.object({
@@ -31,26 +37,18 @@ export async function POST(request: Request) {
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json(
-      { error: 'invalid_json' },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
   const parsed = Body.safeParse(payload);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'invalid_user' },
-      { status: 422 },
-    );
+    return NextResponse.json({ error: "invalid_user" }, { status: 422 });
   }
 
-  const baseUrl = process.env['BULK_API_BASE_URL'];
-  const integratorId = process.env['BULK_INTEGRATOR_ID'];
+  const baseUrl = process.env["BULK_API_BASE_URL"];
 
   const client = new BulkClient({
     ...(baseUrl ? { baseUrl } : {}),
-    ...(integratorId ? { integratorId } : {}),
   });
 
   try {
@@ -68,22 +66,24 @@ export async function POST(request: Request) {
       })) satisfies readonly BulkMarginPositionInput[],
     });
 
-    const positions: readonly HealthPosition[] = account.positions.map((p, index) => {
-      const marginPosition = bulkMargin.positions[index];
-      if (marginPosition === undefined) {
-        throw new Error(`missing Bulk margin component for ${p.s}`);
-      }
+    const positions: readonly HealthPosition[] = account.positions.map(
+      (p, index) => {
+        const marginPosition = bulkMargin.positions[index];
+        if (marginPosition === undefined) {
+          throw new Error(`missing Bulk margin component for ${p.s}`);
+        }
 
-      return {
-        symbol: p.s,
-        size: Number(p.sz),
-        entryPrice: Number(p.entryPx),
-        markPrice: Number(p.markPx),
-        liqPrice: Number(p.liqPx),
-        maintenanceMarginUsd: marginPosition.marginComponentUsd,
-        funding8hRate: 0, // TODO: join ticker data for per-symbol rate
-      };
-    });
+        return {
+          symbol: p.s,
+          size: Number(p.sz),
+          entryPrice: Number(p.entryPx),
+          markPrice: Number(p.markPx),
+          liqPrice: Number(p.liqPx),
+          maintenanceMarginUsd: marginPosition.marginComponentUsd,
+          funding8hRate: 0, // TODO: join ticker data for per-symbol rate
+        };
+      },
+    );
 
     const body: HealthInput = {
       equityUsd: Number(account.equityUsd),
@@ -93,21 +93,23 @@ export async function POST(request: Request) {
 
     return NextResponse.json(body, { status: 200 });
   } catch (err) {
-    console.error('[portfolio] upstream failure', err);
+    console.error("[portfolio] upstream failure", err);
     return NextResponse.json(
       {
-        error: 'upstream_unavailable',
+        error: "upstream_unavailable",
         message:
           err instanceof Error
             ? err.message
-            : 'Could not reach Bulk. Try again in a moment.',
+            : "Could not reach Bulk. Try again in a moment.",
       },
       { status: 502 },
     );
   }
 }
 
-async function fetchBulkLambdaBySymbol(client: BulkClient): Promise<BulkLambdaBySymbol> {
+async function fetchBulkLambdaBySymbol(
+  client: BulkClient,
+): Promise<BulkLambdaBySymbol> {
   // TODO(week-2): replace this HTTP `riskSurfaces` snapshot with a
   // cached `risk:{symbol}` websocket feed once live Bulk risk updates
   // are threaded into the web app.
@@ -125,7 +127,10 @@ async function fetchBulkLambdaBySymbol(client: BulkClient): Promise<BulkLambdaBy
   return Object.fromEntries(entries);
 }
 
-function resolveBulkLambda(symbol: string, lambdaBySymbol: BulkLambdaBySymbol): number {
+function resolveBulkLambda(
+  symbol: string,
+  lambdaBySymbol: BulkLambdaBySymbol,
+): number {
   const lambda = lambdaBySymbol[symbol];
   if (lambda === undefined) {
     throw new Error(`missing Bulk lambda for ${symbol}`);

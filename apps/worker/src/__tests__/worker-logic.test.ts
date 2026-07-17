@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { formatAlertText } from "../notifications/telegram.js";
-import { signAndSubmit } from "../signing/bulk-execution.js";
-import { createNodeKeychainAdapter } from "../signing/keychain-adapter.js";
+import {
+  createCanonicalCopyTradeExecutor,
+  disabledCopyTradeExecutor,
+} from "../signing/bulk-execution.js";
+import {
+  createNodeKeychainAdapter,
+  getNativeAgentPublicKey,
+  signPreparedWithAgentSecret,
+} from "../signing/keychain-adapter.js";
 import { composeAlertMessage, tierCrossed } from "../workers/alerts-worker.js";
 import { computeMirroredSize } from "../workers/copy-trade-worker.js";
 
@@ -41,8 +48,10 @@ describe("worker risk helpers", () => {
 
   it("fails closed while the canonical execution gateway is unavailable", async () => {
     await expect(
-      signAndSubmit({
+      disabledCopyTradeExecutor.submit({
+        agentWalletId: "wallet-1",
         agentWalletPublicKey: "agent",
+        accountPublicKey: "account",
         symbol: "BTC-USD",
         side: "long",
         sizeBase: 0.01,
@@ -50,7 +59,49 @@ describe("worker risk helpers", () => {
         price: 50_000,
         leaderEventId: "leader-event-1",
       }),
-    ).rejects.toThrow("execution gateway is not configured");
+    ).rejects.toThrow("secure agent key provider");
+  });
+
+  it("routes copy orders through canonical prepare, sign, and submit steps", async () => {
+    const prepared = {
+      messageBytes: new Uint8Array([1, 2, 3]),
+      actions: "[]",
+      nonce: 1,
+      account: "account",
+      signer: "agent",
+    };
+    const calls: string[] = [];
+    const executor = createCanonicalCopyTradeExecutor({
+      gateway: {
+        prepareOrder: () => {
+          calls.push("prepare");
+          return prepared;
+        },
+        finalizeAndSubmit: async ({ signature }) => {
+          calls.push(`submit:${signature}`);
+          return { status: "accepted" };
+        },
+      },
+      signPrepared: async ({ messageBytes }) => {
+        expect(messageBytes).toEqual(prepared.messageBytes);
+        calls.push("sign");
+        return "signature";
+      },
+    });
+
+    await executor.submit({
+      agentWalletId: "wallet-1",
+      agentWalletPublicKey: "agent",
+      accountPublicKey: "account",
+      symbol: "BTC-USD",
+      side: "long",
+      sizeBase: 0.01,
+      orderType: "market",
+      price: 50_000,
+      leaderEventId: "event-1",
+    });
+
+    expect(calls).toEqual(["prepare", "sign", "submit:signature"]);
   });
 });
 
@@ -108,5 +159,24 @@ describe("Bulk native keychain adapter", () => {
       to: recipient,
       fee: 5,
     });
+  });
+
+  it("signs prepared bytes only for the expected agent key", () => {
+    const secretKey = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+    const expectedPublicKey = getNativeAgentPublicKey(secretKey);
+    const signature = signPreparedWithAgentSecret({
+      secretKey,
+      expectedPublicKey,
+      messageBytes: new Uint8Array([1, 2, 3]),
+    });
+
+    expect(signature.length).toBeGreaterThan(80);
+    expect(() =>
+      signPreparedWithAgentSecret({
+        secretKey,
+        expectedPublicKey: recipient,
+        messageBytes: new Uint8Array([1, 2, 3]),
+      }),
+    ).toThrow(/does not match/);
   });
 });

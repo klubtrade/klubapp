@@ -14,7 +14,7 @@
 
 // Core
 export { BulkClient } from "./client.js";
-export type { BulkClientConfig, Signer } from "./client.js";
+export type { BulkClientConfig } from "./client.js";
 
 // Builder Codes
 export {
@@ -41,7 +41,11 @@ export type {
 } from "./builder-codes.js";
 
 // Signed transaction gateway
-export { BulkExchangeGateway, normalizeSignedTransaction } from "./gateway.js";
+export {
+  BulkExchangeGateway,
+  normalizeSignedTransaction,
+  parseSignedTransaction,
+} from "./gateway.js";
 export type {
   BulkExchangeGatewayConfig,
   BulkKeychainAdapter,
@@ -59,13 +63,11 @@ export {
   BulkClientError,
   BulkHttpError,
   BulkNetworkError,
-  BulkSigningRequiredError,
   BulkValidationError,
 } from "./errors.js";
 
 // Endpoints
 export {
-  cancelOrders,
   getAllTickers,
   getCandles,
   getExchangeInfo,
@@ -74,14 +76,10 @@ export {
   getL2Book,
   getRiskSurfaces,
   getTicker,
-  manageAgentWallet,
-  placeOrders,
   queryAccount,
   queryFullAccount,
   queryUserFundingPayments,
   queryUserFills,
-  requestFaucet,
-  updateUserSettings,
 } from "./endpoints.js";
 
 // WebSocket
@@ -136,7 +134,6 @@ export type {
   Pubkey,
   RiskSurface,
   RiskSurfaces,
-  SignedRequest,
   StopOrderType,
   Symbol,
   TakeProfitOrderType,
