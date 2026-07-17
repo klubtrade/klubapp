@@ -15,6 +15,16 @@ const config = {
         destination: "/portfolio",
         permanent: true,
       },
+      {
+        source: "/follow/:path*",
+        destination: "/copy/:path*",
+        permanent: true,
+      },
+      {
+        source: "/copy-trade",
+        destination: "/copy#following",
+        permanent: true,
+      },
     ];
   },
 };

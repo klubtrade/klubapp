@@ -62,7 +62,7 @@ export default function InvitePage() {
       ? window.location.origin
       : 'https://klubapptrade.vercel.app';
 
-  const profileUrl = handle ? `${origin}/follow/${handle}` : null;
+  const profileUrl = handle ? `${origin}/copy/${handle}` : null;
   const payUrl = handle ? `${origin}/cash?to=@${handle}` : null;
   const homeUrl = origin;
 

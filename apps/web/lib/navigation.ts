@@ -29,9 +29,9 @@ export const PRIMARY_NAVIGATION: readonly NavigationItem[] = [
     icon: "trade",
   },
   {
-    href: "/follow",
+    href: "/copy",
     label: "Copy",
-    aliases: ["/copy-trade"],
+    aliases: ["/follow", "/copy-trade"],
     icon: "copy",
   },
 ] as const;

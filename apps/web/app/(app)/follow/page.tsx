@@ -9,7 +9,7 @@ import { MOCK_LEADERS, type MockLeader, type TraderStyle } from '@/lib/mock-data
 import { useUserPrefs } from '@/lib/user-prefs';
 
 /**
- * /follow — minimalist leaderboard.
+ * /copy — leader discovery and active-copy management.
  *
  * Visible by default:
  *   - Small label ("Leaders")
@@ -42,7 +42,7 @@ const SORT_LABELS: Record<SortBy, string> = {
 export default function FollowPage() {
   const [styleFilter, setStyleFilter] = useState<TraderStyle | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortBy>('pnl30d');
-  const { follows } = useCopyTrade();
+  const { follows, unfollow } = useCopyTrade();
 
   const filtered = useMemo(() => {
     const list = MOCK_LEADERS.filter(
@@ -85,14 +85,21 @@ export default function FollowPage() {
             </p>
           </div>
           {follows.length > 0 && (
-            <Link
-              href="/copy-trade"
+            <a
+              href="#following"
               className="shrink-0 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-[11px] font-medium text-accent transition-colors hover:bg-accent/20"
             >
               Copying {follows.length} →
-            </Link>
+            </a>
           )}
         </header>
+
+        <div className="mt-6 rounded-klub border border-accent/25 bg-accent/5 px-4 py-3 text-[11px] leading-relaxed text-fg-secondary">
+          <span className="font-medium text-accent">Preview data.</span>{' '}
+          Leader performance and copy settings are local demo data. Automatic
+          orders remain disabled until the secure agent-key provider and leader
+          indexer are configured.
+        </div>
 
         {/* Filter row — quick chips inline, sort as a select. The "All"
             chip stays first so the default state is one tap from any
@@ -149,7 +156,7 @@ export default function FollowPage() {
             <li key={l.handle}>
               <div className="flex items-center gap-3 rounded-klub-lg border border-border-subtle bg-bg-surface p-3 transition-colors hover:bg-bg-elevated">
                 <Link
-                  href={`/follow/${l.handle}`}
+                  href={`/copy/${l.handle}`}
                   className="flex min-w-0 flex-1 items-center gap-3"
                 >
                   <span
@@ -204,9 +211,72 @@ export default function FollowPage() {
           </div>
         )}
 
+        <section id="following" className="mt-12 scroll-mt-24 border-t border-border-subtle pt-8">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <h2 className="text-[18px] font-semibold tracking-tight text-fg-primary">
+                Your copies
+              </h2>
+              <p className="mt-1 text-[12px] text-fg-muted">
+                Review allocation and stop tracking a leader.
+              </p>
+            </div>
+            <span className="text-[10px] uppercase tracking-[0.12em] text-fg-muted">
+              {follows.length} {follows.length === 1 ? 'leader' : 'leaders'}
+            </span>
+          </div>
+
+          {follows.length === 0 ? (
+            <div className="mt-4 rounded-klub-lg border border-dashed border-border-subtle px-5 py-8 text-center">
+              <div className="text-[13px] font-medium text-fg-secondary">
+                No active copies
+              </div>
+              <p className="mt-1 text-[11px] text-fg-muted">
+                Choose a reviewed leader above to create a preview allocation.
+              </p>
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {follows.map((follow) => (
+                <li
+                  key={follow.leaderPubkey}
+                  className="flex items-center gap-3 rounded-klub-lg border border-border-subtle bg-bg-surface p-3"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg-elevated text-[11px] font-semibold uppercase text-fg-secondary">
+                    {(follow.label ?? follow.leaderPubkey).slice(0, 2)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[14px] font-medium text-fg-primary">
+                      {follow.label ?? shortenPubkey(follow.leaderPubkey)}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[10px] text-fg-muted">
+                      {follow.allocationPct}% per trade ·{' '}
+                      {follow.baselineSymbols.length === 0 ? 'syncing' : 'tracking'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      unfollow(follow.leaderPubkey);
+                    }}
+                    className="shrink-0 rounded-md border border-border-subtle px-3 py-1.5 text-[11px] text-fg-secondary transition-colors hover:bg-bg-elevated hover:text-fg-primary"
+                  >
+                    Stop
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
       </div>
     </main>
   );
+}
+
+function shortenPubkey(value: string): string {
+  if (value.length <= 12) return value;
+  return `${value.slice(0, 6)}…${value.slice(-6)}`;
 }
 
 /**

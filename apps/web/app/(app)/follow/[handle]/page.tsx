@@ -7,7 +7,7 @@ import { findLeader } from '@/lib/mock-data/leaders';
 import { LeaderDetails } from './copy-config';
 
 /**
- * /follow/[handle] — leader profile, minimalist.
+ * /copy/[handle] — leader profile.
  *
  * Visible by default:
  *   - Small avatar + @handle
@@ -34,10 +34,10 @@ export default function LeaderProfile({
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
       <section className="mx-auto w-full max-w-md">
         <Link
-          href="/follow"
+          href="/copy"
           className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
         >
-          ← Leaders
+          ← Copy
         </Link>
 
         {/* Header */}
