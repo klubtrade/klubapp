@@ -2,7 +2,7 @@
   "name": "klub",
   "private": true,
   "version": "0.0.0",
-  "description": "KLUB — members-only on-chain perps. Trade with the klub. Built on Bulk Exchange.",
+  "description": "Klub: retail gateway to Bulk haven.",
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=20.10.0",

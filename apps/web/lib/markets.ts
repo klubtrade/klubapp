@@ -29,7 +29,7 @@
 import { useMemo } from 'react';
 
 import { useBulkAccount } from '@/hooks/use-bulk-account';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 // -------------------------------------------------------------------------
 // Canonical list
@@ -111,8 +111,8 @@ export function findMarket(symbol: string): Market | undefined {
  * multiple times — React caches the hook result via useMemo below.
  */
 export function useMarkets(): readonly Market[] {
-  const wallet = useWallet();
-  const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
+  const wallet = useTradingWallet();
+  const pubkey = wallet.publicKeyBase58;
   const { state } = useBulkAccount(pubkey);
 
   // Live leverage map: symbol → cap. Pulled from the raw /account

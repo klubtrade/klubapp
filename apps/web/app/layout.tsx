@@ -33,21 +33,27 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'KLUB — Members-only on-chain perps',
+  title: 'Klub: retail gateway to Bulk haven',
   description:
-    'Trade with the klub. Copy the winners, sleep through the liquidations, and earn while you learn. Built on Bulk Exchange.',
+    'A clean retail trading gateway for Bulk Exchange: simple funding, safer order flow, copy trading, portfolio health, and Pro tools when you need them.',
   metadataBase: new URL('https://klub.trade'),
+  applicationName: 'Klub',
+  icons: {
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
+  },
   openGraph: {
-    title: 'KLUB — Trade with the klub',
+    title: 'Klub: retail gateway to Bulk haven',
     description:
-      'Members-only on-chain perps. Copy trading, liquidation alerts, and a trading desk that actually respects retail.',
+      'The Apple-clean retail layer for Bulk Exchange: fund, trade, follow, and manage risk without terminal chaos.',
     type: 'website',
     url: 'https://klub.trade',
+    siteName: 'Klub',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'KLUB — Trade with the klub',
-    description: 'Members-only on-chain perps. Built on Bulk Exchange.',
+    title: 'Klub: retail gateway to Bulk haven',
+    description: 'Simple retail access to Bulk Exchange, with Pro power only when you ask for it.',
   },
   robots: { index: true, follow: true },
 };

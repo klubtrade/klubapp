@@ -1,6 +1,5 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -13,6 +12,7 @@ import {
   type StoredAgentWallet,
 } from '@/lib/bulk/agent-wallet';
 import { submitAgentWalletAuth, type SubmitOrderResult } from '@/lib/bulk/orders';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * React hook for observing and managing the active agent wallet.
@@ -69,9 +69,10 @@ export interface UseAgentWalletResult {
 }
 
 export function useAgentWallet(): UseAgentWalletResult {
-  const wallet = useWallet();
-  const { publicKey, signMessage, connected } = wallet;
-  const mainPubkey = publicKey ? publicKey.toBase58() : null;
+  const wallet = useTradingWallet();
+  const connected = wallet.connected;
+  const signMessage = wallet.signMessage;
+  const mainPubkey = wallet.publicKeyBase58;
 
   // Local mirror of the stored record. Seeded from localStorage on
   // mount / pubkey change, then updated on authorize/revoke success.

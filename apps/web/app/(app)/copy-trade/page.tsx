@@ -1,11 +1,11 @@
 "use client";
 
-import { useWallet } from "@solana/wallet-adapter-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useCopyTrade } from "@/components/copy-trade-provider";
 import { useWalletGate } from "@/hooks/use-wallet-gate";
+import { useTradingWallet } from "@/lib/trading-wallet";
 
 /**
  * Legacy copy-trading control panel. `/copy-trade` redirects to the
@@ -25,7 +25,7 @@ import { useWalletGate } from "@/hooks/use-wallet-gate";
  */
 
 export default function CopyTradePage() {
-  const wallet = useWallet();
+  const wallet = useTradingWallet();
   const { promptConnect, mounted } = useWalletGate();
   const { follows, follow, unfollow } = useCopyTrade();
 
@@ -63,7 +63,7 @@ export default function CopyTradePage() {
     );
   }
 
-  const followerPubkey = wallet.publicKey?.toBase58() ?? "";
+  const followerPubkey = wallet.publicKeyBase58 ?? "";
 
   function onFollow(e: React.FormEvent): void {
     e.preventDefault();
