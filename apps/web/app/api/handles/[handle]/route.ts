@@ -3,6 +3,11 @@ import { createDbClient, handles } from '@klub/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
+import {
+  getFallbackHandle,
+  shouldUseHandleRegistryFallback,
+} from '@/lib/handle-registry-fallback';
+
 /**
  * GET /api/handles/:handle
  *
@@ -26,6 +31,17 @@ function getDb() {
 
 const HANDLE_RE = /^[a-z0-9_]{3,30}$/;
 
+function fallbackResponse(handle: string) {
+  const row = getFallbackHandle(handle);
+  if (!row) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+  return NextResponse.json(
+    { handle: row.handle, pubkey: row.pubkey, fallback: true },
+    { status: 200 },
+  );
+}
+
 export async function GET(
   _request: Request,
   ctx: { params: { handle: string } },
@@ -39,7 +55,7 @@ export async function GET(
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
+    return fallbackResponse(handle);
   }
 
   try {
@@ -56,6 +72,9 @@ export async function GET(
     return NextResponse.json({ handle: row.handle, pubkey: row.pubkey }, { status: 200 });
   } catch (err) {
     console.error('[handles/get] failed', err);
+    if (shouldUseHandleRegistryFallback(err)) {
+      return fallbackResponse(handle);
+    }
     return NextResponse.json({ error: 'internal' }, { status: 500 });
   }
 }

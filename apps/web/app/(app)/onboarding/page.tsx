@@ -49,7 +49,11 @@ export default function OnboardingPage() {
     } catch {
       // The signed server claim remains authoritative if storage is unavailable.
     }
-    toast.success(`@${result.handle} is yours`);
+    toast.success(
+      result.fallback
+        ? `@${result.handle} saved while the registry is being provisioned`
+        : `@${result.handle} is yours`,
+    );
     setStep(1);
   }
 

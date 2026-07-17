@@ -5,6 +5,11 @@ import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import {
+  claimFallbackHandle,
+  shouldUseHandleRegistryFallback,
+} from '@/lib/handle-registry-fallback';
+
 /**
  * POST /api/handles/claim
  *
@@ -32,6 +37,26 @@ function getDb() {
   const url = process.env['DATABASE_URL'];
   if (!url) return null;
   return createDbClient({ connectionString: url, maxConnections: 3 });
+}
+
+function claimWithFallback(handle: string, pubkey: string) {
+  const result = claimFallbackHandle(handle, pubkey);
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: 'handle_taken', message: 'Handle already claimed' },
+      { status: 409 },
+    );
+  }
+
+  return NextResponse.json(
+    {
+      handle: result.record.handle,
+      pubkey: result.record.pubkey,
+      claimed: true,
+      fallback: true,
+    },
+    { status: result.created ? 201 : 200 },
+  );
 }
 
 export async function POST(request: Request) {
@@ -79,7 +104,7 @@ export async function POST(request: Request) {
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
+    return claimWithFallback(handle, pubkey);
   }
 
   try {
@@ -115,6 +140,9 @@ export async function POST(request: Request) {
     );
   } catch (err) {
     console.error('[handles/claim] insert failed', err);
+    if (shouldUseHandleRegistryFallback(err)) {
+      return claimWithFallback(handle, pubkey);
+    }
     return NextResponse.json({ error: 'internal' }, { status: 500 });
   }
 }
