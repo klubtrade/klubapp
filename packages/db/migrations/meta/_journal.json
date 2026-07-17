@@ -29,6 +29,13 @@
       "when": 1784291354000,
       "tag": "0003_add_telegram_chat_id",
       "breakpoints": false
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784295060000,
+      "tag": "0004_add_user_profiles",
+      "breakpoints": false
     }
   ]
 }

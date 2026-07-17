@@ -8,7 +8,7 @@ import { useToast } from '@/components/toast';
 import { useBulkFaucet } from '@/hooks/use-bulk-faucet';
 import { claimHandle, isValidHandle, normalizeHandle } from '@/lib/handles';
 import { useTradingWallet } from '@/lib/trading-wallet';
-import { useUserPrefs } from '@/lib/user-prefs';
+import { persistUserProfile, useUserPrefs } from '@/lib/user-prefs';
 
 type Step = 0 | 1;
 
@@ -57,12 +57,25 @@ export default function OnboardingPage() {
     setStep(1);
   }
 
-  function finish() {
+  async function finish() {
     if (!wallet.publicKeyBase58) return;
     setPrefs({
       onboardingComplete: true,
       onboardingWallet: wallet.publicKeyBase58,
     });
+    if (wallet.signMessage) {
+      const saved = await persistUserProfile({
+        pubkey: wallet.publicKeyBase58,
+        signMessage: wallet.signMessage,
+        update: {
+          handle: normalizeHandle(handle),
+          onboardingComplete: true,
+        },
+      });
+      if (!saved.ok) {
+        toast.info('Continuing with local onboarding', saved.message);
+      }
+    }
     toast.success('Welcome to KLUB');
     router.replace('/funding');
   }
@@ -106,7 +119,7 @@ export default function OnboardingPage() {
                 status={faucet.state.status}
                 error={faucet.state.status === 'error' ? faucet.state.result.message : null}
                 onClaim={() => void claimFunds()}
-                onContinue={finish}
+                onContinue={() => void finish()}
               />
             </Panel>
           )}

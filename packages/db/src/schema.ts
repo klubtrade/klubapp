@@ -235,6 +235,38 @@ export const handles = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// user_profiles — durable wallet-scoped app state
+// ---------------------------------------------------------------------------
+
+export const userProfiles = pgTable(
+  "user_profiles",
+  {
+    pubkey: varchar("pubkey", { length: 128 }).primaryKey(),
+    handle: varchar("handle", { length: 30 }),
+    onboardingComplete: boolean("onboarding_complete").default(false).notNull(),
+    riskProfile: varchar("risk_profile", { length: 16 })
+      .$type<"conservative" | "balanced" | "aggressive">()
+      .default("balanced")
+      .notNull(),
+    preferredTradeMode: varchar("preferred_trade_mode", { length: 16 })
+      .$type<"simple" | "expert">()
+      .default("simple")
+      .notNull(),
+    defaultCopyAllocPct: integer("default_copy_alloc_pct").default(20).notNull(),
+    alertsEnabled: boolean("alerts_enabled").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    handleIdx: index("user_profiles_handle_idx").on(t.handle),
+  }),
+);
+
+// ---------------------------------------------------------------------------
 // follows (copy trading)
 // ---------------------------------------------------------------------------
 

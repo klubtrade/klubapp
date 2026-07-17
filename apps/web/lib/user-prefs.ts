@@ -1,38 +1,27 @@
 'use client';
 
 /**
- * User preferences — small per-device store.
+ * User preferences — server-backed when connected, local fallback otherwise.
  *
  * Risk profile, onboarding status, UI choices (e.g. expert vs simple
- * trade mode), default copy-trade allocation. All localStorage-backed
- * so it works for unauthenticated visitors and survives page reloads.
- *
- * Phase 3.5 will mirror any prefs set while authenticated to Postgres
- * under the user's record; this library is the single source of truth
- * that both paths read through.
+ * trade mode), default copy-trade allocation. localStorage remains a fast
+ * cache and unauthenticated fallback; `/api/profile` becomes authoritative
+ * once a wallet is connected and the production database is configured.
  */
 
+import bs58 from 'bs58';
 import { useEffect, useState } from 'react';
 
-export type RiskProfile = 'conservative' | 'balanced' | 'aggressive';
+import { useTradingWallet } from '@/lib/trading-wallet';
+import {
+  DEFAULT_PREFS,
+  profileUpdateMessage,
+  type ProfilePrefsUpdate,
+  type RiskProfile,
+  type UserPrefs,
+} from '@/lib/profile-contract';
 
-export interface UserPrefs {
-  readonly riskProfile: RiskProfile;
-  readonly onboardingComplete: boolean;
-  readonly onboardingWallet: string | null;
-  readonly preferredTradeMode: 'simple' | 'expert';
-  readonly defaultCopyAllocPct: number;
-  readonly alertsEnabled: boolean;
-}
-
-const DEFAULT_PREFS: UserPrefs = {
-  riskProfile: 'balanced',
-  onboardingComplete: false,
-  onboardingWallet: null,
-  preferredTradeMode: 'simple',
-  defaultCopyAllocPct: 20,
-  alertsEnabled: true,
-};
+export { DEFAULT_PREFS, type ProfilePrefsUpdate, type RiskProfile, type UserPrefs };
 
 const STORAGE_KEY = 'klub.prefs.v1';
 
@@ -57,6 +46,53 @@ function savePrefs(prefs: UserPrefs): void {
   }
 }
 
+async function loadServerPrefs(pubkey: string): Promise<UserPrefs | null> {
+  const res = await fetch(`/api/profile?pubkey=${encodeURIComponent(pubkey)}`);
+  if (!res.ok) return null;
+  const body = (await res.json()) as { prefs?: UserPrefs };
+  return body.prefs ?? null;
+}
+
+export async function persistUserProfile(input: {
+  readonly pubkey: string;
+  readonly signMessage: (bytes: Uint8Array) => Promise<Uint8Array>;
+  readonly update: ProfilePrefsUpdate;
+}): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+  let signature: Uint8Array;
+  try {
+    signature = await input.signMessage(
+      new TextEncoder().encode(
+        profileUpdateMessage({ pubkey: input.pubkey, update: input.update }),
+      ),
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : 'Profile signature was rejected',
+    };
+  }
+
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pubkey: input.pubkey,
+        signature: bs58.encode(signature),
+        update: input.update,
+      }),
+    });
+    if (res.ok) return { ok: true };
+    const body = (await res.json().catch(() => null)) as { message?: string } | null;
+    return { ok: false, message: body?.message ?? `Profile save failed (${res.status})` };
+  } catch (err) {
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : 'Profile save failed',
+    };
+  }
+}
+
 /**
  * React hook for reading + updating user prefs. Returns the current
  * prefs and a setter that merges partial updates.
@@ -68,11 +104,30 @@ export function useUserPrefs(): {
 } {
   const [prefs, setPrefsState] = useState<UserPrefs>(DEFAULT_PREFS);
   const [ready, setReady] = useState(false);
+  const wallet = useTradingWallet();
 
   useEffect(() => {
     setPrefsState(loadPrefs());
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!wallet.ready || !wallet.connected || !wallet.publicKeyBase58) return;
+    let cancelled = false;
+    void loadServerPrefs(wallet.publicKeyBase58)
+      .then((serverPrefs) => {
+        if (cancelled || !serverPrefs) return;
+        const next = { ...loadPrefs(), ...serverPrefs };
+        setPrefsState(next);
+        savePrefs(next);
+      })
+      .catch(() => {
+        // Local prefs remain usable when the DB is offline or not provisioned.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [wallet.connected, wallet.publicKeyBase58, wallet.ready]);
 
   function setPrefs(update: Partial<UserPrefs>): void {
     setPrefsState((prev) => {
