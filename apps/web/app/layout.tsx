@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Klub: retail gateway to Bulk haven',
+  title: 'Klub: The retail gateway to Bulk Haven',
   description:
     'A clean retail trading gateway for Bulk Exchange: simple funding, safer order flow, copy trading, portfolio health, and Pro tools when you need them.',
   metadataBase: new URL('https://klubapp-web.vercel.app'),
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     apple: '/apple-icon.png',
   },
   openGraph: {
-    title: 'Klub: retail gateway to Bulk haven',
+    title: 'Klub: The retail gateway to Bulk Haven',
     description:
       'The Apple-clean retail layer for Bulk Exchange: fund, trade, follow, and manage risk without terminal chaos.',
     type: 'website',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Klub: retail gateway to Bulk haven',
+    title: 'Klub: The retail gateway to Bulk Haven',
     description: 'Simple retail access to Bulk Exchange, with Pro power only when you ask for it.',
   },
   robots: { index: true, follow: true },

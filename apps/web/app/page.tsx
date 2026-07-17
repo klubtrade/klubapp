@@ -2,17 +2,18 @@
 
 import { motion, useScroll, useTransform } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+
+import { useWalletGate } from '@/hooks/use-wallet-gate';
+import { useUserPrefs } from '@/lib/user-prefs';
 
 /**
  * / — KLUB landing page.
  *
- * Design direction: minimal, modern, "alive." Light-purple accent on matte
- * near-black. Scroll-triggered fly-ins with staggered delays (Framer Motion
- * `whileInView`). Single primary CTA — "Enter the app" — routes straight
- * into /trade. All nested product surfaces (calculator, health, follow,
- * practice, invite) live behind that CTA; they are not linked from the
- * landing nav anymore. The marketing and app surfaces are now cleanly split.
+ * Minimal landing surface for the retail gateway to Bulk Exchange.
+ * The only primary CTA opens Privy; successful first-time connections
+ * continue into onboarding before the app shell.
  */
 
 // Shared fly-in variant — used by every section block + nested children
@@ -77,12 +78,64 @@ function LandingNav() {
           <span className="live-dot" aria-hidden />
           KLUB
         </Link>
-        <Link href="/funding" className="btn-primary group">
-          Enter the app
-          <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
-        </Link>
+        <EnterAppButton />
       </div>
     </nav>
+  );
+}
+
+function EnterAppButton({ large = false }: { readonly large?: boolean }) {
+  const router = useRouter();
+  const wallet = useWalletGate();
+  const { prefs, ready: prefsReady } = useUserPrefs();
+  const [requested, setRequested] = useState(false);
+
+  function appDestination(): string {
+    if (
+      prefsReady &&
+      prefs.onboardingComplete &&
+      prefs.onboardingWallet === wallet.pubkey
+    ) {
+      return '/portfolio';
+    }
+    return '/onboarding';
+  }
+
+  function enter() {
+    if (wallet.connected) {
+      router.push(appDestination());
+      return;
+    }
+    setRequested(true);
+    wallet.promptConnect();
+  }
+
+  useEffect(() => {
+    if (!requested || !wallet.connected) return;
+    router.push(appDestination());
+    setRequested(false);
+    // `appDestination` is intentionally inline logic; dependencies below
+    // capture the route decision without memo noise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    prefs.onboardingComplete,
+    prefs.onboardingWallet,
+    prefsReady,
+    requested,
+    router,
+    wallet.connected,
+    wallet.pubkey,
+  ]);
+
+  return (
+    <button
+      type="button"
+      onClick={enter}
+      className={`btn-primary group ${large ? 'btn-lg' : ''}`}
+    >
+      Enter the app
+      <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+    </button>
   );
 }
 
@@ -120,7 +173,7 @@ function Hero() {
           className="mb-7 inline-flex items-center gap-2 rounded-full border border-border bg-bg-surface px-[14px] py-1.5 text-xs text-fg-secondary"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-          Members-only on-chain perps
+          Built for Bulk Exchange
         </motion.div>
 
         <motion.h1
@@ -130,9 +183,9 @@ function Hero() {
           custom={1}
           className="mb-6 text-[clamp(40px,6vw,76px)] font-semibold leading-[1.05] tracking-[-0.03em]"
         >
-          Trade with{' '}
+          The retail gateway to{' '}
           <span className="bg-gradient-to-br from-accent-bright to-accent bg-clip-text text-transparent">
-            the klub.
+            Bulk Haven.
           </span>
         </motion.h1>
 
@@ -143,8 +196,7 @@ function Hero() {
           custom={2}
           className="mx-auto mb-10 max-w-[600px] text-[clamp(16px,1.5vw,19px)] leading-relaxed text-fg-secondary"
         >
-          Follow the traders who actually win. Skip the tuition. Keep your own keys.
-          Built on Bulk Exchange.
+          A simpler way to connect, fund, trade, and manage risk on Bulk Exchange.
         </motion.p>
 
         <motion.div
@@ -154,13 +206,7 @@ function Hero() {
           custom={3}
           className="mb-20 flex flex-wrap justify-center gap-3"
         >
-          <Link
-            href="/funding"
-            className="btn-primary group"
-          >
-            Enter the app
-            <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
-          </Link>
+          <EnterAppButton />
           <a
             href="#features"
             className="inline-flex items-center gap-2 rounded-klub border border-border px-[18px] py-2.5 text-sm font-medium text-fg-primary transition-colors duration-200 hover:border-fg-muted hover:bg-bg-elevated"
@@ -177,9 +223,9 @@ function Hero() {
           className="mx-auto grid max-w-[480px] grid-cols-3 gap-10 border-t border-border-subtle pt-10"
         >
           {[
-            ['Latency', '5–20ms'],
+            ['Venue', 'Bulk'],
+            ['Margin', 'USDC'],
             ['Custody', 'Self'],
-            ['Fees', 'Net, shown'],
           ].map(([label, value]) => (
             <div key={label}>
               <dt className="mb-2 text-[11px] uppercase tracking-[0.06em] text-fg-muted">
@@ -205,26 +251,26 @@ function Problem() {
         <motion.div initial="hidden" whileInView="visible" viewport={viewport} variants={fadeUp}>
           <Kicker>The Problem</Kicker>
           <h2 className="mb-5 max-w-[720px] text-[clamp(28px,3.5vw,44px)] font-semibold leading-[1.15] tracking-[-0.025em]">
-            On-chain perps were built for quants.{' '}
-            <span className="text-fg-secondary">Retail pays the tuition.</span>
+            Perps are fast.{' '}
+            <span className="text-fg-secondary">Most retail interfaces are not.</span>
           </h2>
         </motion.div>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {[
             {
-              value: '~60%',
-              label: 'of retail traders liquidated within their first 30 days on on-chain perps.',
-              note: 'KLUB aims to cut this in half for members with alerts on.',
+              value: 'Too much',
+              label: 'Trading screens expose every control at once.',
+              note: 'KLUB starts with the action the user actually needs.',
             },
             {
-              value: '4 min',
-              label: 'median time from signup to first liquidation for leveraged retail.',
-              note: 'Our target: members see the math before they fire, not after.',
+              value: 'Too late',
+              label: 'Risk usually appears after the order is already open.',
+              note: 'KLUB puts size, liquidation, stops, and account health in the flow.',
             },
             {
-              value: '0',
-              label: 'mainstream on-ramps that respect a trader\u2019s workflow.',
-              note: 'KLUB ramps in three taps — like Venmo, not DeFi.',
+              value: 'Too much friction',
+              label: 'Wallets, test funds, routes, and market data feel disconnected.',
+              note: 'KLUB makes onboarding, funding, and trading one path.',
             },
           ].map((s, i) => (
             <motion.div
@@ -236,7 +282,7 @@ function Problem() {
               custom={i + 1}
               className="group rounded-klub-lg border border-border-subtle bg-bg-surface p-8 transition-all duration-300 hover:-translate-y-1 hover:border-border"
             >
-              <div className="mb-4 font-mono text-5xl leading-none tracking-[-0.02em] text-accent">
+              <div className="mb-4 font-mono text-[32px] leading-none tracking-[-0.02em] text-accent">
                 {s.value}
               </div>
               <div className="mb-4 text-base text-fg-primary">{s.label}</div>
@@ -257,15 +303,15 @@ function Problem() {
 
 function Features() {
   const items: readonly { n: string; title: string; body: string; v: 'V1' | 'V2' }[] = [
-    { n: '01', title: 'Follow', v: 'V1', body: 'Opt-in leaderboard ranked net of fees and funding. One-tap mirror with allocation caps, stop-loss override, and pause.' },
-    { n: '02', title: 'Liquidation Alerts', v: 'V1', body: 'Tiered warnings at 25%, 10%, 3% buffer. Push, email, Telegram. One-tap actions to add margin, reduce, or close.' },
-    { n: '03', title: 'The Math', v: 'V1', body: 'Pre-trade calculator: liquidation price, PnL at target, loss at stop, funding per 8h, breakeven move, R:R.' },
-    { n: '04', title: 'Portfolio Health', v: 'V1', body: '0\u2013100 score with plain-English stress tests. "If BTC drops 12%, your ETH long liquidates."' },
-    { n: '05', title: 'Practice', v: 'V1', body: 'Real Bulk testnet, real fills, zero money. Every paper trade auto-logs with entry and exit reasoning.' },
-    { n: '06', title: '3-Tap Ramp', v: 'V1', body: 'Card or Apple Pay to USDC on Bulk, in three taps. Off-ramp just as clean. No bridges, no hex strings.' },
-    { n: '07', title: 'Basis', v: 'V2', body: 'Funding-yield vault that trades perp-perp to harvest funding. Transparent positions, honest APY.' },
-    { n: '08', title: 'The Desk', v: 'V2', body: 'Funding-rate arbitrage engine with circuit breakers for black-swan spikes.' },
-    { n: '09', title: 'KLUB Pro', v: 'V2', body: 'Terminal-grade trading behind \u2318K. Multi-panel grid, saveable workspaces, ticker command language.' },
+    { n: '01', title: 'Connect', v: 'V1', body: 'Email or Solana wallet through Privy. New users go straight into username and faucet setup.' },
+    { n: '02', title: 'Fund', v: 'V1', body: 'See balances, pots, receive links, and test USDC in one clean money surface.' },
+    { n: '03', title: 'Trade', v: 'V1', body: 'Open market or limit orders with size, leverage, target, stop, and liquidation context nearby.' },
+    { n: '04', title: 'Risk', v: 'V1', body: 'Portfolio health, liquidation proximity, and plain-language warnings before risk becomes urgent.' },
+    { n: '05', title: 'Follow', v: 'V1', body: 'Discover traders and copy with allocation caps, pause controls, and transparent risk settings.' },
+    { n: '06', title: 'Pro', v: 'V1', body: 'A cleaner advanced workspace with chart, book, tape, positions, and order entry.' },
+    { n: '07', title: 'Practice', v: 'V2', body: 'Testnet-first learning with real Bulk flows and no real capital at risk.' },
+    { n: '08', title: 'Earn', v: 'V2', body: 'Funding-aware products after the core trading and risk flow is stable.' },
+    { n: '09', title: 'Automation', v: 'V2', body: 'Scoped agent-wallet execution for faster trading without repeated wallet popups.' },
   ];
 
   return (
@@ -274,12 +320,11 @@ function Features() {
         <motion.div initial="hidden" whileInView="visible" viewport={viewport} variants={fadeUp}>
           <Kicker>Inside the klub</Kicker>
           <h2 className="mb-5 max-w-[720px] text-[clamp(28px,3.5vw,44px)] font-semibold leading-[1.15] tracking-[-0.025em]">
-            Every tool a pro has.{' '}
-            <span className="text-fg-secondary">Every guardrail retail needs.</span>
+            One app for the first trade,{' '}
+            <span className="text-fg-secondary">and the hundredth.</span>
           </h2>
           <p className="mb-14 max-w-[560px] text-[17px] leading-relaxed text-fg-secondary">
-            Six surfaces at launch. Three more on the V2 roadmap. All share one architecture: we
-            never hold your funds.
+            Simple by default. Advanced when needed. Non-custodial throughout.
           </p>
         </motion.div>
         <div className="grid gap-px overflow-hidden rounded-klub-lg border border-border-subtle bg-border-subtle sm:grid-cols-2 lg:grid-cols-3">
@@ -321,9 +366,9 @@ function Features() {
 
 function HowItWorks() {
   const steps = [
-    { n: '01', title: 'Join', body: 'Email or Solana wallet \u2014 Phantom, Backpack, Solflare. Under a minute.' },
-    { n: '02', title: 'Deposit', body: 'Three taps from card to funded USDC on Bulk. Self-custody throughout.' },
-    { n: '03', title: 'Follow or fly solo', body: 'Mirror a klub leader, or open your own with the math on-screen. Alerts watch your back either way.' },
+    { n: '01', title: 'Connect', body: 'Use email or a Solana wallet. Privy handles the login gateway.' },
+    { n: '02', title: 'Claim test USDC', body: 'Pick a username, claim faucet funds, then land in Funding.' },
+    { n: '03', title: 'Trade on Bulk', body: 'Review markets, risk, orders, and positions through a cleaner retail layer.' },
   ];
 
   return (
@@ -332,7 +377,7 @@ function HowItWorks() {
         <motion.div initial="hidden" whileInView="visible" viewport={viewport} variants={fadeUp}>
           <Kicker>How it works</Kicker>
           <h2 className="mb-10 text-[clamp(28px,3.5vw,44px)] font-semibold leading-[1.15] tracking-[-0.025em]">
-            Three steps, one afternoon.
+            Connect. Fund. Trade.
           </h2>
         </motion.div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -365,10 +410,10 @@ function HowItWorks() {
 
 function Trust() {
   const items = [
-    { h: 'Non-custodial', b: 'Your USDC lives in your own Bulk account. We execute via scoped, revocable agent-wallet keys.' },
-    { h: 'Net-of-fees', b: 'Every leaderboard PnL includes trading fees and paid funding. Gross numbers are a lie.' },
-    { h: 'Geoblocked by design', b: 'Not available in the US, UK, or sanctioned jurisdictions. KYC handled at the ramp.' },
-    { h: 'Pre-launch', b: 'Building in public. Testnet invites ship to the waitlist before general release.' },
+    { h: 'Bulk Exchange', b: 'A decentralized perpetuals exchange engineered for low-latency order-book trading.' },
+    { h: 'USDC margin', b: 'Bulk perpetual contracts are USDC-margined, with funding payments exchanged hourly.' },
+    { h: 'Order book', b: 'Bulk runs central limit order books with price-time priority for each perpetual market.' },
+    { h: 'Self-custody', b: 'KLUB is a front-end. Users keep control of accounts and signatures.' },
   ];
 
   return (
@@ -402,11 +447,15 @@ function Trust() {
 
 function Faq() {
   const qa = [
-    { q: 'What is Bulk Exchange?', a: 'A decentralized perpetuals exchange on its own L1 (BULK Net) with 5\u201320ms matching latency. KLUB is a retail-focused front-end on top of Bulk\u2019s API.' },
-    { q: 'Do you custody my funds?', a: 'No. Your USDC and positions live in your own Bulk account. KLUB executes via agent-wallet keys with scoped permissions you can revoke any time.' },
-    { q: 'Is KLUB actually members-only?', a: 'Access is invite-based during pre-launch. Waitlist members get testnet access first, then mainnet.' },
-    { q: 'When does KLUB launch?', a: 'Waitlist now. Testnet first, then mainnet with the V1 feature set.' },
-    { q: 'What about the US?', a: 'KLUB is not available in the United States, United Kingdom, or sanctioned jurisdictions at launch.' },
+    { q: 'What is Bulk Exchange?', a: 'Bulk Exchange is a decentralized perpetuals exchange built for high-performance on-chain order-book trading.' },
+    { q: 'What is Bulk Haven?', a: 'Bulk Haven is KLUB\u2019s name for the simpler retail experience around Bulk: connect, fund, trade, track risk, and learn the market without terminal clutter.' },
+    { q: 'Is KLUB gated?', a: 'No. KLUB is for everyone. Some features may roll out gradually while the app is in active development, but the product is not private or invite-only.' },
+    { q: 'Do you custody my funds?', a: 'No. KLUB is a front-end. Your account, collateral, positions, and signatures stay with the wallet and Bulk account flow.' },
+    { q: 'What can I trade?', a: 'Bulk focuses on crypto perpetual markets. The live app and Bulk exchange info are the source of truth for current markets, limits, and parameters.' },
+    { q: 'What does USDC-margined mean?', a: 'Perpetual contracts on Bulk use USDC as settlement collateral, with no expiry and hourly funding to keep perp prices anchored to spot.' },
+    { q: 'Why use KLUB instead of a raw terminal?', a: 'KLUB keeps the main path simple: wallet, funding, size, risk, order, position. Advanced views stay available in Pro.' },
+    { q: 'Does KLUB support testnet?', a: 'Yes. New users can go through onboarding, choose a username, and claim test USDC before trading testnet markets.' },
+    { q: 'Does KLUB charge extra fees?', a: 'The app is built to show costs clearly. Exchange fees and market parameters come from Bulk; any KLUB-specific fees should be explicit before execution.' },
   ];
 
   return (
@@ -466,17 +515,14 @@ function CtaBlock() {
         variants={fadeUp}
         className="mx-auto max-w-[1160px] rounded-klub-lg border border-border bg-[radial-gradient(ellipse_at_top,rgba(232,182,71,0.08),transparent_70%),theme(colors.bg.surface)] px-10 py-24 text-center"
       >
-        <Kicker>Membership</Kicker>
+        <Kicker>Open access</Kicker>
         <h2 className="mx-auto mb-4 max-w-[560px] text-[clamp(28px,3.5vw,44px)] font-semibold leading-[1.15] tracking-[-0.025em]">
-          Get in the klub first.
+          Start with a wallet. Learn with test USDC.
         </h2>
         <p className="mx-auto mb-9 max-w-[480px] text-[17px] text-fg-secondary">
-          Testnet invites go to the waitlist before mainnet. Two-minute signup, zero spam.
+          Connect, claim a username, and enter the app through the same onboarding flow every time.
         </p>
-        <Link href="/funding" className="btn-primary btn-lg group">
-          Enter the app
-          <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
-        </Link>
+        <EnterAppButton large />
       </motion.div>
     </section>
   );

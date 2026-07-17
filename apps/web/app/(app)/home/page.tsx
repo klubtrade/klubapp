@@ -140,11 +140,10 @@ function DisconnectedHome() {
     <>
       <section className="pt-12 md:pt-20">
         <h1 className="text-[36px] font-semibold leading-[1.05] tracking-[-0.025em] md:text-[44px]">
-          Trade with the klub.
+          The retail gateway to Bulk Haven.
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-fg-secondary">
-          Members-only on-chain perps. Copy the winners, sleep through
-          the liquidations.
+          Connect a wallet, claim test USDC, and trade on Bulk through a simpler retail flow.
         </p>
 
         <div className="mt-8 space-y-3">

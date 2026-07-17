@@ -9,7 +9,7 @@ import { useTradingWallet } from '@/lib/trading-wallet';
 /**
  * /invite — share your invite link.
  *
- * KLUB is members-only. Once a user is in, they get a personal invite
+ * KLUB is open access. Once a user is onboarded, they get a personal
  * link that points new visitors at the onboarding flow with a
  * referral attribution. The invite-code-creation backend isn't wired
  * yet (Q2 work), so this page hands the user an immediately usable
