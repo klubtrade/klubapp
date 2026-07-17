@@ -37,6 +37,7 @@
  * sole signer. The proxy is a transport layer, not custody.
  */
 
+import { parseSignedTransaction } from '@klub/api-client';
 import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 
@@ -122,23 +123,10 @@ function bytesToHex(b: Uint8Array): string {
 }
 
 /**
- * Why we don't use prepared.actions:
+ * Canonical action integrity
  *
- * In bulk-keychain-wasm browser builds (wasm-pack bundler target),
- * the WasmPreparedMessage.actions getter returns an opaque proxy
- * over the wasm-managed memory. typeof === 'object' is true but
- * its own-enumerable keys are empty, so JSON.stringify renders it
- * as `{}` and Bulk's parser rejects with
- * "actions[0]: expected value at line 1 column 14".
- *
- * We tried trusting that getter in 91758e3 / bd1c3a6 to dodge
- * field-name drift between keychain releases — it broke create-pot
- * and faucet for every desktop user. Reverted in d07afc2 (this
- * file). All submit functions now hand-roll the wire shape via
- * toWireActions and that's the only currently-working path.
- *
- * If a future keychain release fixes the getter, revisit this.
- * Until then: do NOT pass prepared.actions to submitSignedTransaction.
+ * v0.1.19 exposes the finalized action list. We transport that exact list;
+ * rebuilding compact JSON by hand could change fields after the wallet signed.
  */
 
 // -------------------------------------------------------------------------
@@ -621,15 +609,11 @@ export async function submitOrder(input: SubmitOrderInput): Promise<SubmitOrderR
   logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Step 4: POST via our proxy. We hand-roll the wire shape via
-  // toWireActions instead of trusting the keychain's prepared.actions
-  // getter — in browser wasm-pack builds that getter returns an opaque
-  // proxy that JSON.stringifies as `{}`, which Bulk's parser rejects
-  // with "actions[0]: expected value at line 1 column 14". Hand-rolled
-  // wire is the only currently-reliable path. (See similar reverts on
-  // submitFaucetClaim / submitCreateSubAccount / submitTransfer.)
+  // Step 4: POST the exact finalized action list through our proxy.
+  // Rebuilding this JSON would risk submitting different bytes than
+  // the wallet approved.
   return submitSignedTransaction({
-    wireActions: toWireActions(order),
+    actions: signed.actions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -700,7 +684,7 @@ export async function submitCancel(input: SubmitCancelInput): Promise<SubmitOrde
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
   return submitSignedTransaction({
-    wireActions: toWireActions(cancelAction),
+    actions: signed.actions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -779,14 +763,8 @@ export async function submitAgentWalletAuth(
   logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as SignedTransaction;
 
-  const wireAction: AgentWalletCreationAction = {
-    type: 'agentWalletCreation',
-    agentPublicKey: input.agentPublicKey,
-    isDelete: input.isDelete,
-  };
-
   return submitSignedTransaction({
-    wireActions: toWireActions(wireAction),
+    actions: signed.actions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -829,8 +807,8 @@ export interface SubmitFaucetClaimInput {
  *   - "not whitelisted" or similar if the user's pubkey isn't on
  *     Bulk's testnet faucet allowlist
  *   - rate-limited (429) if called too often
- *   - "unknown action" if our best-guess wire shape is wrong; bump
- *     the key in toWireActions and retry
+ *   - "unknown action" if the installed keychain and exchange API are
+ *     on incompatible protocol versions
  */
 export async function submitFaucetClaim(
   input: SubmitFaucetClaimInput,
@@ -884,11 +862,9 @@ export async function submitFaucetClaim(
   logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as SignedTransaction;
 
-  // Hand-rolled wire — the keychain's prepared.actions getter is an
-  // opaque proxy in browser wasm-pack builds that serializes as `{}`.
-  // See submitOrder for the full story on why we don't trust it.
+  // Transport the exact action list produced during finalization.
   return submitSignedTransaction({
-    wireActions: toWireActions({ type: 'faucet', user: account }),
+    actions: signed.actions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -967,15 +943,9 @@ export async function submitCreateSubAccount(
   logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Hand-rolled wire — see submitOrder comment for why we never use
-  // the keychain's prepared.actions getter in browser builds.
+  // Transport the exact action list produced during finalization.
   return submitSignedTransaction({
-    wireActions: toWireActions({
-      type: 'createSubAccount',
-      name: input.name,
-      ...(input.marginSymbol ? { marginSymbol: input.marginSymbol } : {}),
-      ...(input.marginAmount !== undefined ? { marginAmount: input.marginAmount } : {}),
-    }),
+    actions: signed.actions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -1059,16 +1029,9 @@ export async function submitTransfer(
   logSignatureDebug('submit', prepared, signatureBytes, input.signer.publicKeyBase58);
   const signed = prepared.finalize(bs58.encode(signatureBytes)) as unknown as SignedTransaction;
 
-  // Hand-rolled wire — see submitOrder comment.
+  // Transport the exact action list produced during finalization.
   return submitSignedTransaction({
-    wireActions: toWireActions({
-      type: 'transfer',
-      kind: input.kind,
-      from: input.from,
-      to: input.to,
-      marginSymbol: input.marginSymbol,
-      amount: input.amount,
-    }),
+    actions: signed.actions,
     nonce: signed.nonce,
     account: signed.account,
     signer: signed.signer,
@@ -1077,165 +1040,8 @@ export async function submitTransfer(
 }
 
 // -------------------------------------------------------------------------
-// Wire-format builder + signed envelope POSTer
+// Signed envelope POSTer
 // -------------------------------------------------------------------------
-
-/**
- * Convert a long-form SignableAction into Bulk's compact wire shape.
- *
- * Long-form (what we pass to prepareOrder / prepareAgentWallet /
- * prepareFaucet):
- *   { type: 'order', symbol: 'BTC-USD', isBuy: true, price: 100,
- *     size: 0.1, orderType: { type: 'limit', tif: 'GTC' } }
- *   { type: 'cancel', symbol: 'BTC-USD', orderId: '...' }
- *   { type: 'agentWalletCreation', agentPublicKey: '...', isDelete: false }
- *   { type: 'faucet' }
- *
- * Compact wire (what Bulk's HTTP API expects):
- *   { l:  { c, b, px, sz, tif, r } }                    disc. 1 (limit)
- *   { m:  { c, b, sz, r } }                             disc. 0 (market)
- *   { cx: { c, oid } }                                  disc. 3 (cancel)
- *   { agentWalletCreation: { a, d } }                   disc. 17 (agent)
- *   { faucet: { u } }                                   testnet drip,
- *                                                        u = recipient
- *                                                        pubkey base58
- *
- * Compact field names per docs.bulk.trade/api-reference/signing:
- *   l = limit, m = market, cx = cancel, c = coin/symbol, b = is_buy,
- *   px = price, sz = size, tif = time_in_force, r = reduce_only,
- *   oid = order_id (base58-encoded 32-byte hash), a = agent_pubkey,
- *   d = is_delete
- *
- * Note: market orders DO NOT include a price on the wire. The binary
- * MarketOrder layout (discriminant 0) is only:
- *   [symbol, is_buy, size, reduce_only]
- * Similarly, cancel's binary layout is just [symbol, order_id_hash].
- */
-function toWireActions(action: SignableAction): unknown[] {
-  if (action.type === 'cancel') {
-    return [
-      {
-        cx: {
-          c: action.symbol,
-          oid: action.orderId,
-        },
-      },
-    ];
-  }
-
-  if (action.type === 'agentWalletCreation') {
-    return [
-      {
-        agentWalletCreation: {
-          a: action.agentPublicKey,
-          d: action.isDelete,
-        },
-      },
-    ];
-  }
-
-  if (action.type === 'faucet') {
-    // Verified by live rejection: server expects `u` = user pubkey.
-    // See FaucetClaimAction JSDoc for the full story.
-    return [{ faucet: { u: action.user } }];
-  }
-
-  if (action.type === 'createSubAccount') {
-    // Wire shape verified against live Bulk rejection (29 Apr 2026):
-    // server expects `name`, NOT the `n` short key the older actions
-    // (l/m/cx/faucet) use. v1.0.14 admin actions use full field names
-    // matching the binary-layout names (`name`, `marginSymbol`,
-    // `marginAmount`).
-    const body: Record<string, unknown> = { name: action.name };
-    if (action.marginSymbol) body['marginSymbol'] = action.marginSymbol;
-    if (action.marginAmount !== undefined) body['marginAmount'] = action.marginAmount;
-    return [{ createSubAccount: body }];
-  }
-
-  if (action.type === 'transfer') {
-    // Wire shape verified against live Bulk rejection (29 Apr 2026):
-    // - Field names are full (`kind`/`from`/`to`/`marginSymbol`/`marginAmount`),
-    //   matching createSubAccount's convention.
-    // - `kind` is the string variant ('internal'|'external'), NOT the
-    //   binary-layout integer 0/1. Same shape the wasm bindings'
-    //   `prepareTransfer` accepts in its options bag.
-    return [
-      {
-        transfer: {
-          kind: action.kind,
-          from: action.from,
-          to: action.to,
-          marginSymbol: action.marginSymbol,
-          marginAmount: action.amount,
-        },
-      },
-    ];
-  }
-
-  const reduceOnly = action.reduceOnly ?? false;
-
-  if (action.orderType.type === 'limit') {
-    return [
-      {
-        l: {
-          c: action.symbol,
-          b: action.isBuy,
-          // Bulk's Rust/serde parser rejects bare JSON integers for
-          // f64-typed fields (px, sz). Error message observed:
-          //   "invalid type: integer `70000`, expected a f64 as a
-          //    string, float, or integer"
-          // (The "or integer" is misleading — integer path fails the
-          // tagged-variant deserializer.) Stringifying is explicitly
-          // supported and forward-compatible. We always stringify so
-          // 0.1 vs 70000 both serialize the same way.
-          px: toFixedPointString(action.price),
-          sz: toFixedPointString(action.size),
-          tif: action.orderType.tif,
-          r: reduceOnly,
-          // Bulk v1.0.14 (28 Apr 2026) made `i` part of the canonical
-          // signed binary message. Omitting it produces a "bad
-          // signature" error even when the rest of the payload is
-          // valid. false = cross margin (current behavior); true would
-          // route into a per-instrument isolated sub-account.
-          i: false,
-        },
-      },
-    ];
-  }
-  if (action.orderType.type === 'trigger') {
-    // Trigger order — speculative wire shape modeled on Hyperliquid's
-    // canonical form. The keychain's prepared.actions is the actual
-    // source of truth (we route through keychainWireActions in
-    // submitOrder); this branch is only the last-resort fallback when
-    // the keychain returns something unusable.
-    return [
-      {
-        t: {
-          c: action.symbol,
-          b: action.isBuy,
-          sz: toFixedPointString(action.size),
-          tx: toFixedPointString(action.orderType.triggerPx),
-          tpsl: action.orderType.tpsl,
-          r: reduceOnly,
-          i: false,
-        },
-      },
-    ];
-  }
-
-  // market
-  return [
-    {
-      m: {
-        c: action.symbol,
-        b: action.isBuy,
-        sz: toFixedPointString(action.size),
-        r: reduceOnly,
-        i: false,
-      },
-    },
-  ];
-}
 
 /**
  * POST a finalized SignedTransaction to our server-side proxy.
@@ -1253,7 +1059,7 @@ function toWireActions(action: SignableAction): unknown[] {
  * that serializes as `{}` (empty object) when JSON-stringified.
  */
 interface SignedEnvelope {
-  readonly wireActions: unknown[];
+  readonly actions: SignedTransaction['actions'];
   readonly nonce: string | number | bigint;
   readonly account: string;
   readonly signer: string;
@@ -1269,13 +1075,13 @@ async function submitSignedTransaction(env: SignedEnvelope): Promise<SubmitOrder
   const nonceForJson: string | number =
     typeof env.nonce === 'bigint' ? env.nonce.toString() : env.nonce;
 
-  const body = {
-    actions: env.wireActions,
+  const body = parseSignedTransaction({
+    actions: env.actions,
     nonce: nonceForJson,
     account: env.account,
     signer: env.signer,
     signature: env.signature,
-  };
+  });
 
   // Diagnostic: log the wire shape on every submit when debug flag is on.
   // Set `localStorage.klubDebugSubmit = '1'` in the browser console to
@@ -1500,41 +1306,4 @@ function extractErrorMessage(raw: unknown): string | null {
     // swallow
   }
   return null;
-}
-
-/**
- * Format a JS number as a string suitable for Bulk's f64 fields (`px`,
- * `sz`). Bulk's Rust parser rejects bare JSON integers for f64 types
- * — the error is literally:
- *
- *   "invalid type: integer `70000`, expected a f64 as a string,
- *    float, or integer"
- *
- * (The "or integer" clause is misleading — it doesn't mean JSON
- * integers work; it means string representations of integers like
- * "70000" work.)
- *
- * We always stringify so 70000 and 0.0071428... both serialize as
- * strings like "70000" and "0.007142857142857143". Trailing zeros
- * and scientific notation are avoided by `Number.toString()` which
- * emits the shortest round-trip form in all JS engines.
- */
-function toFixedPointString(n: number): string {
-  // JS will emit `1e-7` for very small numbers by default, which
-  // Bulk accepts, but we normalize to plain decimal notation for
-  // readability and to dodge any parser edge cases in older Rust
-  // versions of serde.
-  if (!Number.isFinite(n)) {
-    throw new Error(`Cannot serialize non-finite number: ${n}`);
-  }
-  const s = n.toString();
-  // If the default toString produced exponent notation (e.g. 1e-7),
-  // expand to plain decimal using toFixed() with sufficient precision.
-  if (s.includes('e') || s.includes('E')) {
-    // 12 decimal places handles typical micro-size orders without
-    // losing precision; Bulk's internal fixed-point is 1e-8 so
-    // anything beyond 8 decimals is noise, but we include headroom.
-    return n.toFixed(12).replace(/0+$/, '').replace(/\.$/, '');
-  }
-  return s;
 }

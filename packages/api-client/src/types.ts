@@ -34,7 +34,7 @@ export type Symbol = string;
 export type DecimalString = string;
 
 /** Time-in-force for limit orders. */
-export type TimeInForce = 'GTC' | 'IOC' | 'ALO';
+export type TimeInForce = "GTC" | "IOC" | "ALO";
 
 /** Standard HTTP-like error envelope. */
 export interface BulkErrorResponse {
@@ -49,26 +49,26 @@ export interface BulkErrorResponse {
 
 /** Tag discriminator for Bulk's order types. */
 export type OrderTypeTag =
-  | 'l' // limit
-  | 'm' // market
-  | 'st' // stop
-  | 'tp' // take-profit
-  | 'rng' // range / OCO
-  | 'trig' // trigger basket
-  | 'trl' // trailing stop
-  | 'of'; // on-fill
+  | "l" // limit
+  | "m" // market
+  | "st" // stop
+  | "tp" // take-profit
+  | "rng" // range / OCO
+  | "trig" // trigger basket
+  | "trl" // trailing stop
+  | "of"; // on-fill
 
 export interface LimitOrderType {
-  readonly type: 'l';
+  readonly type: "l";
   readonly tif: TimeInForce;
 }
 
 export interface MarketOrderType {
-  readonly type: 'm';
+  readonly type: "m";
 }
 
 export interface StopOrderType {
-  readonly type: 'st';
+  readonly type: "st";
   /** Trigger price. */
   readonly tr: DecimalString;
   /** Direction: true = trigger when mark rises above threshold. */
@@ -78,14 +78,14 @@ export interface StopOrderType {
 }
 
 export interface TakeProfitOrderType {
-  readonly type: 'tp';
+  readonly type: "tp";
   readonly tr: DecimalString;
   readonly d: boolean;
   readonly lim?: DecimalString;
 }
 
 export interface TrailingStopOrderType {
-  readonly type: 'trl';
+  readonly type: "trl";
   /** Trailing distance from mark, in quote currency. */
   readonly tr: DecimalString;
 }
@@ -214,13 +214,7 @@ export interface Candle {
   readonly n: number; // trade count
 }
 
-export type CandleInterval =
-  | '1m'
-  | '5m'
-  | '15m'
-  | '1h'
-  | '4h'
-  | '1d';
+export type CandleInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 
 /** Response from GET /l2book. */
 export interface L2Book {
@@ -264,11 +258,11 @@ export interface FeeState {
 // ---------------------------------------------------------------------------
 
 export type AccountQueryType =
-  | 'fullAccount'
-  | 'positions'
-  | 'openOrders'
-  | 'fills'
-  | 'fundingHistory';
+  | "fullAccount"
+  | "positions"
+  | "openOrders"
+  | "fills"
+  | "fundingHistory";
 
 export interface AccountQueryParams {
   readonly type: AccountQueryType;
@@ -326,7 +320,7 @@ export interface UserFill {
   readonly timestamp: TimestampMs;
   readonly maker: Pubkey;
   readonly taker: Pubkey;
-  readonly reason: 'normal' | 'liquidation' | 'adl' | string;
+  readonly reason: "normal" | "liquidation" | "adl" | string;
   readonly slot: number;
 }
 
@@ -357,7 +351,7 @@ export interface FundingPaymentResponseItem {
 // ---------------------------------------------------------------------------
 
 export interface ManageAgentWalletParams {
-  readonly action: 'add' | 'revoke';
+  readonly action: "add" | "revoke";
   readonly agentPubkey: Pubkey;
   /** Optional scope hints — exact schema TBD from Bulk; we pass through. */
   readonly scope?: {
@@ -381,23 +375,6 @@ export interface FaucetResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Signed request envelope
-// ---------------------------------------------------------------------------
-
-/**
- * Signed POST requests follow Bulk's transaction envelope. The actual
- * signing happens in `bulk-keychain`; we expose the shape here so our
- * client can construct the body once the signer has produced a
- * signature.
- */
-export interface SignedRequest<TAction> {
-  readonly action: TAction;
-  readonly nonce: string; // stringified bigint (nanoseconds)
-  readonly signature: string; // base58 Ed25519 signature
-  readonly signer: Pubkey;
-}
-
-// ---------------------------------------------------------------------------
 // WebSocket — subscribe/unsubscribe envelopes
 // ---------------------------------------------------------------------------
 
@@ -408,49 +385,53 @@ export interface SignedRequest<TAction> {
  * pending → active state.
  */
 export type SubscriptionRequest =
-  | { readonly type: 'ticker'; readonly symbol: Symbol }
-  | { readonly type: 'trades'; readonly symbol: Symbol }
-  | { readonly type: 'candle'; readonly symbol: Symbol; readonly interval: CandleIntervalWs }
+  | { readonly type: "ticker"; readonly symbol: Symbol }
+  | { readonly type: "trades"; readonly symbol: Symbol }
   | {
-      readonly type: 'l2Snapshot';
+      readonly type: "candle";
+      readonly symbol: Symbol;
+      readonly interval: CandleIntervalWs;
+    }
+  | {
+      readonly type: "l2Snapshot";
       readonly symbol: Symbol;
       readonly nlevels?: number;
       readonly aggregation?: number;
     }
-  | { readonly type: 'l2Delta'; readonly symbol: Symbol }
-  | { readonly type: 'risk'; readonly symbol: Symbol }
-  | { readonly type: 'frontendContext' };
+  | { readonly type: "l2Delta"; readonly symbol: Symbol }
+  | { readonly type: "risk"; readonly symbol: Symbol }
+  | { readonly type: "frontendContext" };
 
 export type CandleIntervalWs =
-  | '10s'
-  | '1m'
-  | '3m'
-  | '5m'
-  | '15m'
-  | '30m'
-  | '1h'
-  | '2h'
-  | '4h'
-  | '6h'
-  | '8h'
-  | '12h'
-  | '1d'
-  | '3d'
-  | '1w'
-  | '1M';
+  | "10s"
+  | "1m"
+  | "3m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h"
+  | "2h"
+  | "4h"
+  | "6h"
+  | "8h"
+  | "12h"
+  | "1d"
+  | "3d"
+  | "1w"
+  | "1M";
 
 export interface SubscribeEnvelope {
-  readonly method: 'subscribe';
+  readonly method: "subscribe";
   readonly subscription: readonly SubscriptionRequest[];
 }
 
 export interface UnsubscribeEnvelope {
-  readonly method: 'unsubscribe';
+  readonly method: "unsubscribe";
   readonly topic: string;
 }
 
 export interface SubscriptionResponse {
-  readonly type: 'subscriptionResponse';
+  readonly type: "subscriptionResponse";
   readonly topics: readonly string[];
 }
 
@@ -463,7 +444,7 @@ export interface SubscriptionResponse {
  * Topic: `ticker.{symbol}` — use the topic string to route on receive.
  */
 export interface TickerMessage {
-  readonly type: 'ticker';
+  readonly type: "ticker";
   readonly data: {
     readonly symbol: Symbol;
     readonly ticker: Ticker;
@@ -475,7 +456,7 @@ export interface TickerMessage {
  * batched in `trades[]`.
  */
 export interface TradeMessage {
-  readonly type: 'trades';
+  readonly type: "trades";
   readonly data: {
     readonly symbol: Symbol;
     readonly trades: readonly TradePrint[];
@@ -504,7 +485,7 @@ export interface TradePrint {
 
 /** Candle stream message — `{t,T,o,h,l,c,v,n}`. */
 export interface CandleMessage {
-  readonly type: 'candle';
+  readonly type: "candle";
   readonly data: {
     readonly symbol: Symbol;
     readonly interval: CandleIntervalWs;
@@ -531,7 +512,7 @@ export interface CandleWs {
  * `sz: 0` on a level means "remove".
  */
 export interface L2DeltaMessage {
-  readonly type: 'l2Delta';
+  readonly type: "l2Delta";
   readonly data: {
     readonly symbol: Symbol;
     /** `levels[0]` = bids (desc), `levels[1]` = asks (asc). */
@@ -550,7 +531,7 @@ export interface L2Level {
  * L2 snapshot update. Same shape as delta but always both sides populated.
  */
 export interface L2SnapshotMessage {
-  readonly type: 'l2Snapshot';
+  readonly type: "l2Snapshot";
   readonly data: {
     readonly symbol: Symbol;
     readonly levels: readonly [readonly L2Level[], readonly L2Level[]];
@@ -563,7 +544,7 @@ export interface L2SnapshotMessage {
  * to N individual tickers.
  */
 export interface FrontendContextMessage {
-  readonly type: 'frontendContext';
+  readonly type: "frontendContext";
   readonly data: {
     readonly ctx: readonly FrontendContextEntry[];
   };
@@ -585,7 +566,7 @@ export interface FrontendContextEntry {
  * Consumers cache the latest surface per symbol and interpolate at eval time.
  */
 export interface RiskMessage {
-  readonly type: 'risk';
+  readonly type: "risk";
   readonly data: {
     readonly symbol: Symbol;
     readonly risk: RiskSurfaceData;

@@ -1,6 +1,5 @@
 // packages/signing/src/agent-wallet.ts
 import type { AgentWalletScope, Signer } from "./types.js";
-import { signEnvelope } from "./payloads.js";
 import {
   base58Encode,
   createEd25519Signer,
@@ -33,64 +32,17 @@ export function mintAgentWallet(): {
   };
 }
 
-/**
- * Build the authorization payload a user signs with their primary
- * Bulk account key to grant an agent wallet its scope.
- *
- * Flow:
- *   1. KLUB mints an agent wallet (`mintAgentWallet()`)
- *   2. KLUB returns the agent pubkey + scope to the client
- *   3. Client signs this authorization using their Bulk account
- *      (via Phantom / Backpack / etc.)
- *   4. Client sends the signed authorization to Bulk directly
- *   5. Bulk registers the agent key under the user's account
- *   6. KLUB's worker now signs orders with the agent key; Bulk
- *      validates scope on every request
- */
-export async function buildAgentWalletAuthorization(params: {
-  readonly userSigner: Signer;
-  readonly scope: AgentWalletScope;
-}) {
-  if (params.scope.canWithdraw !== false) {
-    // Defense in depth: even with a malicious config upstream,
-    // KLUB-built agent-wallet authorizations must never grant
-    // withdrawal rights. This is an invariant, not a default.
+/** Validate KLUB's local limits before the official keychain authorization. */
+export function assertSafeAgentWalletScope(
+  scope: AgentWalletScope,
+): AgentWalletScope {
+  if (scope.canWithdraw !== false) {
     throw new Error("agent wallets cannot carry withdrawal authority");
   }
-  if (params.scope.expiresAt <= Date.now()) {
+  if (scope.expiresAt <= Date.now()) {
     throw new Error("agent wallet expiry must be in the future");
   }
-  return signEnvelope({
-    body: {
-      op: "manageAgentWallet" as const,
-      action: "authorize" as const,
-      userPubkey: params.scope.userPubkey,
-      agentPubkey: params.scope.agentPubkey,
-      allowedMarkets: params.scope.allowedMarkets,
-      maxNotionalUsd: params.scope.maxNotionalUsd,
-      expiresAt: params.scope.expiresAt,
-      canWithdraw: false,
-    },
-    signer: params.userSigner,
-  });
-}
-
-/**
- * Build a revocation payload for an existing agent wallet. The
- * user signs this to instantly strip KLUB's key of all permissions.
- */
-export async function buildAgentWalletRevocation(params: {
-  readonly userSigner: Signer;
-  readonly agentPubkey: string;
-}) {
-  return signEnvelope({
-    body: {
-      op: "manageAgentWallet" as const,
-      action: "revoke" as const,
-      agentPubkey: params.agentPubkey,
-    },
-    signer: params.userSigner,
-  });
+  return scope;
 }
 
 /**

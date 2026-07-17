@@ -1,12 +1,15 @@
 // apps/worker/src/workers/copy-trade-worker.ts
 /* eslint-disable no-console */
 
-import { agentWallets, type Db, follows } from "@klub/db";
+import { agentWallets, type Db, follows, wallets } from "@klub/db";
 import { Queue, Worker, type Job } from "bullmq";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Redis } from "ioredis";
 
-import { signAndSubmit } from "../signing/bulk-execution.js";
+import {
+  disabledCopyTradeExecutor,
+  type CopyTradeExecutor,
+} from "../signing/bulk-execution.js";
 
 /**
  * Copy-trade worker.
@@ -50,9 +53,11 @@ export interface CopyTradeJobPayload {
 export function createCopyTradeWorker({
   redis,
   db,
+  executor = disabledCopyTradeExecutor,
 }: {
   readonly redis: Redis;
   readonly db: Db;
+  readonly executor?: CopyTradeExecutor;
 }): Worker<CopyTradeJobPayload> {
   const queue = new Queue<CopyTradeJobPayload>(QUEUE_NAME, {
     connection: redis,
@@ -69,7 +74,7 @@ export function createCopyTradeWorker({
   const worker = new Worker<CopyTradeJobPayload>(
     QUEUE_NAME,
     async (job: Job<CopyTradeJobPayload>) => {
-      await handleMirrorJob({ job, db });
+      await handleMirrorJob({ job, db, executor });
     },
     {
       connection: redis,
@@ -91,9 +96,11 @@ export function createCopyTradeWorker({
 async function handleMirrorJob({
   job,
   db,
+  executor,
 }: {
   readonly job: Job<CopyTradeJobPayload>;
   readonly db: Db;
+  readonly executor: CopyTradeExecutor;
 }): Promise<void> {
   const p = job.data;
 
@@ -127,10 +134,21 @@ async function handleMirrorJob({
     return;
   }
 
-  // 3. Sign and submit the order
+  const accountRows = await db
+    .select({ address: wallets.address })
+    .from(wallets)
+    .where(and(eq(wallets.userId, wallet.userId), eq(wallets.primary, true)));
+  const accountPublicKey = accountRows[0]?.address;
+  if (!accountPublicKey) {
+    throw new Error(`No primary Bulk account for follower ${p.followerId}`);
+  }
+
+  // 3. Sign and submit the order through the canonical gateway.
   // If this throws, BullMQ retries with exponential backoff.
-  await signAndSubmit({
+  await executor.submit({
+    agentWalletId: wallet.id,
     agentWalletPublicKey: wallet.publicKey,
+    accountPublicKey,
     symbol: p.symbol,
     side: p.side,
     sizeBase: mirroredSizeBase,

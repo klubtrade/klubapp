@@ -13,6 +13,15 @@ interface NativePreparedMessage extends PreparedBulkTransaction {
 }
 
 interface NativeKeychain {
+  NativeKeypair: {
+    fromBytes(bytes: Buffer): {
+      readonly pubkey: string;
+    };
+  };
+  NativeSigner: new (keypair: { readonly pubkey: string }) => {
+    readonly pubkey: string;
+    signBytes(message: Buffer): string;
+  };
   prepareOrder(
     order: Parameters<BulkKeychainAdapter["prepareOrder"]>[0],
     options: Parameters<BulkKeychainAdapter["prepareOrder"]>[1],
@@ -36,6 +45,25 @@ const require = createRequire(import.meta.url);
 // bulk-keychain 0.1.19 ships an invalid reserved-word declaration. Keep the
 // runtime official and isolate its local type surface until upstream repairs it.
 const nativeKeychain = require("bulk-keychain") as NativeKeychain;
+
+export function getNativeAgentPublicKey(secretKey: Uint8Array): string {
+  return nativeKeychain.NativeKeypair.fromBytes(Buffer.from(secretKey)).pubkey;
+}
+
+export function signPreparedWithAgentSecret(params: {
+  readonly secretKey: Uint8Array;
+  readonly expectedPublicKey: string;
+  readonly messageBytes: Uint8Array;
+}): string {
+  const keypair = nativeKeychain.NativeKeypair.fromBytes(
+    Buffer.from(params.secretKey),
+  );
+  if (keypair.pubkey !== params.expectedPublicKey) {
+    throw new Error("Agent secret does not match the authorized public key");
+  }
+  const signer = new nativeKeychain.NativeSigner(keypair);
+  return signer.signBytes(Buffer.from(params.messageBytes));
+}
 
 /** Native Node adapter backed by Bulk's canonical wincode implementation. */
 export function createNodeKeychainAdapter(): BulkKeychainAdapter {

@@ -8,7 +8,8 @@
       "env": [
         "NODE_ENV",
         "BULK_HTTP_URL",
-        "BULK_INTEGRATOR_ID",
+        "BULK_BUILDER_CODE_RECIPIENT",
+        "BULK_BUILDER_CODE_FEE_BPS",
         "NEXT_PUBLIC_BULK_WS_URL",
         "NEXT_PUBLIC_BULK_TESTNET_APP_URL",
         "NEXT_PUBLIC_BULK_NETWORK",
