@@ -112,6 +112,12 @@ export function Sidebar() {
               role="menu"
               className="absolute left-full top-0 z-50 ml-2 max-h-[calc(100vh-2rem)] w-[260px] overflow-y-auto rounded-klub-lg border border-border-subtle bg-bg-elevated p-2 shadow-[0_16px_48px_rgba(0,0,0,0.55)]"
             >
+              <Link
+                href="/more"
+                className="mb-2 block rounded-md border border-border-subtle px-2 py-2 text-[12px] font-medium text-fg-primary transition-colors hover:bg-bg-surface"
+              >
+                View all products →
+              </Link>
               {MORE_NAVIGATION.map((group) => (
                 <div key={group.label} className="mb-2 last:mb-0">
                   <div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">

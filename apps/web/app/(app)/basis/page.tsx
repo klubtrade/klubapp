@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from 'react';
 
-import { useToast } from '@/components/toast';
-
 /**
  * /basis — Basis vault, minimalist.
  *
@@ -32,21 +30,8 @@ export default function BasisPage() {
   const [amount, setAmount] = useState(1_000);
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
   const [learnOpen, setLearnOpen] = useState(false);
-  const toast = useToast();
 
   const projected = useMemo(() => (amount * VAULT_APY_PCT) / 100, [amount]);
-
-  function handleSubmit() {
-    if (amount <= 0) {
-      toast.error('Enter an amount');
-      return;
-    }
-    toast.success(
-      mode === 'deposit'
-        ? `${amount.toLocaleString()} USDC queued for deposit`
-        : `${amount.toLocaleString()} USDC withdrawal requested`,
-    );
-  }
 
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
@@ -59,6 +44,12 @@ export default function BasisPage() {
             Delta-neutral yield · net of fees.
           </p>
         </header>
+
+        <div className="mt-6 rounded-klub border border-accent/25 bg-accent/5 px-4 py-3 text-[11px] leading-relaxed text-fg-secondary">
+          <span className="font-medium text-accent">Research preview.</span>{' '}
+          The target APY is illustrative. No audited vault contract is configured,
+          so deposits and withdrawals are disabled.
+        </div>
 
         <div className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface px-6 py-8 text-center">
           <div className="font-mono text-[64px] font-semibold leading-none tracking-[-0.03em] text-accent md:text-[80px]">
@@ -124,11 +115,10 @@ export default function BasisPage() {
 
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={amount <= 0}
-          className="btn-primary btn-compact btn-lg mt-8"
+          disabled
+          className="btn-primary btn-compact btn-lg mt-8 cursor-not-allowed opacity-50"
         >
-          {mode === 'deposit' ? 'Deposit' : 'Withdraw'} ${amount.toLocaleString()}
+          Vault not available
         </button>
 
         {/* Learn more disclosure */}

@@ -125,7 +125,7 @@ function ConnectedHome() {
       />
 
       <section className="mt-8 grid grid-cols-3 gap-3">
-        <NavCircle href="/cash" label="Cash" icon={<IconWallet />} />
+        <NavCircle href="/funding" label="Funds" icon={<IconWallet />} />
         <NavCircle href="/trade" label="Trade" icon={<IconTrade />} />
         <NavCircle href="/copy" label="Copy" icon={<IconUsers />} />
       </section>

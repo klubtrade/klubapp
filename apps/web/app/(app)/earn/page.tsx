@@ -34,6 +34,12 @@ export default function EarnPage() {
           </p>
         </header>
 
+        <div className="mt-6 rounded-klub border border-accent/25 bg-accent/5 px-4 py-3 text-[11px] leading-relaxed text-fg-secondary">
+          <span className="font-medium text-accent">Research hub.</span>{' '}
+          Rates and APYs are informational previews. KLUB is not accepting deposits
+          into an Earn or Basis contract yet.
+        </div>
+
         <div className="mt-8 space-y-3">
           <BasisCard />
           <FundingCard />
@@ -45,9 +51,9 @@ export default function EarnPage() {
             How earn works
           </div>
           <ul className="mt-1.5 space-y-1 leading-relaxed">
-            <li>· Basis is fully on-chain — withdraw any time.</li>
-            <li>· Funding pays into your free margin every hour.</li>
-            <li>· Yield (Q2) routes idle USDC into the highest-rated venues.</li>
+            <li>· Basis models a delta-neutral strategy; deposits are disabled.</li>
+            <li>· Funding Desk monitors rates published by Bulk.</li>
+            <li>· Passive yield routing remains a product concept.</li>
           </ul>
         </footer>
       </div>

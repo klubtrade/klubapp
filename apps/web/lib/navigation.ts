@@ -41,8 +41,12 @@ export const MORE_NAVIGATION: readonly NavigationGroup[] = [
   {
     label: "Money",
     items: [
-      { href: "/cash", label: "Cash", description: "Deposit and withdraw" },
-      { href: "/ramp", label: "Add funds", description: "Buy USDC" },
+      {
+        href: "/funding",
+        label: "Funding",
+        description: "Send, receive and add funds",
+        aliases: ["/cash", "/ramp"],
+      },
     ],
   },
   {
@@ -104,6 +108,9 @@ export function isNavigationItemActive(
 }
 
 export function isMoreNavigationActive(pathname: string | null): boolean {
+  if (pathname && (pathname === "/more" || pathname.startsWith("/more/"))) {
+    return true;
+  }
   return MORE_NAVIGATION.some((group) =>
     group.items.some((item) => isNavigationItemActive(pathname, item)),
   );

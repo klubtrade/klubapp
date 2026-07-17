@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isMoreNavigationActive,
   isNavigationItemActive,
+  MORE_NAVIGATION,
   PRIMARY_NAVIGATION,
 } from "../navigation.ts";
 
@@ -35,8 +36,20 @@ describe("navigation", () => {
 
   it("recognizes secondary routes without treating them as primary", () => {
     expect(isMoreNavigationActive("/cash")).toBe(true);
+    expect(isMoreNavigationActive("/funding/add")).toBe(true);
+    expect(isMoreNavigationActive("/ramp")).toBe(true);
     expect(isMoreNavigationActive("/basis/details")).toBe(true);
+    expect(isMoreNavigationActive("/more")).toBe(true);
     expect(isMoreNavigationActive("/pro")).toBe(true);
     expect(isMoreNavigationActive("/trade")).toBe(false);
+  });
+
+  it("labels advanced and research products explicitly", () => {
+    const items = MORE_NAVIGATION.flatMap((group) => group.items);
+    expect(items.find(({ href }) => href === "/pro")?.badge).toBe("Advanced");
+    expect(items.find(({ href }) => href === "/basis")?.badge).toBe("Lab");
+    expect(
+      items.find(({ href }) => href === "/funding")?.badge,
+    ).toBeUndefined();
   });
 });

@@ -77,7 +77,7 @@ function LandingNav() {
           <span className="live-dot" aria-hidden />
           KLUB
         </Link>
-        <Link href="/cash" className="btn-primary group">
+        <Link href="/funding" className="btn-primary group">
           Enter the app
           <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
         </Link>
@@ -155,7 +155,7 @@ function Hero() {
           className="mb-20 flex flex-wrap justify-center gap-3"
         >
           <Link
-            href="/cash"
+            href="/funding"
             className="btn-primary group"
           >
             Enter the app
@@ -473,7 +473,7 @@ function CtaBlock() {
         <p className="mx-auto mb-9 max-w-[480px] text-[17px] text-fg-secondary">
           Testnet invites go to the waitlist before mainnet. Two-minute signup, zero spam.
         </p>
-        <Link href="/cash" className="btn-primary btn-lg group">
+        <Link href="/funding" className="btn-primary btn-lg group">
           Enter the app
           <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
         </Link>

@@ -17,7 +17,7 @@ import type { SubmitOrderResult } from '@/lib/bulk/orders';
 import { isValidHandle, normalizeHandle, resolveHandle } from '@/lib/handles';
 
 /**
- * /cash — KLUB's Super App home tab.
+ * /funding — balances, transfers, pots, and funding entry points.
  *
  * Q1 of the NeoBank pivot. Today this page wires:
  *   - Real master account balance (`useBulkAccount`)
@@ -71,7 +71,7 @@ function CashPageInner() {
   const [showReceive, setShowReceive] = useState(false);
   const [result, setResult] = useState<SubmitOrderResult | null>(null);
 
-  // Pay-by-link: `/cash?to=<pubkey>&amount=10` opens the Send modal
+  // Pay-by-link: `/funding?to=<pubkey>&amount=10` opens the Send modal
   // pre-filled. Handles (`@micah`) are resolved client-side to pubkeys
   // once the handle endpoint ships; for now we just pass strings
   // through and let the user see the literal value.
@@ -156,7 +156,7 @@ function CashPageInner() {
             onClick={() => setShowReceive(true)}
             icon={<IconReceive />}
           />
-          <ActionCircle label="Add" href="/ramp" icon={<IconAdd />} />
+          <ActionCircle label="Add" href="/funding/add" icon={<IconAdd />} />
           <ActionCircle label="Trade" href="/trade" icon={<IconTrade />} />
         </section>
 

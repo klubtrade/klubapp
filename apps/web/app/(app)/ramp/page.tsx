@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useToast } from '@/components/toast';
 
 /**
- * /ramp — fiat on-ramp, minimalist.
+ * /funding/add — fiat on-ramp.
  *
  * Visible by default:
  *   - Amount field with preset buttons
