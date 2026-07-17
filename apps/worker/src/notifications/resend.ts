@@ -14,6 +14,14 @@ import { Resend } from 'resend';
 
 let client: Resend | null = null;
 
+function siteUrl(): string {
+  return (
+    process.env['APP_URL'] ??
+    process.env['NEXT_PUBLIC_SITE_URL'] ??
+    'https://klubapp-web.vercel.app'
+  ).replace(/\/$/, '');
+}
+
 function getClient(): Resend {
   if (client) return client;
   const key = process.env['RESEND_API_KEY'];
@@ -27,11 +35,12 @@ export async function sendAlertEmail(
   message: { readonly title: string; readonly body: string; readonly severity: 'info' | 'warning' | 'critical' },
 ): Promise<void> {
   const subjectPrefix = message.severity === 'critical' ? '⚠️ ' : '';
+  const baseUrl = siteUrl();
   await getClient().emails.send({
     from: 'KLUB Alerts <hello@klub.trade>',
     to: email,
     subject: `${subjectPrefix}${message.title}`,
-    text: `${message.body}\n\n—\nManage alerts: https://klub.trade/health\nUnsubscribe: https://klub.trade/settings/alerts`,
+    text: `${message.body}\n\n—\nManage alerts: ${baseUrl}/health\nUnsubscribe: ${baseUrl}/settings/alerts`,
     // HTML version intentionally plain; liquidation alerts land on
     // lock screens before they're opened. Keep text crisp.
   });
@@ -58,5 +67,5 @@ Thanks for adding yourself to the KLUB waitlist. Two quick things.
 Reply to this email with the one thing that's gone wrong for you on an on-chain perps exchange. We're building a lot of KLUB around the answers.
 
 — [founder name]
-KLUB · klub.trade`;
+KLUB · klubapp-web.vercel.app`;
 }

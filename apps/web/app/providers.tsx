@@ -22,7 +22,8 @@ import {
 export function Providers({ children }: { readonly children: React.ReactNode }) {
   const privyAppId =
     process.env['NEXT_PUBLIC_PRIVY_APP_ID'] ?? DEFAULT_PRIVY_APP_ID;
-  const siteUrl = process.env['NEXT_PUBLIC_SITE_URL'] ?? 'https://klub.trade';
+  const siteUrl =
+    process.env['NEXT_PUBLIC_SITE_URL'] ?? 'https://klubapp-web.vercel.app';
 
   return (
     <PrivyProvider

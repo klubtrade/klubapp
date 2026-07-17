@@ -22,8 +22,8 @@ describe('Privy configuration policy', () => {
   });
 
   it('builds the public 180x90 logo URL without duplicate slashes', () => {
-    expect(getPrivyLogoUrl('https://klub.trade/')).toBe(
-      'https://klub.trade/privy-logo.png',
+    expect(getPrivyLogoUrl('https://klubapp-web.vercel.app/')).toBe(
+      'https://klubapp-web.vercel.app/privy-logo.png',
     );
   });
 });

@@ -34,7 +34,8 @@ async function validateCode(
   | { readonly valid: false }
 > {
   try {
-    const baseUrl = process.env['NEXT_PUBLIC_SITE_URL'] ?? 'http://localhost:3000';
+    const baseUrl =
+      process.env['NEXT_PUBLIC_SITE_URL'] ?? 'https://klubapp-web.vercel.app';
     const res = await fetch(`${baseUrl}/api/invite?code=${encodeURIComponent(code)}`, {
       cache: 'no-store',
     });

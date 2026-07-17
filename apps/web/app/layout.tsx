@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   title: 'Klub: retail gateway to Bulk haven',
   description:
     'A clean retail trading gateway for Bulk Exchange: simple funding, safer order flow, copy trading, portfolio health, and Pro tools when you need them.',
-  metadataBase: new URL('https://klub.trade'),
+  metadataBase: new URL('https://klubapp-web.vercel.app'),
   applicationName: 'Klub',
   icons: {
     icon: '/icon.png',
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     description:
       'The Apple-clean retail layer for Bulk Exchange: fund, trade, follow, and manage risk without terminal chaos.',
     type: 'website',
-    url: 'https://klub.trade',
+    url: 'https://klubapp-web.vercel.app',
     siteName: 'Klub',
   },
   twitter: {
