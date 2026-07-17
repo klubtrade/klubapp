@@ -95,34 +95,37 @@ DATABASE_URL=... REDIS_URL=... pnpm --filter @klub/worker dev
 | Surface | Host | Why |
 |---|---|---|
 | Web app (Next.js) | Vercel | Zero-config for Next 14, edge network, preview deploys per PR |
-| Background worker | Railway (or Fly.io) | Persistent process — BullMQ needs an always-on host |
-| Postgres | Neon (or Supabase) | Serverless Postgres, branchable per environment |
-| Redis | Upstash | Serverless Redis with generous free tier |
+| Background worker | Railway | Persistent process — BullMQ needs an always-on host |
+| Postgres | Railway Postgres | System of record for handles, profiles, onboarding, follows, alerts |
+| Redis | Railway Redis or Upstash | Queues, short-lived cache entries, rate limits, idempotency locks |
 | Email | Resend | Transactional + waitlist audiences |
 | DNS + SSL | Cloudflare | Free, fast, handles the `klub.trade` domain |
 | Monitoring | Sentry + PostHog | Errors + product analytics |
 | KMS (Phase 3.5 signing) | AWS KMS | Wraps agent-wallet private keys at rest |
 
-### 2.1 Database — Neon
+### 2.1 Database — Railway Postgres
 
-1. Sign up at [neon.tech](https://neon.tech). Free tier handles several thousand users.
-2. Create a project `klub-prod` in the region closest to your users (US East is safe default).
-3. Copy the connection string (starts with `postgres://...`). Use the **pooler** endpoint for Vercel (`...pooler.neon.tech`) — it handles serverless connection churn.
-4. Create a second project `klub-staging` for preview deploys.
+1. In Railway, create or open the `klub` project.
+2. Add a **Postgres** service.
+3. Copy the public `DATABASE_URL` for local migration runs.
+4. Attach the same `DATABASE_URL` to the web/worker services through Railway variables.
+5. Add `DATABASE_URL` to Vercel Production env vars if the web app remains hosted on Vercel.
 
 Apply the schema from your local machine:
 
 ```bash
 DATABASE_URL='<prod connection string>' \
-  pnpm --filter @klub/db migrate:deploy
+  pnpm --filter @klub/db migrate
 ```
 
-### 2.2 Redis — Upstash
+Current migrations include durable onboarding/profile state and one active handle per wallet. Do not deploy production onboarding without running migrations.
 
-1. Sign up at [upstash.com](https://upstash.com).
-2. Create a database `klub-prod` in the same region as Neon.
-3. Copy the **Redis Connection URL** (the `rediss://...` form, not the REST URL).
-4. Create a second db `klub-staging`.
+### 2.2 Redis — Railway Redis or Upstash
+
+1. Add a Railway Redis service or create an Upstash Redis database.
+2. Copy the Redis URL.
+3. Set `REDIS_URL` on the worker service.
+4. Use Redis for queues, short-lived cache entries, rate limits, and idempotency locks only. Postgres remains authoritative for user state.
 
 ### 2.3 Email — Resend
 
@@ -145,20 +148,20 @@ DATABASE_URL='<prod connection string>' \
 
    | Name | Scope | Notes |
    |---|---|---|
-   | `DATABASE_URL` | Production | Neon pooler URL |
-   | `REDIS_URL` | Production | Upstash URL |
+   | `DATABASE_URL` | Production | Railway Postgres URL |
+   | `REDIS_URL` | Production | Railway Redis or Upstash URL |
    | `RESEND_API_KEY` | Production | |
    | `WAITLIST_AUDIENCE_ID` | Production | |
    | `NEXT_PUBLIC_BULK_NETWORK` | Production | `mainnet` |
-   | `BULK_API_BASE_URL` | Production | `https://exchange-api.bulk.trade/api/v1` |
-   | `NEXT_PUBLIC_BULK_WS_URL` | Production | `wss://exchange-api.bulk.trade/ws` — **flips pages from Demo → Live** |
+   | `BULK_HTTP_URL` | Production | `https://exchange-api.bulk.trade/api/v1` |
+   | `NEXT_PUBLIC_BULK_WS_URL` | Production | `wss://exchange-ws1.bulk.trade` — **flips pages from Demo → Live** |
    | `NEXT_PUBLIC_PRIVY_APP_ID` | Production | From Privy dashboard |
    | `PRIVY_APP_SECRET` | Production | From Privy dashboard |
    | `NEXT_PUBLIC_COINBASE_ONRAMP_APP_ID` | Production | From Coinbase Onramp |
    | `SENTRY_DSN` | Production | |
    | `NEXT_PUBLIC_POSTHOG_KEY` | Production | |
 
-   For `Preview` environment, use the staging Neon + Upstash URLs and leave `NEXT_PUBLIC_BULK_WS_URL` unset so PRs get Demo mode.
+   For `Preview` environment, use staging Railway/Redis URLs and leave `NEXT_PUBLIC_BULK_WS_URL` unset so PRs get Demo mode.
 
 5. **Deploy.** First build ~4 minutes. Subsequent deploys ~90 seconds.
 
@@ -176,9 +179,9 @@ The worker now runs **three** services in one process: alerts queue consumer, co
 
    | Name | Notes |
    |---|---|
-   | `DATABASE_URL` | Neon pooler URL |
-   | `REDIS_URL` | Upstash URL |
-   | `BULK_WS_URL` | `wss://exchange-api.bulk.trade/ws` — **required for real alerts** |
+   | `DATABASE_URL` | Railway Postgres URL |
+   | `REDIS_URL` | Railway Redis or Upstash URL |
+   | `BULK_WS_URL` | `wss://exchange-ws1.bulk.trade` — **required for real alerts** |
    | `RESEND_API_KEY` | For email alerts |
    | `TELEGRAM_BOT_TOKEN` | From @BotFather |
    | `AGENT_WALLET_KMS_KEY_ARN` | AWS KMS key ARN (see §2.7) |
