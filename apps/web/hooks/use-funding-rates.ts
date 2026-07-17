@@ -15,20 +15,12 @@ import { useTickers, type LivePrice } from './use-tickers';
  *   const funding = useFundingRates(['BTC-USD', 'ETH-USD']);
  *   const btc = funding['BTC-USD']; // { hourlyPct, eightHourPct, annualPct, ... }
  *
- * Unit semantics (verified against early.bulk.trade Apr 2026):
- *   Bulk's raw `funding` field in the WS feed is the HOURLY rate,
- *   already expressed as a percent (e.g., 0.00024 means 0.00024% per
- *   hour). It is NOT a fraction and NOT per-8h as the earlier version
- *   of this hook assumed. Converting:
- *     - hourlyPct  = rawValue                (identity)
- *     - eightHourPct = rawValue * 8
- *     - annualPct  = rawValue * 24 * 365
- *
- * The earlier "rate" field and its "rate × 3 × 365 × 100" annualizer
- * produced values ~1000× too large — this is why /desk was showing
- * e.g. BTC at -25.5% annualized when Bulk itself showed -2.081%. The
- * bug was observed Week 2 Day 1, diagnosed via direct cross-reference
- * of Bulk's own desk.
+ * Unit semantics (verified against Bulk `/stats`, Jul 2026):
+ *   Bulk publishes the current funding rate as a fractional hourly rate.
+ *   Example: 0.0001 means 0.01% per hour. Converting:
+ *     - hourlyPct    = rawValue × 100
+ *     - eightHourPct = rawValue × 8 × 100
+ *     - annualPct    = rawValue × 24 × 365 × 100
  *
  * Back-compat note: we still expose `rate` and `annualizedPct` for
  * consumers that haven't been updated. `rate` is now the hourly
@@ -74,7 +66,7 @@ export function useFundingRates(
 }
 
 function toFunding(p: LivePrice): LiveFunding {
-  const hourlyPct = p.fundingRate;
+  const hourlyPct = p.fundingRate * 100;
   const eightHourPct = hourlyPct * 8;
   const annualPct = hourlyPct * 24 * 365;
   return {

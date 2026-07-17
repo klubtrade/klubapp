@@ -45,16 +45,17 @@ import { useTradingWallet } from '@/lib/trading-wallet';
  * append here.
  */
 export const MARKETS = [
-  { symbol: 'BTC-USD', label: 'BTC', seedPrice: 67_420, defaultLeverage: 50 },
-  { symbol: 'ETH-USD', label: 'ETH', seedPrice: 3_284, defaultLeverage: 50 },
-  { symbol: 'SOL-USD', label: 'SOL', seedPrice: 178.4, defaultLeverage: 50 },
-  { symbol: 'BNB-USD', label: 'BNB', seedPrice: 608, defaultLeverage: 40 },
-  { symbol: 'XRP-USD', label: 'XRP', seedPrice: 2.34, defaultLeverage: 50 },
-  { symbol: 'DOGE-USD', label: 'DOGE', seedPrice: 0.41, defaultLeverage: 10 },
-  { symbol: 'SUI-USD', label: 'SUI', seedPrice: 3.88, defaultLeverage: 40 },
-  { symbol: 'ZEC-USD', label: 'ZEC', seedPrice: 65, defaultLeverage: 40 },
-  { symbol: 'GOLD-USD', label: 'GOLD', seedPrice: 3_380, defaultLeverage: 50 },
-  { symbol: 'FARTCOIN-USD', label: 'FART', seedPrice: 1.12, defaultLeverage: 25 },
+  { symbol: 'BTC-USD', label: 'BTC', seedPrice: 63_980, defaultLeverage: 40 },
+  { symbol: 'ETH-USD', label: 'ETH', seedPrice: 1_840, defaultLeverage: 25 },
+  { symbol: 'SOL-USD', label: 'SOL', seedPrice: 74.8, defaultLeverage: 10 },
+  { symbol: 'BNB-USD', label: 'BNB', seedPrice: 568, defaultLeverage: 10 },
+  { symbol: 'XRP-USD', label: 'XRP', seedPrice: 1.09, defaultLeverage: 10 },
+  { symbol: 'DOGE-USD', label: 'DOGE', seedPrice: 0.0725, defaultLeverage: 10 },
+  { symbol: 'SUI-USD', label: 'SUI', seedPrice: 0.737, defaultLeverage: 10 },
+  { symbol: 'ZEC-USD', label: 'ZEC', seedPrice: 34.5, defaultLeverage: 10 },
+  { symbol: 'FARTCOIN-USD', label: 'FART', seedPrice: 0.133, defaultLeverage: 10 },
+  { symbol: 'MINIMAX-USD', label: 'MINIMAX', seedPrice: 0.02, defaultLeverage: 10 },
+  { symbol: 'MU-USD', label: 'MU', seedPrice: 0.02, defaultLeverage: 10 },
 ] as const;
 
 /**

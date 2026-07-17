@@ -11,11 +11,8 @@ import { MARKETS, type MarketSymbol } from '@/lib/markets';
 /**
  * /desk — minimalist funding monitor.
  *
- * Columns match what early.bulk.trade shows: 1h, 8h, and annualized
- * funding. Previously we only showed 8h + annual, and both were wrong
- * by a large factor because we treated Bulk's `funding` field as a
- * fractional per-8h value when it's actually an hourly percent value.
- * See `use-funding-rates.ts` for the unit-semantics note.
+ * Columns show 1h, 8h, and annualized funding. Positive means longs
+ * pay shorts; negative means shorts pay longs.
  *
  * Data source: Bulk testnet frontendContext stream. Only symbols with
  * active markets on testnet render real data. We DO NOT fall back to
@@ -37,8 +34,7 @@ export default function DeskPage() {
               Funding desk
             </h1>
             <p className="mt-1 text-[13px] text-fg-muted">
-              Per-hour funding as published by Bulk. Positive = longs
-              pay shorts.
+              Per-hour funding from Bulk. Positive = longs pay shorts.
             </p>
           </div>
           {isReconnecting ? (
@@ -66,8 +62,9 @@ export default function DeskPage() {
               `grid-cols-[1fr_auto_auto_auto]` with uniform gap lets
               the market label take remaining space while funding
               columns right-align in fixed-width columns. */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border-subtle px-1 pb-2 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border-subtle px-1 pb-2 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
             <span>Market</span>
+            <span className="text-right">Earn side</span>
             <span className="text-right">1h</span>
             <span className="text-right">8h</span>
             <span className="text-right">Annual</span>
@@ -90,13 +87,16 @@ export default function DeskPage() {
                 <li key={sym}>
                   <Link
                     href="/trade"
-                    className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-1 py-3.5 transition-colors hover:bg-bg-surface"
+                    className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-1 py-3.5 transition-colors hover:bg-bg-surface"
                   >
                     <div className="min-w-0">
                       <div className="text-[14px] text-fg-primary">{m.label}</div>
                       <div className="mt-0.5 font-mono text-[11px] text-fg-muted">
                         {hasMark ? `$${formatPrice(mark)}` : '—'}
                       </div>
+                    </div>
+                    <div className="text-right text-[11px] text-fg-muted">
+                      {hasFunding ? (hourly >= 0 ? 'Shorts' : 'Longs') : '—'}
                     </div>
                     <div
                       className={`text-right font-mono text-[12px] ${

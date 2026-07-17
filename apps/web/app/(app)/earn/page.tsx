@@ -9,7 +9,7 @@ import { MARKETS, type MarketSymbol } from '@/lib/markets';
  * /earn — index of yield surfaces.
  *
  * Three earn options live in the app:
- *   1. Basis vault (delta-neutral, target 14.8% APY) → /basis
+ *   1. Basis trade planner (delta-neutral funding carry) → /basis
  *   2. Funding desk (live per-market funding rates) → /desk
  *   3. Yield (Q2 — passive yield on idle USDC balance) → coming soon
  *
@@ -18,8 +18,6 @@ import { MARKETS, type MarketSymbol } from '@/lib/markets';
  * and a tap-through to the detail page. The Yield card is dimmed
  * with a "Soon" tag while the underlying product is still in design.
  */
-
-const VAULT_APY_PCT = 14.8;
 
 export default function EarnPage() {
   return (
@@ -35,9 +33,9 @@ export default function EarnPage() {
         </header>
 
         <div className="mt-6 rounded-klub border border-accent/25 bg-accent/5 px-4 py-3 text-[11px] leading-relaxed text-fg-secondary">
-          <span className="font-medium text-accent">Research hub.</span>{' '}
-          Rates and APYs are informational previews. KLUB is not accepting deposits
-          into an Earn or Basis contract yet.
+          <span className="font-medium text-accent">Live rates, locked deposits.</span>{' '}
+          Funding data comes from Bulk. KLUB is not accepting deposits into an
+          Earn or Basis contract until the Solana contracts are connected.
         </div>
 
         <div className="mt-8 space-y-3">
@@ -51,8 +49,8 @@ export default function EarnPage() {
             How earn works
           </div>
           <ul className="mt-1.5 space-y-1 leading-relaxed">
-            <li>· Basis models a delta-neutral strategy; deposits are disabled.</li>
-            <li>· Funding Desk monitors rates published by Bulk.</li>
+            <li>· Basis Trade ranks long/short funding-carry pairs.</li>
+            <li>· Funding Desk monitors rates published by Bulk `/stats`.</li>
             <li>· Passive yield routing remains a product concept.</li>
           </ul>
         </footer>
@@ -66,6 +64,10 @@ export default function EarnPage() {
 // ---------------------------------------------------------------------------
 
 function BasisCard() {
+  const symbols = MARKETS.map((m) => m.symbol) as MarketSymbol[];
+  const rates = useFundingRates(symbols);
+  const top = topBasisCarry(symbols, rates);
+
   return (
     <Link
       href="/basis"
@@ -81,16 +83,16 @@ function BasisCard() {
               Basis vault
             </div>
             <div className="mt-0.5 text-[11px] text-fg-muted">
-              Delta-neutral · withdraw any time
+              Delta-neutral funding carry planner
             </div>
           </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-[20px] font-semibold leading-none text-accent">
-            {VAULT_APY_PCT.toFixed(1)}%
+            {top !== null ? `+${top.toFixed(1)}%` : '—'}
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            target APY
+            top carry
           </div>
         </div>
       </div>
@@ -149,6 +151,17 @@ function FundingCard() {
       </div>
     </Link>
   );
+}
+
+function topBasisCarry(
+  symbols: readonly MarketSymbol[],
+  rates: ReturnType<typeof useFundingRates>,
+): number | null {
+  const annuals = symbols
+    .map((symbol) => rates[symbol]?.annualPct)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  if (annuals.length < 2) return null;
+  return Math.max(...annuals) - Math.min(...annuals);
 }
 
 function YieldCard() {
