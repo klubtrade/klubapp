@@ -114,7 +114,7 @@ html {
 /* ---------------------------------------------------------------------------
    Button utilities — used across every CTA in the app for consistency.
 
-   .btn-primary   — filled purple, main action
+   .btn-primary   — filled gold, main action
    .btn-secondary — bordered, secondary action
    .btn-ghost     — text only, tertiary action
    .btn-danger    — red, destructive (unfollow, close position, revoke key)
@@ -210,6 +210,43 @@ html {
   box-shadow:
     0 6px 16px -4px color-mix(in oklab, var(--pnl-short) 55%, transparent),
     0 1px 0 0 rgba(0, 0, 0, 0.18);
+}
+
+/* Reusable Apple-clean surfaces and inputs. Prefer these before adding
+   bespoke card/input classes in feature pages. */
+.surface-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-klub-lg);
+  background: color-mix(in oklab, var(--bg-surface) 86%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    0 12px 36px rgba(0, 0, 0, 0.18);
+}
+
+.surface-card-soft {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-klub-lg);
+  background: color-mix(in oklab, var(--bg-surface) 52%, transparent);
+}
+
+.field-base {
+  width: 100%;
+  border-radius: var(--radius-klub);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--fg-primary);
+  transition:
+    border-color 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    background-color 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.field-base::placeholder {
+  color: var(--fg-muted);
+}
+.field-base:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
 }
 
 /* Size variants — apply alongside .btn-* */
