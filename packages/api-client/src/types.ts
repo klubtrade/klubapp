@@ -283,6 +283,11 @@ export interface FullAccount {
   readonly initialMarginUsd: DecimalString;
   readonly positions: readonly Position[];
   readonly openOrders: readonly OpenOrder[];
+  /** Master-account-scoped Builder Code fee approvals. */
+  readonly builderCodeApprovals?: readonly {
+    readonly recipient: Pubkey;
+    readonly maxFee: number;
+  }[];
   readonly ts: TimestampMs;
 }
 
