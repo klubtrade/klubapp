@@ -780,7 +780,7 @@ export async function submitAgentWalletAuth(
  * wallet popup).
  *
  * There's deliberately NO amount field. Bulk's faucet is a fixed drip
- * per call (10,000 mockUSDC on testnet, capped to one drip per 24h
+ * per call (1,000 test USDC on testnet, capped to one drip per 72h
  * per account; both numbers controlled server-side).
  */
 export interface SubmitFaucetClaimInput {

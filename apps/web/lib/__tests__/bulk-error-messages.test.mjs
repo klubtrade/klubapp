@@ -16,13 +16,13 @@ describe('Bulk error messages', () => {
 
   it('turns faucet upstream outages into calm onboarding copy', () => {
     expect(normalizeFaucetErrorMessage('Cloudflare 502 Bad gateway', 502)).toBe(
-      'Bulk faucet is temporarily unavailable. If this wallet already has test USDC, continue to Funding; otherwise try again in a few minutes.',
+      'Faucet claim was not confirmed. If this wallet already has test USDC, continue to Portfolio or start trading; otherwise try again.',
     );
   });
 
   it('turns duplicate faucet claims into a continue state', () => {
-    expect(normalizeFaucetErrorMessage('faucet can only be claimed once per 24h')).toBe(
-      'This wallet has already claimed test USDC recently. Continue to Funding.',
+    expect(normalizeFaucetErrorMessage('faucet can only be claimed once per 72h')).toBe(
+      'This wallet has already claimed test USDC recently. The faucet resets after 72 hours. Continue to Portfolio or start trading.',
     );
   });
 });

@@ -23,7 +23,7 @@ export function normalizeFaucetErrorMessage(message: string, status?: number): s
     status === 503 ||
     status === 504
   ) {
-    return 'Bulk faucet is temporarily unavailable. If this wallet already has test USDC, continue to Funding; otherwise try again in a few minutes.';
+    return 'Faucet claim was not confirmed. If this wallet already has test USDC, continue to Portfolio or start trading; otherwise try again.';
   }
 
   if (
@@ -31,11 +31,13 @@ export function normalizeFaucetErrorMessage(message: string, status?: number): s
     lower.includes('rate limit') ||
     lower.includes('rate-limit') ||
     lower.includes('too many') ||
+    lower.includes('72h') ||
+    lower.includes('72 h') ||
     lower.includes('24h') ||
     lower.includes('24 h') ||
     lower.includes('once per')
   ) {
-    return 'This wallet has already claimed test USDC recently. Continue to Funding.';
+    return 'This wallet has already claimed test USDC recently. The faucet resets after 72 hours. Continue to Portfolio or start trading.';
   }
 
   return message;
