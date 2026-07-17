@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { normalizeBulkErrorMessage } from '@/lib/bulk/error-messages';
+
 /**
  * useRiskSurfacesRest — fetch Bulk's risk-surface grid per market
  * on mount, refresh every 30s, return a map keyed by symbol.
@@ -76,7 +78,7 @@ export function useRiskSurfacesRest(): UseRiskSurfacesRestResult {
           if (!row.s) continue;
           const mm = Number(row.mmFraction);
           if (!Number.isFinite(mm)) continue;
-          const imCandidate = Number(row.imFraction);
+          const imCandidate = typeof row.imFraction === 'number' ? row.imFraction : Number.NaN;
           const im = Number.isFinite(imCandidate) ? imCandidate : mm;
           next[row.s] = {
             mmFraction: mm,
@@ -93,7 +95,7 @@ export function useRiskSurfacesRest(): UseRiskSurfacesRestResult {
         setLastFetchedAt(Date.now());
       } catch (e) {
         if (cancelledRef.current) return;
-        setError(e instanceof Error ? e.message : 'unknown');
+        setError(normalizeBulkErrorMessage(e instanceof Error ? e.message : 'unknown'));
       } finally {
         if (!cancelledRef.current) setLoading(false);
       }

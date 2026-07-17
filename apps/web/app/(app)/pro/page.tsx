@@ -108,8 +108,8 @@ export default function ProPage() {
 
   return (
     <>
-      {/* Mobile gate — terminals don't work on phones */}
-      <div className="flex min-h-screen items-center justify-center px-6 xl:hidden">
+      {/* Small-screen gate — terminals don't work on phones */}
+      <div className="flex min-h-screen items-center justify-center px-6 lg:hidden">
         <div className="max-w-sm rounded-klub-lg border border-border-subtle bg-bg-surface p-8 text-center">
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-accent">
             KLUB Pro
@@ -132,7 +132,7 @@ export default function ProPage() {
       </div>
 
       {/* Desktop advanced terminal */}
-      <main className="hidden min-h-screen bg-bg-base xl:block">
+      <main className="hidden min-h-screen bg-bg-base lg:block">
         <ProHeader symbol={symbol} mark={mark} onOpenPalette={() => setShowPalette(true)} />
         <ProMarketStrip
           symbol={symbol}

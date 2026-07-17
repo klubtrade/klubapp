@@ -101,6 +101,7 @@ export default function HealthPage() {
   const snapshot = accountState.data;
   const positions = useMemo(() => snapshot?.positions ?? [], [snapshot]);
   const connected = wallet.connected;
+  const accountUnavailable = snapshot?.unavailable === true;
 
   // Subscribe to risk surfaces for every symbol the user has a
   // position in. Streaming is live but event-driven: on quiet
@@ -252,7 +253,16 @@ export default function HealthPage() {
           <div className="mt-12 rounded-klub-lg border border-border-subtle bg-bg-surface/40 px-5 py-12 text-center text-[13px] text-fg-muted">
             Loading your account…
           </div>
-        ) : accountState.status === "error" ? (
+        ) : accountUnavailable ? (
+          <EmptyState
+            title="Bulk is temporarily unavailable"
+            body={snapshot?.warning ?? "Bulk account data is unavailable right now. Your wallet is still connected; try refreshing in a few minutes."}
+            ctaHref="/portfolio"
+            ctaLabel="Go to portfolio"
+            secondaryHref="/trade"
+            secondaryLabel="Open trade"
+          />
+        ) : accountState.status === "error" && !snapshot ? (
           <div className="mt-12 rounded-klub-lg border border-pnl-short/30 bg-pnl-short/5 p-5 text-[13px] text-pnl-short">
             Couldn&rsquo;t load your account.{" "}
             {accountState.error ?? "Try again in a moment."}

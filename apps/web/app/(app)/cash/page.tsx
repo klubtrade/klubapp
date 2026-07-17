@@ -65,6 +65,7 @@ function CashPageInner() {
 
   const equity = state.data?.equityUsd ?? null;
   const free = state.data?.freeMarginUsd ?? null;
+  const accountUnavailable = state.data?.unavailable === true;
 
   const [showCreate, setShowCreate] = useState(false);
   const [showSend, setShowSend] = useState(false);
@@ -135,11 +136,19 @@ function CashPageInner() {
           <div className="mt-3 text-[12px] text-fg-muted">
             {!connected
               ? 'Connect a wallet to see your balance'
+              : accountUnavailable
+                ? 'Bulk account data is temporarily unavailable'
               : free !== null
                 ? `$${formatUsd(free)} available`
                 : 'Loading…'}
           </div>
         </section>
+
+        {accountUnavailable && (
+          <div className="mt-6 rounded-klub border border-alert-orange/30 bg-alert-orange/5 px-4 py-3 text-[12px] leading-relaxed text-alert-orange">
+            {state.data?.warning ?? 'Bulk exchange is temporarily unavailable. Please try again in a few minutes.'}
+          </div>
+        )}
 
         {/* Icon-circle actions — Phantom/Revolut/Venmo pattern. Big tap
             targets, recognizable iconography, label below. */}
@@ -518,7 +527,7 @@ function FaucetClaimRow({
             ? usingAgent
               ? `Claiming for ${target}…`
               : `Sign to claim for ${target}…`
-            : `Claim 10k mockUSDC → ${target}`}
+            : `Claim 1,000 mockUSDC → ${target}`}
         </span>
       </div>
       <span className="shrink-0 text-accent">{claiming ? '…' : 'Claim'}</span>

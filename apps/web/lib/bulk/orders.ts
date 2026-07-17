@@ -300,7 +300,7 @@ export interface AgentWalletCreationAction {
 
 /**
  * Request the testnet faucet drip (~1,000 mockUSDC per call on Bulk's
- * testnet, gated by a server-side whitelist + 24h cooldown per user).
+ * testnet, gated by a server-side 72h reset window per user).
  *
  * Wire format (verified against live rejection on Apr 21 2026 — the
  * server's serde error "missing field `u` at line 1 column 24"

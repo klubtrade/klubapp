@@ -45,7 +45,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_user" }, { status: 422 });
   }
 
-  const baseUrl = process.env["BULK_API_BASE_URL"];
+  const baseUrl =
+    process.env["BULK_HTTP_URL"] ?? process.env["BULK_API_BASE_URL"];
 
   const client = new BulkClient({
     ...(baseUrl ? { baseUrl } : {}),
@@ -96,13 +97,17 @@ export async function POST(request: Request) {
     console.error("[portfolio] upstream failure", err);
     return NextResponse.json(
       {
+        equityUsd: 0,
+        collateralUsd: 0,
+        positions: [],
+        degraded: true,
         error: "upstream_unavailable",
         message:
           err instanceof Error
             ? err.message
             : "Could not reach Bulk. Try again in a moment.",
       },
-      { status: 502 },
+      { status: 200 },
     );
   }
 }

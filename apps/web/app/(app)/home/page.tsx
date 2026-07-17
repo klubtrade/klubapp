@@ -66,6 +66,7 @@ function ConnectedHome() {
   const { params: mmSurfaces } = useRiskSurfacesRest();
 
   const equity = snapshot?.equityUsd ?? null;
+  const accountUnavailable = snapshot?.unavailable === true;
   const totalPnl = computeTotalPnl(snapshot);
   const portfolioHealth = useMemo<HealthOutput | null>(() => {
     const input = buildHealthInput(snapshot, livePrices, mmSurfaces);
@@ -115,12 +116,18 @@ function ConnectedHome() {
         />
       </section>
 
+      {accountUnavailable && (
+        <div className="mt-4 rounded-klub border border-alert-orange/30 bg-alert-orange/5 px-4 py-3 text-[12px] leading-relaxed text-alert-orange">
+          {snapshot?.warning ?? 'Bulk exchange is temporarily unavailable. Please try again in a few minutes.'}
+        </div>
+      )}
+
       <RiskSummary
-        result={portfolioHealth}
+        result={accountUnavailable ? null : portfolioHealth}
         positionCount={snapshot?.positions.length ?? null}
       />
 
-      <PositionsPreview snapshot={snapshot} />
+      <PositionsPreview snapshot={accountUnavailable ? null : snapshot} />
 
       <section className="mt-10">
         <MarketsBlock livePrices={livePrices} />

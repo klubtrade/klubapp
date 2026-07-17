@@ -40,6 +40,10 @@ const MARKETS = [
   'FARTCOIN-USD',
 ] as const;
 
+const BULK_HTTP_URL = process.env['BULK_HTTP_URL'] ?? 'https://exchange-api.bulk.trade/api/v1';
+const FALLBACK_LEVERAGE_KNOTS = [1, 2, 3, 5, 10, 20, 50] as const;
+const FALLBACK_NOTIONAL_KNOTS = [0, 50_000, 250_000, 1_000_000, 5_000_000] as const;
+
 interface GridPoint {
   readonly mmrO?: number;
   readonly mmrE?: number;
@@ -56,7 +60,7 @@ interface BulkRegime {
 interface MarketGridOut {
   readonly s: string;
   readonly mmFraction: number | null;
-  readonly imFraction: null;
+  readonly imFraction: number | null;
   readonly adlRank: number;
   readonly leverageKnots: readonly number[] | null;
   readonly notionalKnots: readonly number[] | null;
@@ -115,14 +119,7 @@ function flattenGrid(
 }
 
 export async function GET() {
-  const base = process.env['BULK_HTTP_URL'];
-  if (!base) {
-    return NextResponse.json(
-      { error: 'config_missing', message: 'BULK_HTTP_URL not set' },
-      { status: 500 },
-    );
-  }
-  const root = base.replace(/\/+$/, '');
+  const root = BULK_HTTP_URL.replace(/\/+$/, '');
 
   const results = await Promise.allSettled(
     MARKETS.map(async (market) => {
@@ -171,8 +168,16 @@ export async function GET() {
 
   if (surfaces.length === 0) {
     return NextResponse.json(
-      { error: 'fetch_failed', message: 'no markets returned', errors },
-      { status: 502 },
+      {
+        surfaces: MARKETS.map((market) => fallbackSurface(market)),
+        ts: Date.now(),
+        degraded: true,
+        errors,
+      },
+      {
+        status: 200,
+        headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=30' },
+      },
     );
   }
 
@@ -180,4 +185,23 @@ export async function GET() {
     { surfaces, ts: Date.now(), errors: errors.length > 0 ? errors : undefined },
     { headers: { 'Cache-Control': 's-maxage=10, stale-while-revalidate=30' } },
   );
+}
+
+function fallbackSurface(market: string): MarketGridOut {
+  const buy = FALLBACK_NOTIONAL_KNOTS.map((_, notionalIdx) =>
+    FALLBACK_LEVERAGE_KNOTS.map((_, leverageIdx) => {
+      const tierAdd = Math.min(0.015, notionalIdx * 0.0025 + leverageIdx * 0.001);
+      return 0.02 + tierAdd;
+    }),
+  );
+  return {
+    s: market,
+    mmFraction: 0.02,
+    imFraction: 0.02,
+    adlRank: 0,
+    leverageKnots: FALLBACK_LEVERAGE_KNOTS,
+    notionalKnots: FALLBACK_NOTIONAL_KNOTS,
+    buy,
+    sell: buy,
+  };
 }

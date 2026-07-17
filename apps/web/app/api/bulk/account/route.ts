@@ -38,7 +38,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Missing required field: user' }, { status: 400 });
   }
 
-  const url = `${BULK_HTTP_URL}${ACCOUNT_PATH}`;
+  const url = `${BULK_HTTP_URL.replace(/\/+$/, '')}${ACCOUNT_PATH}`;
 
   let upstream: Response;
   try {
@@ -50,11 +50,8 @@ export async function POST(req: Request): Promise<NextResponse> {
     });
   } catch (err) {
     return NextResponse.json(
-      {
-        error: 'Failed to reach Bulk exchange',
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      { status: 502 },
+      unavailableAccount(payload.user, err instanceof Error ? err.message : String(err)),
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
     );
   }
 
@@ -74,5 +71,44 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
   }
 
+  if (upstream.status >= 500) {
+    return NextResponse.json(
+      unavailableAccount(payload.user, extractUpstreamDetail(body) ?? `Bulk HTTP ${upstream.status}`),
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
   return NextResponse.json(body ?? {}, { status: upstream.status });
+}
+
+function unavailableAccount(user: string, detail: string): Record<string, unknown> {
+  return {
+    unavailable: true,
+    error: 'bulk_unavailable',
+    message: 'Bulk exchange is temporarily unavailable. Please try again in a few minutes.',
+    detail,
+    user,
+    fullAccount: {
+      kind: 'MasterEOA',
+      parent: null,
+      subAccounts: [],
+      margin: {
+        totalBalance: null,
+        availableBalance: null,
+        unrealizedPnl: null,
+      },
+      positions: [],
+      openOrders: [],
+    },
+  };
+}
+
+function extractUpstreamDetail(body: unknown): string | null {
+  if (!body || typeof body !== 'object') return null;
+  const r = body as Record<string, unknown>;
+  if (typeof r['message'] === 'string') return r['message'];
+  if (typeof r['error'] === 'string') return r['error'];
+  if (typeof r['detail'] === 'string') return r['detail'];
+  if (typeof r['raw'] === 'string') return r['raw'].slice(0, 240);
+  return null;
 }

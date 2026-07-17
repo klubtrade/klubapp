@@ -303,7 +303,7 @@ function Problem() {
 
 function Features() {
   const items: readonly { n: string; title: string; body: string; v: 'V1' | 'V2' }[] = [
-    { n: '01', title: 'Connect', v: 'V1', body: 'Email or Solana wallet through Privy. New users go straight into username and faucet setup.' },
+    { n: '01', title: 'Connect', v: 'V1', body: 'Email or Solana wallet through Privy. New users go straight to faucet setup.' },
     { n: '02', title: 'Fund', v: 'V1', body: 'See balances, pots, receive links, and test USDC in one clean money surface.' },
     { n: '03', title: 'Trade', v: 'V1', body: 'Open market or limit orders with size, leverage, target, stop, and liquidation context nearby.' },
     { n: '04', title: 'Risk', v: 'V1', body: 'Portfolio health, liquidation proximity, and plain-language warnings before risk becomes urgent.' },
@@ -367,7 +367,7 @@ function Features() {
 function HowItWorks() {
   const steps = [
     { n: '01', title: 'Connect', body: 'Use email or a Solana wallet. Privy handles the login gateway.' },
-    { n: '02', title: 'Claim test USDC', body: 'Pick a username, claim faucet funds, then land in Funding.' },
+    { n: '02', title: 'Claim test USDC', body: 'Claim 1,000 test USDC when eligible, or continue straight into Portfolio or Trade.' },
     { n: '03', title: 'Trade on Bulk', body: 'Review markets, risk, orders, and positions through a cleaner retail layer.' },
   ];
 
@@ -454,7 +454,7 @@ function Faq() {
     { q: 'What can I trade?', a: 'Bulk focuses on crypto perpetual markets. The live app and Bulk exchange info are the source of truth for current markets, limits, and parameters.' },
     { q: 'What does USDC-margined mean?', a: 'Perpetual contracts on Bulk use USDC as settlement collateral, with no expiry and hourly funding to keep perp prices anchored to spot.' },
     { q: 'Why use KLUB instead of a raw terminal?', a: 'KLUB keeps the main path simple: wallet, funding, size, risk, order, position. Advanced views stay available in Pro.' },
-    { q: 'Does KLUB support testnet?', a: 'Yes. New users can go through onboarding, choose a username, and claim test USDC before trading testnet markets.' },
+    { q: 'Does KLUB support testnet?', a: 'Yes. New users can go through onboarding, claim 1,000 test USDC when eligible, and trade Bulk testnet markets.' },
     { q: 'Does KLUB charge extra fees?', a: 'The app is built to show costs clearly. Exchange fees and market parameters come from Bulk; any KLUB-specific fees should be explicit before execution.' },
   ];
 
@@ -520,7 +520,7 @@ function CtaBlock() {
           Start with a wallet. Learn with test USDC.
         </h2>
         <p className="mx-auto mb-9 max-w-[480px] text-[17px] text-fg-secondary">
-          Connect, claim a username, and enter the app through the same onboarding flow every time.
+          Connect, claim test USDC when eligible, and enter the app through the same onboarding flow every time.
         </p>
         <EnterAppButton large />
       </motion.div>

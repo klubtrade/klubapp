@@ -136,7 +136,10 @@ function ConnectedShell({
   }
 
   const balance = accountState.data?.equityUsd ?? null;
-  const balanceLabel = formatBalancePill(balance, accountState.status);
+  const accountUnavailable = accountState.data?.unavailable === true;
+  const balanceLabel = accountUnavailable
+    ? 'Bulk —'
+    : formatBalancePill(balance, accountState.status);
 
   function handleCopy() {
     if (!address) return;
@@ -219,7 +222,7 @@ function ConnectedShell({
             <div className="mt-1 font-mono text-[18px] font-semibold text-fg-primary">
               {balance !== null
                 ? `$${formatUsd(balance)}`
-                : accountState.status === 'error'
+                : accountUnavailable || accountState.status === 'error'
                   ? '—'
                   : '…'}
             </div>
@@ -257,8 +260,11 @@ function ConnectedShell({
                 </div>
               </div>
             )}
-            {accountState.status === 'error' && accountState.error && (
-              <div className="mt-2 text-[10px] text-pnl-short">{accountState.error}</div>
+            {((accountUnavailable && accountState.data?.warning) ||
+              (accountState.status === 'error' && accountState.error)) && (
+              <div className="mt-2 text-[10px] text-alert-orange">
+                {accountState.data?.warning ?? accountState.error}
+              </div>
             )}
           </div>
 
@@ -304,7 +310,7 @@ function shorten(addr: string): string {
 
 /**
  * Compact balance string for the button pill. When loading for the first
- * time we show "…", when ready we show "$10,000" or similar, when failing
+ * time we show "…", when ready we show "$1,000" or similar, when failing
  * we hide the pill entirely (returned empty string collapses the span).
  */
 function formatBalancePill(balance: number | null, status: string): string {
@@ -421,7 +427,7 @@ function FaucetRow({ onClaimSuccess }: { readonly onClaimSuccess: () => void }) 
                 : 'Waiting for wallet…'
               : usingAgent
                 ? 'Silent claim'
-                : '10,000 mockUSDC · 24h limit'}
+                : '1,000 mockUSDC · 72h reset'}
           </div>
         </div>
         <button

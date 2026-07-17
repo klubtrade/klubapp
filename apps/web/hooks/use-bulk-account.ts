@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { normalizeBulkErrorMessage } from '@/lib/bulk/error-messages';
+
 /**
  * useBulkAccount — fetch a user's Bulk account snapshot.
  *
@@ -102,6 +104,10 @@ export interface BulkAccountSnapshot {
    * Bulk response predates v1.0.14.
    */
   readonly subAccounts: readonly BulkSubAccount[];
+  /** True when the server returned an app-safe degraded snapshot. */
+  readonly unavailable: boolean;
+  /** Calm user-facing message for degraded snapshots. */
+  readonly warning: string | null;
   /** Raw response kept for debugging. */
   readonly raw: unknown;
 }
@@ -145,7 +151,7 @@ export function useBulkAccount(pubkey: string | null): {
         setState((prev) => ({
           status: 'error',
           data: prev.data,
-          error: err instanceof Error ? err.message : 'Network error',
+          error: normalizeBulkErrorMessage(err instanceof Error ? err.message : 'Network error'),
         }));
         return;
       }
@@ -163,7 +169,10 @@ export function useBulkAccount(pubkey: string | null): {
         setState((prev) => ({
           status: 'error',
           data: prev.data,
-          error: extractMessage(raw) ?? `HTTP ${response.status}`,
+          error: normalizeBulkErrorMessage(
+            extractMessage(raw) ?? rawToString(raw) ?? `HTTP ${response.status}`,
+            response.status,
+          ),
         }));
         return;
       }
@@ -236,6 +245,7 @@ function normalizeAccount(raw: unknown): BulkAccountSnapshot {
   if (Array.isArray(stage1) && stage1.length >= 1) {
     stage1 = stage1[0];
   }
+  const envelope = stage1 && typeof stage1 === 'object' ? (stage1 as Record<string, unknown>) : {};
   let stage2: unknown = stage1;
   if (stage2 && typeof stage2 === 'object' && 'fullAccount' in (stage2 as object)) {
     stage2 = (stage2 as Record<string, unknown>)['fullAccount'];
@@ -283,6 +293,10 @@ function normalizeAccount(raw: unknown): BulkAccountSnapshot {
   const kind = parseKind(acct['kind']);
   const parent = typeof acct['parent'] === 'string' ? acct['parent'] : null;
   const subAccounts = parseSubAccounts(acct['subAccounts']);
+  const unavailable = envelope['unavailable'] === true;
+  const warning = unavailable
+    ? normalizeBulkErrorMessage(extractMessage(envelope) ?? 'Bulk exchange is temporarily unavailable.')
+    : null;
 
   return {
     equityUsd,
@@ -293,6 +307,8 @@ function normalizeAccount(raw: unknown): BulkAccountSnapshot {
     kind,
     parent,
     subAccounts,
+    unavailable,
+    warning,
     raw,
   };
 }
@@ -489,4 +505,14 @@ function extractMessage(raw: unknown): string | null {
   if (typeof r['detail'] === 'string') return r['detail'];
   if (typeof r['message'] === 'string') return r['message'];
   return null;
+}
+
+function rawToString(raw: unknown): string | null {
+  if (typeof raw === 'string') return raw;
+  if (raw === null || raw === undefined) return null;
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return null;
+  }
 }
