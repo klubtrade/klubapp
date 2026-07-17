@@ -109,7 +109,7 @@ export default function ProPage() {
   return (
     <>
       {/* Mobile gate — terminals don't work on phones */}
-      <div className="flex min-h-screen items-center justify-center px-6 md:hidden">
+      <div className="flex min-h-screen items-center justify-center px-6 xl:hidden">
         <div className="max-w-sm rounded-klub-lg border border-border-subtle bg-bg-surface p-8 text-center">
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-accent">
             KLUB Pro
@@ -132,44 +132,45 @@ export default function ProPage() {
       </div>
 
       {/* Desktop terminal */}
-      <main className="hidden min-h-screen md:block">
+      <main className="hidden min-h-screen xl:block">
         <ProHeader symbol={symbol} mark={mark} onOpenPalette={() => setShowPalette(true)} />
 
-        <div className="grid h-[calc(100vh-56px-56px)] grid-cols-[240px_minmax(0,1fr)_280px_320px] gap-px bg-border-subtle">
+        <div className="grid h-[calc(100vh-56px-56px)] grid-cols-[220px_minmax(0,1fr)_340px] gap-px bg-border-subtle">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}
             livePrices={livePrices}
           />
 
-          <div className="grid grid-rows-[minmax(0,1.3fr)_minmax(0,1fr)] gap-px bg-border-subtle">
+          <div className="grid min-w-0 grid-rows-[minmax(360px,1.35fr)_minmax(220px,0.85fr)] gap-px bg-border-subtle">
             <PanelChart
               symbol={symbol}
               interval={interval}
               onInterval={setInterval}
               mark={mark}
             />
-            <PanelPositions
-              positions={accountState.data?.positions ?? []}
-              openOrders={accountState.data?.openOrders ?? []}
-              livePrices={livePrices}
-              accountStatus={accountState.status}
+            <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(240px,0.65fr)] gap-px bg-border-subtle">
+              <PanelPositions
+                positions={accountState.data?.positions ?? []}
+                openOrders={accountState.data?.openOrders ?? []}
+                livePrices={livePrices}
+                accountStatus={accountState.status}
+                connected={connected}
+                onResult={handleResult}
+              />
+              <PanelTape symbol={symbol} />
+            </div>
+          </div>
+
+          <div className="grid min-w-0 grid-rows-[minmax(390px,1.2fr)_minmax(260px,0.8fr)] gap-px bg-border-subtle">
+            <PanelOrderForm
+              symbol={symbol}
+              mark={mark}
               connected={connected}
               onResult={handleResult}
             />
-          </div>
-
-          <div className="grid grid-rows-[minmax(0,1.6fr)_minmax(0,1fr)] gap-px bg-border-subtle">
             <PanelOrderbook symbol={symbol} mark={mark} />
-            <PanelTape symbol={symbol} />
           </div>
-
-          <PanelOrderForm
-            symbol={symbol}
-            mark={mark}
-            connected={connected}
-            onResult={handleResult}
-          />
         </div>
 
         <ProStatusBar

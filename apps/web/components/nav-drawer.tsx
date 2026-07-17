@@ -111,17 +111,17 @@ export function NavDrawer() {
           </svg>
         </button>
 
-        <Link
-          href="/portfolio"
-          aria-label="KLUB home"
-          className="flex items-center gap-2 font-semibold tracking-[-0.02em] text-fg-primary transition-opacity hover:opacity-70"
+        <div
+          role="img"
+          aria-label="KLUB"
+          className="flex items-center gap-2 font-semibold tracking-[-0.02em] text-fg-primary"
         >
           <span
             aria-hidden
             className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_12px_rgba(232,182,71,0.6)]"
           />
           klub
-        </Link>
+        </div>
       </div>
 
       {/* Backdrop */}

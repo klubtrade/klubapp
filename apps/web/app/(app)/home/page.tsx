@@ -78,29 +78,40 @@ function ConnectedHome() {
 
   return (
     <>
-      <section className="text-center">
-        <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-          Portfolio balance
+      <header>
+        <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-accent">
+          Portfolio
         </div>
-        <div className="mt-2 font-mono text-[48px] font-semibold leading-none tracking-[-0.02em] text-fg-primary md:text-[60px]">
-          {equity === null ? '$—' : `$${formatUsd(equity)}`}
+        <div className="mt-3 flex items-end justify-between gap-5">
+          <h1 className="max-w-xs text-[32px] font-semibold leading-[1.08] tracking-[-0.03em] md:text-[38px]">
+            Your exposure, at a glance.
+          </h1>
+          <Link href="/health" className="shrink-0 pb-1 text-[12px] text-fg-muted transition-colors hover:text-accent">
+            Risk details →
+          </Link>
         </div>
-        <div className="mt-3 text-[12px] text-fg-muted">
-          {totalPnl === null
-            ? 'Loading…'
-            : (
-                <>
-                  <span
-                    className={
-                      totalPnl >= 0 ? 'text-pnl-long' : 'text-pnl-short'
-                    }
-                  >
-                    {totalPnl >= 0 ? '+' : '−'}${formatUsd(Math.abs(totalPnl))}
-                  </span>
-                  <span className="ml-1.5">total PnL</span>
-                </>
-              )}
-        </div>
+      </header>
+
+      <section className="mt-8 grid grid-cols-2 gap-3">
+        <PortfolioMetric
+          label="Equity"
+          value={equity === null ? '—' : `$${formatUsd(equity)}`}
+        />
+        <PortfolioMetric
+          label="Unrealized PnL"
+          value={
+            totalPnl === null
+              ? '—'
+              : `${totalPnl >= 0 ? '+' : '−'}$${formatUsd(Math.abs(totalPnl))}`
+          }
+          tone={
+            totalPnl === null
+              ? 'neutral'
+              : totalPnl >= 0
+                ? 'positive'
+                : 'negative'
+          }
+        />
       </section>
 
       <RiskSummary
@@ -108,16 +119,7 @@ function ConnectedHome() {
         positionCount={snapshot?.positions.length ?? null}
       />
 
-      <section className="mt-8 grid grid-cols-3 gap-3">
-        <NavCircle href="/funding" label="Funds" icon={<IconWallet />} />
-        <NavCircle href="/trade" label="Trade" icon={<IconTrade />} />
-        <NavCircle href="/copy" label="Copy" icon={<IconUsers />} />
-      </section>
-
-      <section className="mt-8 grid grid-cols-2 gap-3">
-        <StatCard snapshot={snapshot} kind="positions" />
-        <StatCard snapshot={snapshot} kind="margin" />
-      </section>
+      <PositionsPreview snapshot={snapshot} />
 
       <section className="mt-10">
         <MarketsBlock livePrices={livePrices} />
@@ -170,72 +172,73 @@ function DisconnectedHome() {
 }
 
 // ---------------------------------------------------------------------------
-// Action circles (Cash / Trade / Follow / Pro)
+// Portfolio-only summaries. Funding owns balances and money movement;
+// this screen owns exposure, risk, and open positions.
 // ---------------------------------------------------------------------------
 
-function NavCircle({
-  href,
+function PortfolioMetric({
   label,
-  icon,
+  value,
+  tone = 'neutral',
 }: {
-  readonly href: string;
   readonly label: string;
-  readonly icon: React.ReactNode;
+  readonly value: string;
+  readonly tone?: 'neutral' | 'positive' | 'negative';
 }) {
+  const valueTone =
+    tone === 'positive'
+      ? 'text-pnl-long'
+      : tone === 'negative'
+        ? 'text-pnl-short'
+        : 'text-fg-primary';
   return (
-    <Link href={href} className="flex justify-center">
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/15 text-accent transition-all hover:bg-accent/25 hover:scale-[1.04] active:scale-95">
-          {icon}
-        </div>
-        <span className="text-[11px] font-medium text-fg-secondary">{label}</span>
+    <div className="rounded-klub-lg border border-border-subtle bg-bg-surface p-4">
+      <div className="text-[10px] uppercase tracking-[0.1em] text-fg-muted">{label}</div>
+      <div className={`mt-2 font-mono text-[20px] font-semibold tracking-[-0.02em] ${valueTone}`}>
+        {value}
       </div>
-    </Link>
+    </div>
   );
 }
 
-function IconWallet() {
+function PositionsPreview({ snapshot }: { readonly snapshot: BulkAccountSnapshot | null }) {
+  const positions = snapshot?.positions ?? [];
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M16 12.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"
-        fill="currentColor"
-      />
-      <path d="M3 9h18" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function IconTrade() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 17l5-5 4 4 9-9m0 0v6m0-6h-6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconUsers() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 6.5a3 3 0 1 1 3 5.2M21.5 20a5 5 0 0 0-4-4.9"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <section className="mt-9">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[13px] font-medium text-fg-primary">Open positions</h2>
+        <Link href="/trade" className="text-[11px] text-accent">Trade →</Link>
+      </div>
+      <div className="mt-3 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface">
+        {snapshot === null ? (
+          <div className="px-4 py-6 text-[12px] text-fg-muted">Loading positions…</div>
+        ) : positions.length === 0 ? (
+          <div className="px-4 py-6 text-[12px] leading-relaxed text-fg-muted">
+            No open exposure. Funding and transfers live in Funding; new positions start in Trade.
+          </div>
+        ) : (
+          positions.slice(0, 4).map((position) => {
+            const pnl = position.unrealizedPnlUsd;
+            return (
+              <div key={position.symbol} className="flex items-center justify-between border-b border-border-subtle px-4 py-3 last:border-0">
+                <div>
+                  <div className="font-mono text-[13px] font-medium text-fg-primary">{position.symbol}</div>
+                  <div className="mt-1 text-[10px] text-fg-muted">
+                    {position.sizeBase >= 0 ? 'Long' : 'Short'} · {Math.abs(position.sizeBase).toFixed(4)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`font-mono text-[12px] ${pnl === null ? 'text-fg-muted' : pnl >= 0 ? 'text-pnl-long' : 'text-pnl-short'}`}>
+                    {pnl === null ? '—' : `${pnl >= 0 ? '+' : '−'}$${formatUsd(Math.abs(pnl))}`}
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-fg-muted">@ ${formatUsd(position.entryPrice)}</div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -321,38 +324,6 @@ function RiskSummary({
         View risk breakdown →
       </Link>
     </section>
-  );
-}
-
-function StatCard({
-  snapshot,
-  kind,
-}: {
-  readonly snapshot: BulkAccountSnapshot | null;
-  readonly kind: 'positions' | 'margin';
-}) {
-  let label = '';
-  let value = '—';
-
-  if (kind === 'positions') {
-    label = 'Positions';
-    if (snapshot) value = String(snapshot.positions.length);
-  } else if (kind === 'margin') {
-    label = 'Free margin';
-    if (snapshot?.freeMarginUsd !== null && snapshot?.freeMarginUsd !== undefined) {
-      value = `$${formatUsd(snapshot.freeMarginUsd)}`;
-    }
-  }
-
-  return (
-    <div className="rounded-klub-lg border border-border-subtle bg-bg-surface px-3 py-3 text-center">
-      <div className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-        {label}
-      </div>
-      <div className="mt-1.5 font-mono text-[15px] font-semibold text-fg-primary">
-        {value}
-      </div>
-    </div>
   );
 }
 
