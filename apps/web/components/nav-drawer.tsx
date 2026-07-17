@@ -33,7 +33,10 @@ import {
 const NAV_GROUPS = [
   {
     label: "Main",
-    items: PRIMARY_NAVIGATION,
+    items: [
+      ...PRIMARY_NAVIGATION,
+      { href: "/more", label: "More", description: "All KLUB products" },
+    ],
   },
   ...MORE_NAVIGATION,
   {

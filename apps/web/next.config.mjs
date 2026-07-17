@@ -25,6 +25,16 @@ const config = {
         destination: "/copy#following",
         permanent: true,
       },
+      {
+        source: "/cash",
+        destination: "/funding",
+        permanent: true,
+      },
+      {
+        source: "/ramp",
+        destination: "/funding/add",
+        permanent: true,
+      },
     ];
   },
 };
