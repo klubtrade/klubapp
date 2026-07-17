@@ -318,10 +318,10 @@ export default function QuickTradePage() {
       <div className="mx-auto w-full max-w-md px-4 pb-10 pt-20 md:px-8 md:pt-24">
         <header className="mb-4">
           <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[28px]">
-            Trade
+            Simple Trade
           </h1>
           <p className="mt-0.5 text-[12px] text-fg-muted">
-            Pick a direction, size it, ship it.
+            Choose up or down. Review the risk. Place the trade.
           </p>
         </header>
 
@@ -407,7 +407,7 @@ export default function QuickTradePage() {
 
           <div className="mt-3">
             <CollapseRow
-              label="Risk settings"
+              label="Protection"
               hint={`${leverage}× · stop ${slPct.toFixed(1)}% · target ${tpPct.toFixed(1)}%`}
               open={showAdvanced}
               onToggle={() => setShowAdvanced((value) => !value)}
@@ -456,6 +456,16 @@ export default function QuickTradePage() {
             </CollapseRow>
           </div>
 
+          <SafetyPreview
+            direction={direction}
+            marketLabel={market.label}
+            maxLossUsd={couldLose}
+            targetPnlUsd={Math.abs(wouldMake)}
+            liqMovePct={liqMovePct}
+            stopPct={slPct}
+            targetPct={tpPct}
+          />
+
           {/* Submit */}
           <button
             type="button"
@@ -476,7 +486,7 @@ export default function QuickTradePage() {
                 ? 'Connect wallet to trade'
                 : orderState.status === 'submitting'
                   ? 'Submitting…'
-                  : `${direction === 'long' ? 'Buy' : 'Sell'} ${market.label}`}
+                  : `Review ${direction === 'long' ? 'buy' : 'sell'} order`}
           </button>
 
           {/* Math + My trades — collapse rows. Click to expand inline
@@ -510,7 +520,7 @@ export default function QuickTradePage() {
               href="/pro"
               className="text-[11px] text-fg-muted transition-colors hover:text-fg-primary"
             >
-              Pro terminal →
+              Need charts or the order book? Open Pro →
             </Link>
           </div>
         </section>
@@ -596,6 +606,65 @@ function CollapseRow({
           {children}
         </div>
       )}
+    </div>
+  );
+}
+
+function SafetyPreview({
+  direction,
+  marketLabel,
+  maxLossUsd,
+  targetPnlUsd,
+  liqMovePct,
+  stopPct,
+  targetPct,
+}: {
+  readonly direction: Side;
+  readonly marketLabel: string;
+  readonly maxLossUsd: number;
+  readonly targetPnlUsd: number;
+  readonly liqMovePct: number;
+  readonly stopPct: number;
+  readonly targetPct: number;
+}) {
+  return (
+    <div className="mt-3 rounded-klub-lg border border-border-subtle bg-bg-surface/70 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
+            Safety check
+          </div>
+          <div className="mt-0.5 text-[12px] text-fg-secondary">
+            {direction === 'long' ? 'Buying' : 'Selling'} {marketLabel}
+          </div>
+        </div>
+        <div className="rounded-full border border-accent/25 bg-accent/10 px-2.5 py-1 text-[10px] text-accent">
+          Review first
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-klub border border-border-subtle bg-bg-base/40 px-2 py-2">
+          <div className="text-[10px] text-fg-muted">Max loss</div>
+          <div className="mt-0.5 font-mono text-[13px] text-pnl-short">
+            −${maxLossUsd.toFixed(0)}
+          </div>
+          <div className="mt-0.5 text-[9px] text-fg-muted">{stopPct.toFixed(1)}% stop</div>
+        </div>
+        <div className="rounded-klub border border-border-subtle bg-bg-base/40 px-2 py-2">
+          <div className="text-[10px] text-fg-muted">Target</div>
+          <div className="mt-0.5 font-mono text-[13px] text-pnl-long">
+            +${targetPnlUsd.toFixed(0)}
+          </div>
+          <div className="mt-0.5 text-[9px] text-fg-muted">{targetPct.toFixed(1)}% take</div>
+        </div>
+        <div className="rounded-klub border border-border-subtle bg-bg-base/40 px-2 py-2">
+          <div className="text-[10px] text-fg-muted">Liq. buffer</div>
+          <div className="mt-0.5 font-mono text-[13px] text-alert-orange">
+            {liqMovePct.toFixed(1)}%
+          </div>
+          <div className="mt-0.5 text-[9px] text-fg-muted">adverse move</div>
+        </div>
+      </div>
     </div>
   );
 }
