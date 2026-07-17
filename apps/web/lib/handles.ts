@@ -28,6 +28,7 @@ export interface ResolveResult {
   readonly handle: string;
   readonly pubkey: string;
   readonly fallback?: boolean;
+  readonly alreadyClaimed?: boolean;
 }
 
 /**
@@ -51,7 +52,7 @@ export interface HandleSigner {
 }
 
 export type ClaimResult =
-  | { readonly ok: true; readonly handle: string; readonly pubkey: string; readonly fallback?: boolean }
+  | { readonly ok: true; readonly handle: string; readonly pubkey: string; readonly fallback?: boolean; readonly alreadyClaimed?: boolean }
   | { readonly ok: false; readonly reason: 'invalid' | 'taken' | 'unauthorized' | 'database' | 'network'; readonly message: string };
 
 /**
@@ -107,9 +108,13 @@ export async function claimHandle(
 
   if (res.ok) {
     const r = body as ResolveResult;
-    return r.fallback
-      ? { ok: true, handle: r.handle, pubkey: r.pubkey, fallback: true }
-      : { ok: true, handle: r.handle, pubkey: r.pubkey };
+    return {
+      ok: true,
+      handle: r.handle,
+      pubkey: r.pubkey,
+      ...(r.fallback ? { fallback: true } : {}),
+      ...(r.alreadyClaimed ? { alreadyClaimed: true } : {}),
+    };
   }
 
   const errBody = body as { error?: string; message?: string } | null;

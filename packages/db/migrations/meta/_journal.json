@@ -36,6 +36,13 @@
       "when": 1784295060000,
       "tag": "0004_add_user_profiles",
       "breakpoints": false
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784310780000,
+      "tag": "0005_one_active_handle_per_pubkey",
+      "breakpoints": false
     }
   ]
 }

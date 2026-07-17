@@ -41,6 +41,8 @@ import { parseSignedTransaction } from '@klub/api-client';
 import bs58 from 'bs58';
 import nacl from 'tweetnacl';
 
+import { normalizeBulkErrorMessage } from '@/lib/bulk/error-messages';
+
 // -------------------------------------------------------------------------
 // Local signature verification — catches mobile-wallet message drift
 // -------------------------------------------------------------------------
@@ -1274,14 +1276,14 @@ function classifyError(status: number, raw: unknown): SubmitOrderResult {
 
 function extractErrorMessage(raw: unknown): string | null {
   if (raw === null || raw === undefined) return null;
-  if (typeof raw === 'string') return raw;
+  if (typeof raw === 'string') return normalizeHumanError(raw);
   if (typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   // Common key names for error strings used by Bulk, our own proxy,
   // and upstream HTTP wrappers.
   for (const key of ['error', 'message', 'detail', 'reason', 'raw', 'description']) {
     const v = r[key];
-    if (typeof v === 'string' && v.length > 0) return v;
+    if (typeof v === 'string' && v.length > 0) return normalizeHumanError(v);
   }
   // Nested result envelope — some Bulk endpoints wrap rejects in a
   // `result` object.
@@ -1290,7 +1292,7 @@ function extractErrorMessage(raw: unknown): string | null {
     const rr = result as Record<string, unknown>;
     for (const key of ['rejected', 'error', 'message', 'reason']) {
       const v = rr[key];
-      if (typeof v === 'string' && v.length > 0) return v;
+      if (typeof v === 'string' && v.length > 0) return normalizeHumanError(v);
     }
   }
   // Last-ditch: if raw is a small object, serialize it so the user
@@ -1302,4 +1304,8 @@ function extractErrorMessage(raw: unknown): string | null {
     // swallow
   }
   return null;
+}
+
+function normalizeHumanError(message: string): string {
+  return normalizeBulkErrorMessage(message);
 }

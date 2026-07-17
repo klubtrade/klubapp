@@ -49,11 +49,15 @@ export default function OnboardingPage() {
     } catch {
       // The signed server claim remains authoritative if storage is unavailable.
     }
-    toast.success(
-      result.fallback
-        ? `@${result.handle} saved while the registry is being provisioned`
-        : `@${result.handle} is yours`,
-    );
+    if (result.alreadyClaimed) {
+      toast.info(`You already have @${result.handle}`, 'Continue to the faucet step.');
+    } else {
+      toast.success(
+        result.fallback
+          ? `@${result.handle} saved while the registry is being provisioned`
+          : `@${result.handle} is yours`,
+      );
+    }
     setStep(1);
   }
 
@@ -83,7 +87,11 @@ export default function OnboardingPage() {
   async function claimFunds() {
     const result = await faucet.claim();
     if (!result.ok) {
-      toast.error(result.message);
+      if (canContinueAfterFaucetError(result.message)) {
+        toast.info('Faucet not required right now', result.message);
+      } else {
+        toast.error(result.message);
+      }
       return;
     }
     toast.success('Test USDC claimed');
@@ -126,6 +134,17 @@ export default function OnboardingPage() {
         </AnimatePresence>
       </div>
     </main>
+  );
+}
+
+function canContinueAfterFaucetError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('already') ||
+    lower.includes('recently') ||
+    lower.includes('rate') ||
+    lower.includes('temporarily unavailable') ||
+    lower.includes('try again in a few minutes')
   );
 }
 
@@ -240,26 +259,32 @@ function FundingStep({
 
       <div className="mt-auto space-y-2">
         {!success ? (
-          <button
-            type="button"
-            disabled={status === 'claiming'}
-            onClick={onClaim}
-            className="btn-primary btn-block btn-lg disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {status === 'claiming' ? 'Claiming…' : status === 'error' ? 'Try faucet again' : 'Claim test USDC'}
-          </button>
+          status === 'error' ? (
+            <>
+              <button type="button" onClick={onContinue} className="btn-primary btn-block btn-lg">
+                Continue to Funding
+              </button>
+              <button
+                type="button"
+                onClick={onClaim}
+                className="block w-full py-2 text-center text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
+              >
+                Try faucet again
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={status === 'claiming'}
+              onClick={onClaim}
+              className="btn-primary btn-block btn-lg disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {status === 'claiming' ? 'Claiming…' : 'Claim test USDC'}
+            </button>
+          )
         ) : (
           <button type="button" onClick={onContinue} className="btn-primary btn-block btn-lg">
             Continue to Funding
-          </button>
-        )}
-        {status === 'error' && (
-          <button
-            type="button"
-            onClick={onContinue}
-            className="block w-full py-2 text-center text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
-          >
-            I already funded this wallet
           </button>
         )}
       </div>

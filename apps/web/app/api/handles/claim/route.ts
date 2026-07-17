@@ -1,7 +1,7 @@
 // apps/web/app/api/handles/claim/route.ts
 import { base58Decode, verifyEd25519 } from '@klub/signing';
 import { createDbClient, handles } from '@klub/db';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -53,6 +53,7 @@ function claimWithFallback(handle: string, pubkey: string) {
       handle: result.record.handle,
       pubkey: result.record.pubkey,
       claimed: true,
+      alreadyClaimed: !result.created,
       fallback: true,
     },
     { status: result.created ? 201 : 200 },
@@ -108,6 +109,28 @@ export async function POST(request: Request) {
   }
 
   try {
+    const [existingForPubkey] = await db
+      .select()
+      .from(handles)
+      .where(and(eq(handles.pubkey, pubkey), isNull(handles.revokedAt)))
+      .limit(1);
+
+    if (existingForPubkey) {
+      return NextResponse.json(
+        {
+          handle: existingForPubkey.handle,
+          pubkey,
+          claimed: true,
+          alreadyClaimed: true,
+          message:
+            existingForPubkey.handle === handle
+              ? 'Handle already claimed by this wallet'
+              : `This wallet already has @${existingForPubkey.handle}`,
+        },
+        { status: 200 },
+      );
+    }
+
     const [existing] = await db
       .select()
       .from(handles)
@@ -117,7 +140,10 @@ export async function POST(request: Request) {
     if (existing) {
       // Idempotent re-claim by the same pubkey.
       if (existing.pubkey === pubkey && !existing.revokedAt) {
-        return NextResponse.json({ handle, pubkey, claimed: true }, { status: 200 });
+        return NextResponse.json(
+          { handle, pubkey, claimed: true, alreadyClaimed: true },
+          { status: 200 },
+        );
       }
       return NextResponse.json(
         { error: 'handle_taken', message: 'Handle already claimed' },

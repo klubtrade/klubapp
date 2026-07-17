@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
+import { normalizeFaucetErrorMessage } from '@/lib/bulk/error-messages';
 import { submitFaucetClaim, type SubmitOrderResult } from '@/lib/bulk/orders';
 import { useTradingWallet } from '@/lib/trading-wallet';
 
@@ -84,9 +85,10 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
         signer: agentSigner,
         account: targetAccount,
       });
-      if (result.ok) setState({ status: 'success', result });
-      else setState({ status: 'error', result });
-      return result;
+      const normalized = normalizeFaucetResult(result);
+      if (normalized.ok) setState({ status: 'success', result: normalized });
+      else setState({ status: 'error', result: normalized });
+      return normalized;
     }
 
     if (!wallet.signMessage) {
@@ -112,9 +114,10 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
       account: targetAccount,
     });
 
-    if (result.ok) setState({ status: 'success', result });
-    else setState({ status: 'error', result });
-    return result;
+    const normalized = normalizeFaucetResult(result);
+    if (normalized.ok) setState({ status: 'success', result: normalized });
+    else setState({ status: 'error', result: normalized });
+    return normalized;
   }, [accountOverride, agent, agentSigner, wallet]);
 
   const usingAgent =
@@ -125,4 +128,13 @@ export function useBulkFaucet(options: UseBulkFaucetOptions = {}): {
     agent.account === wallet.publicKeyBase58;
 
   return { state, claim, reset, usingAgent };
+}
+
+function normalizeFaucetResult(result: SubmitOrderResult): SubmitOrderResult {
+  if (result.ok) return result;
+
+  return {
+    ...result,
+    message: normalizeFaucetErrorMessage(result.message, result.status),
+  };
 }

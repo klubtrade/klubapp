@@ -35,6 +35,17 @@ describe('handle registry fallback', () => {
     });
   });
 
+  it('prevents one wallet from claiming multiple handles', () => {
+    claimFallbackHandle('micah', 'wallet-a');
+
+    expect(claimFallbackHandle('second_name', 'wallet-a')).toMatchObject({
+      ok: true,
+      created: false,
+      record: { handle: 'micah', pubkey: 'wallet-a' },
+    });
+    expect(getFallbackHandle('second_name')).toBeNull();
+  });
+
   it('only falls back for provisioning and connection errors', () => {
     expect(shouldUseHandleRegistryFallback({ code: '42P01' })).toBe(true);
     expect(shouldUseHandleRegistryFallback(new Error('relation "handles" does not exist'))).toBe(true);

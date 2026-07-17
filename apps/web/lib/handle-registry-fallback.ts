@@ -6,6 +6,7 @@ export interface FallbackHandleRecord {
 
 interface FallbackHandleStore {
   byHandle: Map<string, FallbackHandleRecord>;
+  byPubkey: Map<string, FallbackHandleRecord>;
 }
 
 declare global {
@@ -16,13 +17,17 @@ declare global {
 function store(): FallbackHandleStore {
   const existing = globalThis.__klubHandleFallbackStore;
   if (existing) return existing;
-  const created: FallbackHandleStore = { byHandle: new Map() };
+  const created: FallbackHandleStore = { byHandle: new Map(), byPubkey: new Map() };
   globalThis.__klubHandleFallbackStore = created;
   return created;
 }
 
 export function getFallbackHandle(handle: string): FallbackHandleRecord | null {
   return store().byHandle.get(handle) ?? null;
+}
+
+export function getFallbackHandleByPubkey(pubkey: string): FallbackHandleRecord | null {
+  return store().byPubkey.get(pubkey) ?? null;
 }
 
 export type FallbackClaimResult =
@@ -37,6 +42,11 @@ export type FallbackClaimResult =
  */
 export function claimFallbackHandle(handle: string, pubkey: string): FallbackClaimResult {
   const fallback = store();
+  const existingForPubkey = fallback.byPubkey.get(pubkey);
+  if (existingForPubkey) {
+    return { ok: true, record: existingForPubkey, created: false };
+  }
+
   const existing = fallback.byHandle.get(handle);
   if (existing) {
     if (existing.pubkey === pubkey) {
@@ -51,6 +61,7 @@ export function claimFallbackHandle(handle: string, pubkey: string): FallbackCla
     claimedAt: new Date().toISOString(),
   };
   fallback.byHandle.set(handle, record);
+  fallback.byPubkey.set(pubkey, record);
   return { ok: true, record, created: true };
 }
 
@@ -78,4 +89,5 @@ export function shouldUseHandleRegistryFallback(error: unknown): boolean {
 
 export function resetFallbackHandlesForTests(): void {
   store().byHandle.clear();
+  store().byPubkey.clear();
 }

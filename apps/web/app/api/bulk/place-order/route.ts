@@ -1,6 +1,8 @@
 import { parseSignedTransaction } from "@klub/api-client";
 import { NextResponse } from "next/server";
 
+import { normalizeBulkErrorMessage } from "@/lib/bulk/error-messages";
+
 /**
  * POST /api/bulk/place-order
  *
@@ -95,11 +97,23 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
   } else {
     try {
-      body = { raw: await upstream.text() };
+      const raw = await upstream.text();
+      body = {
+        error: upstream.ok ? "non_json_response" : "bulk_upstream_error",
+        message: normalizeBulkTextResponse(raw, upstream.status),
+      };
     } catch {
       body = null;
     }
   }
 
   return NextResponse.json(body ?? {}, { status: upstream.status });
+}
+
+function normalizeBulkTextResponse(raw: string, status: number): string {
+  const trimmed = raw.trim();
+  const normalized = normalizeBulkErrorMessage(trimmed, status);
+  if (normalized !== trimmed) return normalized;
+  if (trimmed.length === 0) return `Bulk returned HTTP ${status}`;
+  return trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed;
 }
