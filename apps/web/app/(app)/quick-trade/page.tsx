@@ -4,6 +4,7 @@ import { calculate, type Side } from '@klub/calc';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { EmptyState } from '@/components/empty-state';
 import { useBulkAccount, type BulkPosition, type BulkOpenOrder } from '@/hooks/use-bulk-account';
 import { useBulkCancel } from '@/hooks/use-bulk-cancel';
 import { useBulkOrder } from '@/hooks/use-bulk-order';
@@ -298,11 +299,12 @@ export default function QuickTradePage() {
       )}
 
       {positions.length === 0 && openOrders.length === 0 && (
-        <div className="rounded-klub border border-dashed border-border-subtle p-6 text-center text-[12px] text-fg-muted">
-          No open trades yet.
-          <br />
-          Your positions will show up here.
-        </div>
+        <EmptyState
+          title="No open trades yet"
+          description="After you place a trade, positions and waiting orders will appear here."
+          primaryCta={{ label: 'Keep trading', href: '/trade' }}
+          secondaryCta={{ label: 'Check cash', href: '/funding' }}
+        />
       )}
     </>
   );

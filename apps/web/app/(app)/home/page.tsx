@@ -4,6 +4,7 @@ import { healthScore, type HealthOutput } from '@klub/calc';
 import Link from 'next/link';
 import { useMemo } from 'react';
 
+import { EmptyState } from '@/components/empty-state';
 import { useBulkAccount, type BulkAccountSnapshot } from '@/hooks/use-bulk-account';
 import { useConnectionState } from '@/hooks/use-connection-state';
 import { useRiskSurfacesRest } from '@/hooks/use-risk-surfaces-rest';
@@ -212,8 +213,13 @@ function PositionsPreview({ snapshot }: { readonly snapshot: BulkAccountSnapshot
         {snapshot === null ? (
           <div className="px-4 py-6 text-[12px] text-fg-muted">Loading positions…</div>
         ) : positions.length === 0 ? (
-          <div className="px-4 py-6 text-[12px] leading-relaxed text-fg-muted">
-            No open exposure. Funding and transfers live in Funding; new positions start in Trade.
+          <div className="p-4">
+            <EmptyState
+              title="No open exposure"
+              description="Your positions and unrealized PnL will appear here after your first trade."
+              primaryCta={{ label: 'Open Simple Trade', href: '/trade' }}
+              secondaryCta={{ label: 'Add funds', href: '/funding' }}
+            />
           </div>
         ) : (
           positions.slice(0, 4).map((position) => {
