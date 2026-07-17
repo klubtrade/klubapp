@@ -333,6 +333,60 @@ export const copyFollows = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// worker runtime state
+// ---------------------------------------------------------------------------
+
+export const workerHeartbeats = pgTable("worker_heartbeats", {
+  workerName: varchar("worker_name", { length: 64 }).primaryKey(),
+  instanceId: varchar("instance_id", { length: 128 }).notNull(),
+  status: varchar("status", { length: 16 })
+    .$type<"starting" | "ok" | "degraded" | "error">()
+    .default("starting")
+    .notNull(),
+  activeCopyFollows: integer("active_copy_follows").default(0).notNull(),
+  lastError: text("last_error"),
+  startedAt: timestamp("started_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  heartbeatAt: timestamp("heartbeat_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const copyFollowSnapshots = pgTable(
+  "copy_follow_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sourceFollowId: uuid("source_follow_id")
+      .notNull()
+      .references(() => copyFollows.id, { onDelete: "cascade" }),
+    followerPubkey: varchar("follower_pubkey", { length: 128 }).notNull(),
+    leaderPubkey: varchar("leader_pubkey", { length: 128 }).notNull(),
+    label: varchar("label", { length: 64 }),
+    allocationPct: integer("allocation_pct").notNull(),
+    status: varchar("status", { length: 16 })
+      .$type<"active" | "paused">()
+      .default("active")
+      .notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    sourceIdx: uniqueIndex("copy_follow_snapshots_source_idx").on(
+      t.sourceFollowId,
+    ),
+    followerIdx: index("copy_follow_snapshots_follower_idx").on(
+      t.followerPubkey,
+    ),
+    leaderIdx: index("copy_follow_snapshots_leader_idx").on(t.leaderPubkey),
+  }),
+);
+
+// ---------------------------------------------------------------------------
 // alerts
 // ---------------------------------------------------------------------------
 

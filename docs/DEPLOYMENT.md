@@ -81,9 +81,9 @@ pnpm --filter @klub/worker dev
 
 **Migrations fail with "permission denied"** — the Postgres user in docker-compose is `klub`, not `postgres`. Check `DATABASE_URL` in your `.env.local`.
 
-**Worker exits immediately with "Missing required env"** — worker needs `DATABASE_URL` and `REDIS_URL`. Pass via `.env.local` or export them inline:
+**Worker exits immediately with "Missing required env"** — worker needs `DATABASE_URL`. `REDIS_URL` is optional until queue-based alerts/copy execution are enabled. Pass env via `.env.local` or export it inline:
 ```bash
-DATABASE_URL=... REDIS_URL=... pnpm --filter @klub/worker dev
+DATABASE_URL=... pnpm --filter @klub/worker dev
 ```
 
 ---
@@ -167,7 +167,7 @@ Current migrations include durable onboarding/profile state and one active handl
 
 ### 2.5 Worker — Railway
 
-The worker now runs **three** services in one process: alerts queue consumer, copy-trade queue consumer, and the **account-stream subscriber** that opens a Bulk WebSocket per active user.
+The worker runs the Postgres-backed copy-follow scanner with only `DATABASE_URL`. When `REDIS_URL` is present, it also starts the alerts queue consumer, copy-trade queue consumer, and account-stream subscriber.
 
 1. Sign up at [railway.app](https://railway.app).
 2. **New Project → Deploy from GitHub repo** → select `klub`.
@@ -180,8 +180,8 @@ The worker now runs **three** services in one process: alerts queue consumer, co
    | Name | Notes |
    |---|---|
    | `DATABASE_URL` | Railway Postgres URL |
-   | `REDIS_URL` | Railway Redis or Upstash URL |
-   | `BULK_WS_URL` | `wss://exchange-ws1.bulk.trade` — **required for real alerts** |
+   | `REDIS_URL` | Optional until queues are active; Railway Redis or Upstash URL |
+   | `BULK_WS_URL` | `wss://exchange-ws1.bulk.trade` — required for real alerts once Redis queues are active |
    | `RESEND_API_KEY` | For email alerts |
    | `TELEGRAM_BOT_TOKEN` | From @BotFather |
    | `AGENT_WALLET_KMS_KEY_ARN` | AWS KMS key ARN (see §2.7) |
@@ -193,11 +193,10 @@ The worker now runs **three** services in one process: alerts queue consumer, co
 6. **Critical:** verify in the Railway logs that you see:
    ```
    [klub-worker] boot
-   [account-sub] ws state = connecting
-   [account-sub] ws state = open
-   [klub-worker] live · N account streams, alerts + copy-trade queues ready
+   [copy-follow-scanner] indexed N follows
+   [klub-worker] live · copy-follow scanner ready
    ```
-   If the WS state never reaches `open`, check `BULK_WS_URL` and Bulk's integrator docs.
+   If `REDIS_URL` is configured, you should also see account-stream and queue logs. If the WS state never reaches `open`, check `BULK_WS_URL` and Bulk's integrator docs.
 
 ### 2.6 Domain + SSL — Cloudflare
 

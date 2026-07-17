@@ -1,11 +1,14 @@
 // apps/worker/src/index.ts
 /* eslint-disable no-console */
 
+import { randomUUID } from "node:crypto";
+
 import { createDbClient } from "@klub/db";
 import { Redis } from "ioredis";
 
 import { startAccountSubscriber } from "./workers/account-subscriber.js";
 import { createAlertsWorker } from "./workers/alerts-worker.js";
+import { startCopyFollowScanner } from "./workers/copy-follow-scanner.js";
 import { createCopyTradeWorker } from "./workers/copy-trade-worker.js";
 
 /**
@@ -33,29 +36,43 @@ function env(name: string): string {
 }
 
 async function main() {
-  console.log("[klub-worker] boot");
-
-  const redis = new Redis(env("REDIS_URL"), {
-    maxRetriesPerRequest: null, // required by BullMQ
-  });
+  const instanceId = `${process.env["RAILWAY_SERVICE_ID"] ?? "local"}:${randomUUID()}`;
+  console.log(`[klub-worker] boot · ${instanceId}`);
 
   const db = createDbClient({
     connectionString: env("DATABASE_URL"),
     maxConnections: 5,
   });
 
-  // Boot order matters: subscriber depends on Postgres + Redis;
-  // queue workers depend on Redis only.
-  const accountSubscriber = await startAccountSubscriber({ db, redis });
-  const alertsWorker = createAlertsWorker({ redis, db });
-  const copyTradeWorker = createCopyTradeWorker({ redis, db });
+  const copyFollowScanner = startCopyFollowScanner({ db, instanceId });
+  const redisUrl = process.env["REDIS_URL"];
+  const redis = redisUrl
+    ? new Redis(redisUrl, {
+        maxRetriesPerRequest: null, // required by BullMQ
+      })
+    : null;
+
+  const accountSubscriber = redis
+    ? await startAccountSubscriber({ db, redis })
+    : null;
+  const alertsWorker = redis ? createAlertsWorker({ redis, db }) : null;
+  const copyTradeWorker = redis ? createCopyTradeWorker({ redis, db }) : null;
+
+  if (!redis) {
+    console.warn(
+      "[klub-worker] REDIS_URL is not set; queue-based alerts and copy execution are disabled. DB scanner is live.",
+    );
+  }
 
   async function shutdown(signal: string) {
     console.log(`[klub-worker] received ${signal}, shutting down`);
-    // Stop subscriber first — no new jobs after this
-    await accountSubscriber.close();
-    await Promise.allSettled([alertsWorker.close(), copyTradeWorker.close()]);
-    await redis.quit();
+    copyFollowScanner.close();
+    await accountSubscriber?.close();
+    await Promise.allSettled([
+      alertsWorker?.close(),
+      copyTradeWorker?.close(),
+    ]);
+    await redis?.quit();
     process.exit(0);
   }
 
@@ -70,7 +87,7 @@ async function main() {
   });
 
   console.log(
-    `[klub-worker] live · ${accountSubscriber.size()} account streams, alerts + copy-trade queues ready`,
+    `[klub-worker] live · copy-follow scanner ready · ${accountSubscriber?.size() ?? 0} account streams · queues ${redis ? "ready" : "disabled"}`,
   );
 }
 

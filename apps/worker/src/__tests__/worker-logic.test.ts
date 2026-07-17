@@ -11,6 +11,7 @@ import {
   signPreparedWithAgentSecret,
 } from "../signing/keychain-adapter.js";
 import { composeAlertMessage, tierCrossed } from "../workers/alerts-worker.js";
+import { summarizeCopyFollowRows } from "../workers/copy-follow-scanner.js";
 import { computeMirroredSize } from "../workers/copy-trade-worker.js";
 
 const alert = {
@@ -44,6 +45,24 @@ describe("worker risk helpers", () => {
         maxAllocationPct: 20,
       }),
     ).toBeCloseTo(0.02);
+  });
+
+  it("summarizes active DB copy follows for worker health", () => {
+    const summary = summarizeCopyFollowRows(
+      [
+        { followerPubkey: "follower-1", leaderPubkey: "leader-1" },
+        { followerPubkey: "follower-1", leaderPubkey: "leader-2" },
+        { followerPubkey: "follower-2", leaderPubkey: "leader-1" },
+      ],
+      new Date("2026-07-17T00:00:00.000Z"),
+    );
+
+    expect(summary).toEqual({
+      activeFollows: 3,
+      uniqueFollowers: 2,
+      uniqueLeaders: 2,
+      indexedAt: "2026-07-17T00:00:00.000Z",
+    });
   });
 
   it("fails closed while the canonical execution gateway is unavailable", async () => {
