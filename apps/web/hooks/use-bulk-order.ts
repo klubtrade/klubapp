@@ -12,7 +12,7 @@ import { useTradingWallet } from '@/lib/trading-wallet';
  *
  * Responsibilities:
  *
- *   - Reads `publicKey` and `signMessage` from `@solana/wallet-adapter-react`.
+ *   - Reads the canonical Solana wallet and signer from Privy.
  *   - If an agent wallet is authorized for the current user, signs
  *     locally with the agent key (no wallet popup).
  *   - Otherwise adapts the wallet into `BulkWalletSigner` shape and

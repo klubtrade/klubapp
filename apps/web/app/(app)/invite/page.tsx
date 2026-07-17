@@ -1,10 +1,10 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useEffect, useState } from 'react';
 
 import { useToast } from '@/components/toast';
 import { resolveHandle } from '@/lib/handles';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * /invite — share your invite link.
@@ -26,9 +26,10 @@ import { resolveHandle } from '@/lib/handles';
  */
 
 export default function InvitePage() {
-  const { publicKey, connected } = useWallet();
+  const wallet = useTradingWallet();
   const toast = useToast();
-  const pubkey = connected && publicKey ? publicKey.toBase58() : null;
+  const connected = wallet.connected;
+  const pubkey = connected ? wallet.publicKeyBase58 : null;
 
   const [handle, setHandle] = useState<string | null>(null);
   const [loadingHandle, setLoadingHandle] = useState(false);

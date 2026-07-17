@@ -1,6 +1,5 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import {
   createContext,
   useCallback,
@@ -22,6 +21,7 @@ import {
   removeFollow as storeRemoveFollow,
   setLastKnownPositions as storeSetLastKnownPositions,
 } from '@/lib/copy-trade/store';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * CopyTradeProvider — runs the live engine and exposes signals.
@@ -74,8 +74,8 @@ interface CopyTradeContextValue {
 const Ctx = createContext<CopyTradeContextValue | null>(null);
 
 export function CopyTradeProvider({ children }: { readonly children: ReactNode }) {
-  const wallet = useWallet();
-  const followerPubkey = wallet.publicKey?.toBase58() ?? null;
+  const wallet = useTradingWallet();
+  const followerPubkey = wallet.publicKeyBase58;
 
   const [follows, setFollows] = useState<readonly Follow[]>([]);
   const [pendingMirrors, setPendingMirrors] = useState<readonly MirrorSignal[]>([]);

@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 
 import { useCopyTrade } from '@/components/copy-trade-provider';
 import { useToast } from '@/components/toast';
 import { RISK_PRESETS, useUserPrefs } from '@/lib/user-prefs';
 import type { MockLeader } from '@/lib/mock-data/leaders';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * LeaderDetails — client UI for the leader profile page.
@@ -29,7 +29,7 @@ import type { MockLeader } from '@/lib/mock-data/leaders';
  */
 
 export function LeaderDetails({ leader }: { readonly leader: MockLeader }) {
-  const wallet = useWallet();
+  const wallet = useTradingWallet();
   const toast = useToast();
   const { prefs } = useUserPrefs();
   const preset = RISK_PRESETS[prefs.riskProfile];
