@@ -113,7 +113,7 @@ function ConnectedHome() {
 
       <section className="mt-10 grid grid-cols-5 gap-2">
         <NavCircle href="/cash" label="Cash" icon={<IconWallet />} />
-        <NavCircle href="/quick-trade" label="Trade" icon={<IconTrade />} />
+        <NavCircle href="/trade" label="Trade" icon={<IconTrade />} />
         <NavCircle href="/follow" label="Follow" icon={<IconUsers />} />
         <NavCircle href="/earn" label="Earn" icon={<IconEarn />} />
         <NavCircle href="/pro" label="Pro" icon={<IconTerminal />} />

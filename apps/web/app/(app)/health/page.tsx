@@ -75,7 +75,7 @@ export default function HealthPage() {
   // Auto-refresh the account snapshot every 10 seconds so health
   // reflects newly opened/closed positions without a manual reload.
   // `useBulkAccount` doesn't poll aggressively on its own — callers
-  // like /quick-trade invoke `refresh()` after explicit actions, but
+  // like /trade invoke `refresh()` after explicit actions, but
   // /health only receives the snapshot passively, so it stales out
   // when the user trades from another page (or tab).
   useEffect(() => {
@@ -261,7 +261,7 @@ export default function HealthPage() {
           <EmptyState
             title="No positions yet"
             body="Your health score tracks liquidation risk, leverage, concentration, and funding burn across your open positions. Open a trade to get started — or run a hypothetical through the calculator first."
-            ctaHref="/quick-trade"
+            ctaHref="/trade"
             ctaLabel="Open a trade"
             secondaryHref="/calculator"
             secondaryLabel="Try the calculator"

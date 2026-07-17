@@ -16,7 +16,7 @@ import type { MirrorSignal } from '@/lib/copy-trade/engine';
  * avalanche if a leader opens several trades at once.
  *
  * [Mirror] places a market order on the follower's account via the
- * standard `useBulkOrder` flow — the same path /quick-trade and
+ * standard `useBulkOrder` flow — the same path /trade and
  * /trade use. Success or failure is surfaced inline on the card
  * rather than in a global toast so the user has context about which
  * mirror it refers to.

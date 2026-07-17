@@ -23,7 +23,7 @@ import type { SubmitOrderResult } from '@/lib/bulk/orders';
  *
  * The one place in KLUB where terminal aesthetics are the brief, not
  * the anti-reference. Desktop-only by design — mobile gate redirects
- * to /quick-trade.
+ * to /trade.
  *
  * Six panels in a persistent 4-column grid:
  *   1. Watchlist  — canonical 10 markets, real mark + 24h chg
@@ -121,8 +121,8 @@ export default function ProPage() {
             Pro is a terminal. On mobile, Quick Trade is better — simpler, safer, same markets.
           </p>
           <div className="mt-6 flex flex-col items-center gap-2">
-            <Link href="/quick-trade" className="btn-primary btn-compact">
-              Open Quick Trade
+            <Link href="/trade" className="btn-primary btn-compact">
+              Open Trade
             </Link>
             <Link href="/home" className="text-[13px] text-fg-muted transition-colors hover:text-fg-primary">
               Back to home
@@ -1127,7 +1127,7 @@ function CommandPalette({
           run: () => onSymbol(m.symbol),
         };
       }),
-      { id: 'nav-quick', label: 'Open Quick Trade', hint: '/quick-trade', run: () => { window.location.href = '/quick-trade'; } },
+      { id: 'nav-quick', label: 'Open Trade', hint: '/trade', run: () => { window.location.href = '/trade'; } },
       { id: 'nav-home', label: 'Go to Home', hint: '/home', run: () => { window.location.href = '/home'; } },
       { id: 'nav-follow', label: 'Browse leaders', hint: '/follow', run: () => { window.location.href = '/follow'; } },
       { id: 'nav-health', label: 'Account health', hint: '/health', run: () => { window.location.href = '/health'; } },

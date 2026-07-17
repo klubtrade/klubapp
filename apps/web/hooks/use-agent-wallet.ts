@@ -79,7 +79,7 @@ export function useAgentWallet(): UseAgentWalletResult {
   // Reload from storage whenever the user switches wallets, or when
   // localStorage for this user's key changes (from another tab, or
   // from our own authorize/revoke). Without the storage-event
-  // listener, an agent authorized on /quick-trade would not be
+  // listener, an agent authorized on /trade would not be
   // visible to a /trade page already mounted in another tab.
   useEffect(() => {
     if (!mainPubkey) {
