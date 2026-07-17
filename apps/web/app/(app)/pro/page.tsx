@@ -132,24 +132,29 @@ export default function ProPage() {
       </div>
 
       {/* Desktop terminal */}
-      <main className="hidden min-h-screen xl:block">
+      <main className="hidden min-h-screen bg-bg-base xl:block">
         <ProHeader symbol={symbol} mark={mark} onOpenPalette={() => setShowPalette(true)} />
+        <ProMarketStrip
+          symbol={symbol}
+          onSelect={setSymbol}
+          livePrices={livePrices}
+        />
 
-        <div className="grid h-[calc(100vh-56px-56px)] grid-cols-[220px_minmax(0,1fr)_340px] gap-px bg-border-subtle">
+        <div className="grid h-[calc(100vh-56px-56px-64px)] grid-cols-[240px_minmax(0,1fr)_360px] gap-3 p-3">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}
             livePrices={livePrices}
           />
 
-          <div className="grid min-w-0 grid-rows-[minmax(360px,1.35fr)_minmax(220px,0.85fr)] gap-px bg-border-subtle">
+          <div className="grid min-w-0 grid-rows-[minmax(360px,1.35fr)_minmax(220px,0.85fr)] gap-3">
             <PanelChart
               symbol={symbol}
               interval={interval}
               onInterval={setInterval}
               mark={mark}
             />
-            <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(240px,0.65fr)] gap-px bg-border-subtle">
+            <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)] gap-3">
               <PanelPositions
                 positions={accountState.data?.positions ?? []}
                 openOrders={accountState.data?.openOrders ?? []}
@@ -162,7 +167,7 @@ export default function ProPage() {
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-rows-[minmax(390px,1.2fr)_minmax(260px,0.8fr)] gap-px bg-border-subtle">
+          <div className="grid min-w-0 grid-rows-[minmax(390px,1.2fr)_minmax(260px,0.8fr)] gap-3">
             <PanelOrderForm
               symbol={symbol}
               mark={mark}
@@ -215,27 +220,78 @@ function ProHeader({
   // wallet, when connected, renders as ~250-300px of pills via
   // WalletButton). px-6 / md:pr-[20rem] does that.
   return (
-    <header className="flex h-14 items-center justify-between gap-4 border-b border-border-subtle bg-bg-base pl-6 pr-72 md:pr-[20rem]">
-      <div className="flex min-w-0 items-center gap-3 font-mono text-[13px] text-fg-muted">
-        <span className="text-[11px] font-medium uppercase tracking-[0.12em]">
-          Pro
-        </span>
-        <span className="text-fg-primary">{symbol}</span>
-        {mark > 0 && (
-          <span className="text-accent">${formatPrice(mark)}</span>
-        )}
+    <header className="flex h-14 items-center justify-between gap-4 border-b border-white/[0.06] bg-bg-base/90 pl-6 pr-72 backdrop-blur md:pr-[20rem]">
+      <div className="flex min-w-0 items-center gap-4">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+            Klub Pro
+          </div>
+          <div className="mt-0.5 flex items-baseline gap-2 font-mono">
+            <span className="text-[14px] text-fg-primary">{symbol}</span>
+            {mark > 0 && (
+              <span className="text-[13px] text-fg-muted">${formatPrice(mark)}</span>
+            )}
+          </div>
+        </div>
       </div>
       <button
         type="button"
         onClick={onOpenPalette}
-        className="flex shrink-0 items-center gap-2 rounded-klub border border-border-subtle bg-bg-surface px-3 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-border hover:text-fg-primary"
+        className="flex shrink-0 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3.5 py-1.5 text-[12px] text-fg-muted transition-colors hover:border-white/15 hover:bg-white/[0.07] hover:text-fg-primary"
       >
-        <span>Search or run command</span>
-        <kbd className="rounded border border-border-subtle bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px]">
+        <span>Search markets</span>
+        <kbd className="rounded-full border border-white/[0.08] bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px]">
           ⌘K
         </kbd>
       </button>
     </header>
+  );
+}
+
+function ProMarketStrip({
+  symbol,
+  onSelect,
+  livePrices,
+}: {
+  readonly symbol: string;
+  readonly onSelect: (s: string) => void;
+  readonly livePrices: Record<string, LivePrice | undefined>;
+}) {
+  return (
+    <div className="grid h-16 grid-cols-5 gap-2 border-b border-white/[0.04] bg-bg-base px-3 py-2">
+      {MARKETS.slice(0, 5).map((market) => {
+        const live = livePrices[market.symbol];
+        const mark = live?.mark ?? market.seedPrice;
+        const change = live?.change24hPct;
+        const active = market.symbol === symbol;
+        const tone =
+          change === undefined ? 'text-fg-muted' : change >= 0 ? 'text-pnl-long' : 'text-pnl-short';
+        return (
+          <button
+            key={market.symbol}
+            type="button"
+            onClick={() => onSelect(market.symbol)}
+            className={`rounded-xl border px-3 text-left transition-colors ${
+              active
+                ? 'border-accent/50 bg-accent/10'
+                : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]'
+            }`}
+          >
+            <div className="flex items-baseline justify-between gap-3 font-mono">
+              <span className={active ? 'text-[12px] text-accent' : 'text-[12px] text-fg-primary'}>
+                {market.label}
+              </span>
+              <span className={`text-[11px] ${tone}`}>
+                {change === undefined ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`}
+              </span>
+            </div>
+            <div className="mt-1 font-mono text-[13px] text-fg-secondary">
+              ${formatPrice(mark)}
+            </div>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -256,7 +312,7 @@ function ProStatusBar({
     equity !== null && free !== null ? Math.max(equity - free, 0) : null;
 
   return (
-    <footer className="flex h-14 items-center justify-between border-t border-border-subtle bg-bg-base px-4 font-mono text-[11px] text-fg-muted">
+    <footer className="flex h-14 items-center justify-between border-t border-white/[0.06] bg-bg-base px-4 font-mono text-[11px] text-fg-muted">
       <div className="flex items-center gap-6">
         {isReconnecting ? (
           <span className="flex items-center gap-2 text-alert-orange">
@@ -308,7 +364,7 @@ function PanelWatchlist({
   readonly livePrices: Record<string, LivePrice | undefined>;
 }) {
   return (
-    <section className="flex flex-col overflow-hidden bg-bg-base">
+    <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>Watchlist</PanelHead>
       <div className="flex-1 overflow-auto">
         {MARKETS.map((m) => {
@@ -372,7 +428,7 @@ function PanelChart({
   const c = last ? Number(last.c) : mark;
 
   return (
-    <section className="flex flex-col overflow-hidden bg-bg-base">
+    <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>
         <div className="flex items-center justify-between">
           <span>Chart · {symbol}</span>
@@ -420,7 +476,7 @@ function PanelOrderbook({ symbol, mark }: { readonly symbol: string; readonly ma
   const errorMsg = state.status === 'error' ? state.error : null;
 
   return (
-    <section className="flex flex-col overflow-hidden bg-bg-base">
+    <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>
         <div className="flex items-center justify-between">
           <span>Order book</span>
@@ -552,7 +608,7 @@ function PanelTape({ symbol }: { readonly symbol: string }) {
   const now = Date.now();
 
   return (
-    <section className="flex flex-col overflow-hidden bg-bg-base">
+    <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>Tape · {baseLabelFor(symbol)}</PanelHead>
       <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-border-subtle px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
         <span>Price</span>
@@ -611,7 +667,7 @@ function PanelPositions({
   readonly onResult: (r: SubmitOrderResult) => void;
 }) {
   return (
-    <section className="flex flex-col overflow-hidden bg-bg-base">
+    <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>
         Positions · {positions.length} · Orders · {openOrders.length}
       </PanelHead>
@@ -860,7 +916,7 @@ function PanelOrderForm({
       : `${side === 'long' ? 'Buy' : 'Sell'} ${baseLabelFor(symbol)} · ${type}`;
 
   return (
-    <section className="flex flex-col overflow-hidden bg-bg-base">
+    <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>
         <div className="flex items-center justify-between">
           <span>Order · {symbol}</span>
@@ -1091,7 +1147,7 @@ function ProField({
 
 function PanelHead({ children }: { readonly children: React.ReactNode }) {
   return (
-    <div className="border-b border-border-subtle bg-bg-base px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
+    <div className="border-b border-white/[0.05] bg-white/[0.018] px-3.5 py-2.5 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-muted">
       {children}
     </div>
   );

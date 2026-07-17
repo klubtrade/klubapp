@@ -19,7 +19,7 @@ export interface PrepareOptions {
 
 export interface PreparedBulkTransaction {
   readonly messageBytes: Uint8Array;
-  readonly actions: string | readonly unknown[];
+  readonly actions: string | readonly unknown[] | ReadonlyMap<unknown, unknown>;
   readonly nonce: number;
   readonly account: Pubkey;
   readonly signer: Pubkey;
@@ -52,7 +52,7 @@ export interface BulkKeychainAdapter {
     prepared: PreparedBulkTransaction,
     signature: string,
   ): Omit<SignedBulkTransaction, "actions"> & {
-    readonly actions: string | readonly unknown[];
+    readonly actions: string | readonly unknown[] | ReadonlyMap<unknown, unknown>;
   };
 }
 
@@ -133,7 +133,7 @@ export class BulkExchangeGateway {
 
 export function normalizeSignedTransaction(
   signed: Omit<SignedBulkTransaction, "actions"> & {
-    readonly actions: string | readonly unknown[];
+    readonly actions: string | readonly unknown[] | ReadonlyMap<unknown, unknown>;
   },
 ): SignedBulkTransaction {
   const rawActions =
@@ -143,7 +143,7 @@ export function normalizeSignedTransaction(
   if (!Array.isArray(rawActions)) {
     throw new Error("Bulk keychain actions must be an array");
   }
-  const actions: readonly unknown[] = rawActions;
+  const actions = rawActions.map(normalizeActionValue);
   if (actions.length === 0) {
     throw new Error("Bulk transaction must contain at least one action");
   }
@@ -175,7 +175,10 @@ export function parseSignedTransaction(value: unknown): SignedBulkTransaction {
     throw new Error("Bulk transaction cryptographic fields are invalid");
   }
   return normalizeSignedTransaction({
-    actions: transaction["actions"] as string | readonly unknown[],
+    actions: transaction["actions"] as
+      | string
+      | readonly unknown[]
+      | ReadonlyMap<unknown, unknown>,
     nonce: transaction["nonce"],
     account: transaction["account"],
     signer: transaction["signer"],
@@ -194,4 +197,27 @@ function parseActions(value: string): readonly unknown[] {
     throw new Error("Bulk keychain actions must be a JSON array");
   }
   return parsed;
+}
+
+function normalizeActionValue(value: unknown): unknown {
+  if (value instanceof Map) {
+    return Object.fromEntries(
+      [...value.entries()].map(([key, entry]) => [
+        String(key),
+        normalizeActionValue(entry),
+      ]),
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeActionValue);
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        normalizeActionValue(entry),
+      ]),
+    );
+  }
+  return value;
 }

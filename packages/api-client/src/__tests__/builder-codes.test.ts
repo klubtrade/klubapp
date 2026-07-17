@@ -173,6 +173,43 @@ describe("BulkExchangeGateway", () => {
     ).toThrow(/JSON array/);
   });
 
+  it("normalizes wasm Map actions before JSON transport", () => {
+    const normalized = normalizeSignedTransaction({
+      actions: [
+        new Map([
+          [
+            "st",
+            new Map([
+              ["c", "BTC-USD"],
+              ["d", false],
+              ["sz", 0.01],
+              ["tr", 90000],
+              ["lim", null],
+              ["i", false],
+            ]),
+          ],
+        ]),
+      ],
+      nonce: 1,
+      account: ACCOUNT,
+      signer: ACCOUNT,
+      signature: "signed",
+    });
+
+    expect(normalized.actions).toEqual([
+      {
+        st: {
+          c: "BTC-USD",
+          d: false,
+          sz: 0.01,
+          tr: 90000,
+          lim: null,
+          i: false,
+        },
+      },
+    ]);
+  });
+
   it("parses only complete canonical transaction envelopes", () => {
     expect(
       parseSignedTransaction({
