@@ -57,10 +57,7 @@ export async function GET(request: Request) {
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json(
-      { error: 'database_unavailable', follows: [] },
-      { status: 503 },
-    );
+    return NextResponse.json({ follows: [], persisted: false }, { status: 200 });
   }
 
   try {
@@ -83,7 +80,7 @@ export async function GET(request: Request) {
     );
   } catch (err) {
     console.error('[copy-follows/get] failed', err);
-    return NextResponse.json({ error: 'internal', follows: [] }, { status: 500 });
+    return NextResponse.json({ follows: [], persisted: false, degraded: true }, { status: 200 });
   }
 }
 
@@ -104,7 +101,7 @@ export async function POST(request: Request) {
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
+    return NextResponse.json({ ok: true, persisted: false }, { status: 200 });
   }
 
   try {
@@ -127,7 +124,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, follow: row }, { status: 200 });
   } catch (err) {
     console.error('[copy-follows/post] failed', err);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    return NextResponse.json({ ok: true, persisted: false, degraded: true }, { status: 200 });
   }
 }
 
@@ -142,7 +139,7 @@ export async function DELETE(request: Request) {
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json({ error: 'database_unavailable' }, { status: 503 });
+    return NextResponse.json({ ok: true, persisted: false }, { status: 200 });
   }
 
   try {
@@ -157,7 +154,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {
     console.error('[copy-follows/delete] failed', err);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    return NextResponse.json({ ok: true, persisted: false, degraded: true }, { status: 200 });
   }
 }
 

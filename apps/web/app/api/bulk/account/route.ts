@@ -71,7 +71,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
   }
 
-  if (upstream.status >= 500) {
+  if (!upstream.ok) {
     return NextResponse.json(
       unavailableAccount(payload.user, extractUpstreamDetail(body) ?? `Bulk HTTP ${upstream.status}`),
       { status: 200, headers: { 'Cache-Control': 'no-store' } },

@@ -64,10 +64,7 @@ export async function GET(request: Request) {
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json(
-      { error: 'database_unavailable', message: 'Profile database is not configured' },
-      { status: 503 },
-    );
+    return NextResponse.json({ ...serializeProfile(null, pubkey), persisted: false }, { status: 200 });
   }
 
   try {
@@ -80,7 +77,15 @@ export async function GET(request: Request) {
     return NextResponse.json(serializeProfile(row ?? null, pubkey), { status: 200 });
   } catch (err) {
     console.error('[profile/get] failed', err);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    return NextResponse.json(
+      {
+        ...serializeProfile(null, pubkey),
+        persisted: false,
+        degraded: true,
+        message: 'Profile sync is temporarily unavailable.',
+      },
+      { status: 200 },
+    );
   }
 }
 
@@ -125,8 +130,8 @@ export async function PATCH(request: Request) {
   const db = getDb();
   if (!db) {
     return NextResponse.json(
-      { error: 'database_unavailable', message: 'Profile database is not configured' },
-      { status: 503 },
+      serializeProfileFromUpdate(pubkey, update),
+      { status: 200 },
     );
   }
 
@@ -158,6 +163,27 @@ export async function PATCH(request: Request) {
     return NextResponse.json(serializeProfile(row ?? null, pubkey), { status: 200 });
   } catch (err) {
     console.error('[profile/patch] failed', err);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    return NextResponse.json(
+      {
+        ...serializeProfileFromUpdate(pubkey, update),
+        degraded: true,
+        message: 'Profile sync is temporarily unavailable. Local preferences remain active.',
+      },
+      { status: 200 },
+    );
   }
+}
+
+function serializeProfileFromUpdate(pubkey: string, update: ProfilePrefsUpdate) {
+  return {
+    pubkey,
+    handle: update.handle ?? null,
+    prefs: {
+      ...DEFAULT_PREFS,
+      ...update,
+      onboardingWallet: update.onboardingComplete ? pubkey : null,
+    },
+    persisted: false,
+    updatedAt: null,
+  };
 }

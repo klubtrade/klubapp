@@ -2,6 +2,8 @@ import { createDbClient, handles } from '@klub/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
+import { getFallbackHandleByPubkey } from '@/lib/handle-registry-fallback';
+
 export const runtime = 'nodejs';
 
 const PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,128}$/;
@@ -23,10 +25,7 @@ export async function GET(
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json(
-      { error: 'database_unavailable', message: 'Handle database is not configured' },
-      { status: 503 },
-    );
+    return fallbackResponse(pubkey);
   }
 
   try {
@@ -40,6 +39,15 @@ export async function GET(
     return NextResponse.json(row, { status: 200 });
   } catch (err) {
     console.error('[handles/by-pubkey] failed', err);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    return fallbackResponse(pubkey);
   }
+}
+
+function fallbackResponse(pubkey: string) {
+  const row = getFallbackHandleByPubkey(pubkey);
+  if (!row) return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  return NextResponse.json(
+    { handle: row.handle, pubkey: row.pubkey, fallback: true },
+    { status: 200 },
+  );
 }

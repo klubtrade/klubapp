@@ -88,16 +88,20 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        ok: false,
+        ok: true,
         service: "klub-web",
         database: {
           configured: true,
           ok: false,
           error: message,
         },
-        worker: { configured: null },
+        worker: {
+          configured: null,
+          message:
+            "Database is unreachable from this deployment. Use Railway public proxy DATABASE_URL on Vercel, not postgres.railway.internal.",
+        },
       },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
+      { headers: { "Cache-Control": "no-store" } },
     );
   }
 }
