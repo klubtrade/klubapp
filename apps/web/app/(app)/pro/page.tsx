@@ -19,11 +19,11 @@ import type { SubmitOrderResult } from '@/lib/bulk/orders';
 import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
- * /pro — KLUB Pro. Bloomberg-style trading terminal.
+ * /pro — KLUB Pro. Advanced trading terminal.
  *
- * The one place in KLUB where terminal aesthetics are the brief, not
- * the anti-reference. Desktop-only by design — mobile gate redirects
- * to /trade.
+ * This is intentionally not the default retail flow. /trade is the
+ * primary path for most users; Pro is for people who want chart,
+ * book, tape, positions, and order entry on one desktop screen.
  *
  * Six panels in a persistent 4-column grid:
  *   1. Watchlist  — canonical 10 markets, real mark + 24h chg
@@ -118,7 +118,7 @@ export default function ProPage() {
             Best on a real screen.
           </h1>
           <p className="mt-3 text-[14px] leading-relaxed text-fg-secondary">
-            Pro is a terminal. On mobile, Quick Trade is better — simpler, safer, same markets.
+            Pro is advanced. On mobile, Simple Trade is better — clearer, safer, same markets.
           </p>
           <div className="mt-6 flex flex-col items-center gap-2">
             <Link href="/trade" className="btn-primary btn-compact">
@@ -131,7 +131,7 @@ export default function ProPage() {
         </div>
       </div>
 
-      {/* Desktop terminal */}
+      {/* Desktop advanced terminal */}
       <main className="hidden min-h-screen bg-bg-base xl:block">
         <ProHeader symbol={symbol} mark={mark} onOpenPalette={() => setShowPalette(true)} />
         <ProMarketStrip
@@ -217,14 +217,13 @@ function ProHeader({
   // The desktop sidebar handles left-side clearance via the
   // (app)/layout.tsx `md:pl-20` wrapper, so this header only needs to
   // reserve room on the right for the layout-shell wallet pill (the
-  // wallet, when connected, renders as ~250-300px of pills via
   // WalletButton). px-6 / md:pr-[20rem] does that.
   return (
     <header className="flex h-14 items-center justify-between gap-4 border-b border-white/[0.06] bg-bg-base/90 pl-6 pr-72 backdrop-blur md:pr-[20rem]">
       <div className="flex min-w-0 items-center gap-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-            Klub Pro
+            Advanced · Klub Pro
           </div>
           <div className="mt-0.5 flex items-baseline gap-2 font-mono">
             <span className="text-[14px] text-fg-primary">{symbol}</span>
@@ -924,6 +923,11 @@ function PanelOrderForm({
         </div>
       </PanelHead>
       <div className="flex-1 space-y-3 overflow-auto p-4">
+        <div className="rounded-klub border border-accent/20 bg-accent/5 p-3 text-[11px] leading-relaxed text-fg-secondary">
+          Advanced order entry. If you only need a safer guided flow,
+          use <Link href="/trade" className="text-accent hover:text-accent-strong">Simple Trade</Link>.
+        </div>
+
         <div className="grid grid-cols-2 overflow-hidden rounded-klub border border-border">
           <button
             onClick={() => setSide('long')}
