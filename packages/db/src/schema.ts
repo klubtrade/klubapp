@@ -301,6 +301,37 @@ export const follows = pgTable(
   }),
 );
 
+/**
+ * Wallet-scoped copy-follow preferences used by the web app before
+ * the Railway worker owns execution. This is intentionally keyed by
+ * Bulk/Solana pubkeys instead of `users.id` because Privy onboarding
+ * is wallet-first and does not require email.
+ */
+export const copyFollows = pgTable(
+  "copy_follows",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    followerPubkey: varchar("follower_pubkey", { length: 128 }).notNull(),
+    leaderPubkey: varchar("leader_pubkey", { length: 128 }).notNull(),
+    label: varchar("label", { length: 64 }),
+    allocationPct: integer("allocation_pct").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    followerIdx: index("copy_follows_follower_idx").on(t.followerPubkey),
+    leaderIdx: index("copy_follows_leader_idx").on(t.leaderPubkey),
+    followerLeaderUnique: uniqueIndex("copy_follows_follower_leader_idx").on(
+      t.followerPubkey,
+      t.leaderPubkey,
+    ),
+  }),
+);
+
 // ---------------------------------------------------------------------------
 // alerts
 // ---------------------------------------------------------------------------

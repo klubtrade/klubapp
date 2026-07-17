@@ -8,9 +8,15 @@ import {
   claimHandle,
   isValidHandle,
   normalizeHandle,
-  resolveHandle,
+  resolveHandleByPubkey,
 } from '@/lib/handles';
-import { RISK_PRESETS, useUserPrefs, type RiskProfile } from '@/lib/user-prefs';
+import {
+  persistUserProfile,
+  RISK_PRESETS,
+  useUserPrefs,
+  type ProfilePrefsUpdate,
+  type RiskProfile,
+} from '@/lib/user-prefs';
 import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
@@ -23,14 +29,30 @@ import { useTradingWallet } from '@/lib/trading-wallet';
 export default function SettingsPage() {
   const { prefs, setPrefs, ready } = useUserPrefs();
   const toast = useToast();
+  const wallet = useTradingWallet();
+
+  async function persist(update: ProfilePrefsUpdate) {
+    if (!wallet.publicKeyBase58 || !wallet.signMessage) return;
+    const saved = await persistUserProfile({
+      pubkey: wallet.publicKeyBase58,
+      signMessage: wallet.signMessage,
+      update,
+    });
+    if (!saved.ok) {
+      toast.info('Saved locally', 'Profile sync will retry when the database is reachable.');
+    }
+  }
 
   function setRisk(r: RiskProfile) {
     setPrefs({ riskProfile: r });
+    void persist({ riskProfile: r });
     toast.success('Risk profile updated');
   }
 
   function toggleAlerts() {
-    setPrefs({ alertsEnabled: !prefs.alertsEnabled });
+    const next = !prefs.alertsEnabled;
+    setPrefs({ alertsEnabled: next });
+    void persist({ alertsEnabled: next });
   }
 
   function clearLocalData() {
@@ -177,10 +199,7 @@ function Label({ children }: { readonly children: React.ReactNode }) {
 
 /**
  * Handle card. On mount, looks up "what handle does my pubkey already
- * own?" via a reverse lookup. Since we don't have a /api/handles/by-pubkey
- * route yet, we instead store the claimed handle in localStorage and
- * verify against the API on demand. Good enough for v1; a proper reverse
- * index (or index on `pubkey`) lets us drop the localStorage cache later.
+ * own?" through the DB-backed reverse lookup.
  */
 function HandleCard() {
   const wallet = useTradingWallet();
@@ -193,27 +212,18 @@ function HandleCard() {
   const [submitting, setSubmitting] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
-  // Hydrate the claimed handle from localStorage, then verify with the
-  // server (the local cache may be stale if the user revoked from
-  // another device).
   useEffect(() => {
     if (!pubkey) {
       setClaimed(null);
       return;
     }
-    const cached = window.localStorage.getItem(`klub.handle.${pubkey}`);
-    if (!cached) return;
-    setClaimed(cached);
     setVerifying(true);
-    void resolveHandle(cached)
+    void resolveHandleByPubkey(pubkey)
       .then((res) => {
-        if (!res || res.pubkey !== pubkey) {
-          window.localStorage.removeItem(`klub.handle.${pubkey}`);
-          setClaimed(null);
-        }
+        setClaimed(res?.handle ?? null);
       })
       .catch(() => {
-        // Network error — keep cache; user can retry on next mount
+        setClaimed(null);
       })
       .finally(() => setVerifying(false));
   }, [pubkey]);
@@ -239,9 +249,13 @@ function HandleCard() {
       toast.error(result.message);
       return;
     }
-    window.localStorage.setItem(`klub.handle.${pubkey}`, result.handle);
     setClaimed(result.handle);
     setDraft('');
+    void persistUserProfile({
+      pubkey,
+      signMessage,
+      update: { handle: result.handle },
+    });
     toast.success(`Claimed @${result.handle}`);
   }
 

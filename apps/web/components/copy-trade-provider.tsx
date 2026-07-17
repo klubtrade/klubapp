@@ -1,5 +1,6 @@
 'use client';
 
+import bs58 from 'bs58';
 import {
   createContext,
   useCallback,
@@ -55,7 +56,7 @@ interface CopyTradeContextValue {
     readonly leaderPubkey: string;
     readonly label?: string;
     readonly allocationPct: number;
-  }) => void;
+  }) => Promise<void>;
   readonly unfollow: (leaderPubkey: string) => void;
   readonly dismissMirror: (id: string) => void;
   /**
@@ -82,7 +83,27 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
 
   // Load follows when pubkey becomes available or changes.
   useEffect(() => {
-    setFollows(storeListFollows(followerPubkey));
+    const local = storeListFollows(followerPubkey);
+    setFollows(local);
+
+    if (!followerPubkey) return undefined;
+    let cancelled = false;
+    void loadServerFollows(followerPubkey)
+      .then((server) => {
+        if (cancelled) return;
+        if (server === null) return;
+        const merged = mergeServerFollows(local, server);
+        setFollows(merged);
+        for (const follow of merged) {
+          storeAddFollow(followerPubkey, follow);
+        }
+      })
+      .catch(() => {
+        // Local follows remain usable if DB is temporarily unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [followerPubkey]);
 
   const emitSignals = useCallback((sigs: readonly MirrorSignal[]) => {
@@ -98,7 +119,7 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
   }, []);
 
   const follow = useCallback(
-    (input: {
+    async (input: {
       readonly leaderPubkey: string;
       readonly label?: string;
       readonly allocationPct: number;
@@ -117,8 +138,16 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
       };
       const next = storeAddFollow(followerPubkey, record);
       setFollows(next);
+      if (wallet.signMessage) {
+        void persistServerFollow({
+          action: 'follow',
+          followerPubkey,
+          follow: record,
+          signMessage: wallet.signMessage,
+        });
+      }
     },
-    [followerPubkey],
+    [followerPubkey, wallet.signMessage],
   );
 
   const unfollow = useCallback(
@@ -126,10 +155,24 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
       if (!followerPubkey) return;
       const next = storeRemoveFollow(followerPubkey, leaderPubkey);
       setFollows(next);
+      if (wallet.signMessage) {
+        void persistServerFollow({
+          action: 'unfollow',
+          followerPubkey,
+          follow: {
+            leaderPubkey,
+            allocationPct: 20,
+            createdAt: Date.now(),
+            baselineSymbols: [],
+            mirroredSymbols: [],
+          },
+          signMessage: wallet.signMessage,
+        });
+      }
       // Drop any pending mirrors from this leader.
       setPendingMirrors((prev) => prev.filter((s) => s.leaderPubkey !== leaderPubkey));
     },
-    [followerPubkey],
+    [followerPubkey, wallet.signMessage],
   );
 
   const dismissMirror = useCallback(
@@ -231,6 +274,72 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
       {children}
     </Ctx.Provider>
   );
+}
+
+async function loadServerFollows(followerPubkey: string): Promise<readonly Follow[] | null> {
+  const res = await fetch(`/api/copy-follows?followerPubkey=${encodeURIComponent(followerPubkey)}`);
+  if (!res.ok) return null;
+  const body = (await res.json()) as { follows?: readonly Follow[] };
+  return body.follows ?? [];
+}
+
+function mergeServerFollows(
+  local: readonly Follow[],
+  server: readonly Follow[],
+): readonly Follow[] {
+  const localByLeader = new Map(local.map((follow) => [follow.leaderPubkey, follow]));
+  return server.map((follow) => {
+    const existing = localByLeader.get(follow.leaderPubkey);
+    return existing
+      ? {
+          ...follow,
+          baselineSymbols: existing.baselineSymbols,
+          mirroredSymbols: existing.mirroredSymbols,
+          ...(existing.lastKnownPositions ? { lastKnownPositions: existing.lastKnownPositions } : {}),
+          ...(existing.mirrorPositions ? { mirrorPositions: existing.mirrorPositions } : {}),
+        }
+      : follow;
+  });
+}
+
+async function persistServerFollow(input: {
+  readonly action: 'follow' | 'unfollow';
+  readonly followerPubkey: string;
+  readonly follow: Follow;
+  readonly signMessage: (bytes: Uint8Array) => Promise<Uint8Array>;
+}): Promise<void> {
+  const messageInput =
+    input.action === 'follow'
+      ? {
+          action: 'follow' as const,
+          followerPubkey: input.followerPubkey,
+          leaderPubkey: input.follow.leaderPubkey,
+          allocationPct: input.follow.allocationPct,
+          ...(input.follow.label ? { label: input.follow.label } : {}),
+        }
+      : {
+          action: 'unfollow' as const,
+          followerPubkey: input.followerPubkey,
+          leaderPubkey: input.follow.leaderPubkey,
+        };
+  const signature = await input.signMessage(
+    new TextEncoder().encode(`klub:copy-follow:${JSON.stringify(messageInput)}`),
+  );
+  await fetch('/api/copy-follows', {
+    method: input.action === 'follow' ? 'POST' : 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      followerPubkey: input.followerPubkey,
+      leaderPubkey: input.follow.leaderPubkey,
+      signature: bs58.encode(signature),
+      ...(input.action === 'follow'
+        ? {
+            allocationPct: input.follow.allocationPct,
+            ...(input.follow.label ? { label: input.follow.label } : {}),
+          }
+        : {}),
+    }),
+  }).catch(() => undefined);
 }
 
 /**

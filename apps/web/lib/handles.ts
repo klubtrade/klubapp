@@ -46,6 +46,16 @@ export async function resolveHandle(handle: string): Promise<ResolveResult | nul
   return (await res.json()) as ResolveResult;
 }
 
+export async function resolveHandleByPubkey(pubkey: string): Promise<ResolveResult | null> {
+  const res = await fetch(`/api/handles/by-pubkey/${encodeURIComponent(pubkey)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(text || `handle lookup failed (${res.status})`);
+  }
+  return (await res.json()) as ResolveResult;
+}
+
 export interface HandleSigner {
   readonly publicKeyBase58: string;
   readonly signMessage: (bytes: Uint8Array) => Promise<Uint8Array>;

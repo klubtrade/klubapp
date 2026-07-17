@@ -1,4 +1,5 @@
 // apps/web/app/api/waitlist/route.ts
+import { createDbClient, waitlist } from '@klub/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -11,8 +12,8 @@ const WaitlistSchema = z.object({
 /**
  * POST /api/waitlist — capture a waitlist signup.
  *
- * Phase 1: validates and logs. Wire Resend + Postgres in Phase 2 by
- * swapping the body of `persist()` below.
+ * Captures signups durably in Railway Postgres when DATABASE_URL is
+ * configured. Resend audience sync remains optional.
  */
 export async function POST(request: Request) {
   let payload: unknown;
@@ -46,9 +47,19 @@ export async function POST(request: Request) {
 }
 
 async function persist(entry: z.infer<typeof WaitlistSchema>): Promise<void> {
-  // TODO(phase-2): replace with Resend + Postgres insert.
-  //   const { RESEND_API_KEY, WAITLIST_AUDIENCE_ID } = process.env;
-  //   await fetch('https://api.resend.com/audiences/.../contacts', ...)
-  //   await db.insert(waitlist).values({ email, source, referrer, ts: new Date() })
-  console.info('[waitlist]', JSON.stringify(entry));
+  const url = process.env['DATABASE_URL'];
+  if (!url) {
+    console.info('[waitlist:no-db]', JSON.stringify(entry));
+    return;
+  }
+  const db = createDbClient({ connectionString: url, maxConnections: 3 });
+  const email = entry.email.trim().toLowerCase();
+  const source = (entry.source ?? entry.referrer ?? 'landing').slice(0, 32);
+  await db
+    .insert(waitlist)
+    .values({ email, source })
+    .onConflictDoUpdate({
+      target: waitlist.email,
+      set: { source },
+    });
 }
