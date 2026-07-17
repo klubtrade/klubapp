@@ -454,7 +454,7 @@ function FaucetRow({ onClaimSuccess }: { readonly onClaimSuccess: () => void }) 
  * with a subtle Revoke action.
  */
 function AgentWalletRow({ onOpenPrompt }: { readonly onOpenPrompt: () => void }) {
-  const { agent, pending, revoke } = useAgentWallet();
+  const { agent, pending, revoke, creationEnabled } = useAgentWallet();
   const [confirming, setConfirming] = useState(false);
 
   async function handleRevoke() {
@@ -470,15 +470,19 @@ function AgentWalletRow({ onOpenPrompt }: { readonly onOpenPrompt: () => void })
             <div className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">
               Fast trading
             </div>
-            <div className="mt-0.5 text-[11px] text-fg-secondary">Off</div>
+            <div className="mt-0.5 text-[11px] text-fg-secondary">
+              {creationEnabled ? 'Off' : 'Secure wallet signing'}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onOpenPrompt}
-            className="text-[12px] text-accent transition-opacity hover:opacity-80"
-          >
-            Enable
-          </button>
+          {creationEnabled && (
+            <button
+              type="button"
+              onClick={onOpenPrompt}
+              className="text-[12px] text-accent transition-opacity hover:opacity-80"
+            >
+              Enable
+            </button>
+          )}
         </div>
       </div>
     );

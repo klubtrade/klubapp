@@ -9,6 +9,7 @@ import {
   generateAgentKeypair,
   loadStoredAgent,
   saveStoredAgent,
+  stripStoredAgentSecret,
   type StoredAgentWallet,
 } from '@/lib/bulk/agent-wallet';
 import { submitAgentWalletAuth, type SubmitOrderResult } from '@/lib/bulk/orders';
@@ -29,6 +30,8 @@ import { submitAgentWalletAuth, type SubmitOrderResult } from '@/lib/bulk/orders
  */
 
 export interface UseAgentWalletResult {
+  /** New local private-key agents are opt-in for disposable testnet builds only. */
+  readonly creationEnabled: boolean;
   /**
    * The currently authorized agent for the connected user, or null
    * if none exists or no wallet is connected.
@@ -75,6 +78,8 @@ export function useAgentWallet(): UseAgentWalletResult {
   const [agent, setAgent] = useState<StoredAgentWallet | null>(null);
   const [pending, setPending] = useState(false);
   const [lastResult, setLastResult] = useState<SubmitOrderResult | null>(null);
+  const creationEnabled =
+    process.env['NEXT_PUBLIC_ENABLE_LEGACY_AGENT_WALLETS'] === 'true';
 
   // Reload from storage whenever the user switches wallets, or when
   // localStorage for this user's key changes (from another tab, or
@@ -89,7 +94,14 @@ export function useAgentWallet(): UseAgentWalletResult {
     const key = `klub.agentWallet.${mainPubkey}`;
 
     // Initial read.
-    setAgent(loadStoredAgent(mainPubkey));
+    const stored = loadStoredAgent(mainPubkey);
+    if (stored?.secretKeyBase64 && !creationEnabled) {
+      const safeMetadata = stripStoredAgentSecret(stored);
+      saveStoredAgent(safeMetadata);
+      setAgent(safeMetadata);
+    } else {
+      setAgent(stored);
+    }
 
     // Cross-tab sync: fires when localStorage is mutated in ANY tab
     // except the one doing the mutation. Chrome/Safari/Firefox all
@@ -97,7 +109,14 @@ export function useAgentWallet(): UseAgentWalletResult {
     function onStorage(e: StorageEvent) {
       if (e.key !== key && e.key !== null) return;
       // e.key === null means localStorage.clear() — always re-read.
-      setAgent(loadStoredAgent(mainPubkey!));
+      const next = loadStoredAgent(mainPubkey!);
+      if (next?.secretKeyBase64 && !creationEnabled) {
+        const safeMetadata = stripStoredAgentSecret(next);
+        saveStoredAgent(safeMetadata);
+        setAgent(safeMetadata);
+      } else {
+        setAgent(next);
+      }
     }
     window.addEventListener('storage', onStorage);
 
@@ -106,7 +125,14 @@ export function useAgentWallet(): UseAgentWalletResult {
     // the window from saveStoredAgent/clearStoredAgent (see below)
     // so components in the same tab stay in sync too.
     function onLocal() {
-      setAgent(loadStoredAgent(mainPubkey!));
+      const next = loadStoredAgent(mainPubkey!);
+      if (next?.secretKeyBase64 && !creationEnabled) {
+        const safeMetadata = stripStoredAgentSecret(next);
+        saveStoredAgent(safeMetadata);
+        setAgent(safeMetadata);
+      } else {
+        setAgent(next);
+      }
     }
     window.addEventListener('klub:agentWalletChanged', onLocal);
 
@@ -114,9 +140,18 @@ export function useAgentWallet(): UseAgentWalletResult {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('klub:agentWalletChanged', onLocal);
     };
-  }, [mainPubkey]);
+  }, [creationEnabled, mainPubkey]);
 
   const authorize = useCallback(async (): Promise<SubmitOrderResult> => {
+    if (!creationEnabled) {
+      const failure: SubmitOrderResult = {
+        ok: false,
+        reason: 'rejected_invalid',
+        message: 'Browser-stored agent keys are disabled. Use Privy or approve this order directly.',
+      };
+      setLastResult(failure);
+      return failure;
+    }
     if (!connected || !mainPubkey || !signMessage) {
       const failure: SubmitOrderResult = {
         ok: false,
@@ -173,7 +208,7 @@ export function useAgentWallet(): UseAgentWalletResult {
     } finally {
       setPending(false);
     }
-  }, [connected, mainPubkey, signMessage]);
+  }, [connected, creationEnabled, mainPubkey, signMessage]);
 
   const revoke = useCallback(async (): Promise<SubmitOrderResult> => {
     if (!connected || !mainPubkey || !signMessage) {
@@ -218,5 +253,13 @@ export function useAgentWallet(): UseAgentWalletResult {
 
   const agentSigner = agent ? agentSignerFromStored(agent) : null;
 
-  return { agent, pending, lastResult, authorize, revoke, agentSigner };
+  return {
+    agent,
+    pending,
+    lastResult,
+    authorize,
+    revoke,
+    agentSigner,
+    creationEnabled,
+  };
 }
