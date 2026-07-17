@@ -225,26 +225,24 @@ export interface LimitOrder {
 }
 
 /**
- * Trigger order — Bulk's stop-loss / take-profit order type. Resting
- * server-side; fires as a market when `triggerPx` is crossed in the
- * direction `tpsl` implies.
+ * Bulk's native conditional-order input. `isBuy` is unfortunately the
+ * keychain name for trigger direction here (`true` = above, `false` =
+ * below); conditional orders are reduce-only on the exchange.
  *
- * Wire shape (Hyperliquid-inherited; the keychain emits the canonical
- * form via prepared.actions, we don't hand-roll it).
+ * The legacy Hyperliquid-style `{ type: "order", orderType: { type:
+ * "trigger" } }` input serializes as the unsupported `t` action. The
+ * v0.1.19 inputs below serialize as `st` and `tp`, respectively.
  */
 export interface TriggerOrder {
-  readonly type: 'order';
+  readonly type: 'stop' | 'takeProfit';
   readonly symbol: string;
+  /** Trigger direction: true = at/above, false = at/below. */
   readonly isBuy: boolean;
-  readonly price: 0;
   readonly size: number;
-  readonly orderType: {
-    readonly type: 'trigger';
-    readonly isMarket: true;
-    readonly triggerPx: number;
-    readonly tpsl: 'tp' | 'sl';
-  };
-  readonly reduceOnly?: boolean;
+  readonly triggerPrice: number;
+  /** Omitted for a market-on-trigger conditional order. */
+  readonly limitPrice?: number;
+  readonly iso: boolean;
 }
 
 export interface MarketOrder {
@@ -505,19 +503,17 @@ function buildTriggerOrder(i: SubmitOrderInput): TriggerOrder {
   if (i.tpSl !== 'tp' && i.tpSl !== 'sl') {
     throw new Error('Trigger orders require tpSl: "tp" | "sl"');
   }
+  // `side` remains the execution/close side exposed by submitOrder.
+  // Bulk conditionals do not encode an execution side; instead, their
+  // `isBuy` field is the direction in which the trigger is crossed.
+  const triggerAbove = i.tpSl === 'tp' ? i.side === 'short' : i.side === 'long';
   return {
-    type: 'order',
+    type: i.tpSl === 'sl' ? 'stop' : 'takeProfit',
     symbol: i.symbol,
-    isBuy: i.side === 'long',
-    price: 0,
+    isBuy: triggerAbove,
     size: i.size,
-    orderType: {
-      type: 'trigger',
-      isMarket: true,
-      triggerPx: i.triggerPrice,
-      tpsl: i.tpSl,
-    },
-    ...(i.reduceOnly !== undefined ? { reduceOnly: i.reduceOnly } : {}),
+    triggerPrice: i.triggerPrice,
+    iso: false,
   };
 }
 

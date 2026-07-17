@@ -161,6 +161,41 @@ describe("Bulk native keychain adapter", () => {
     });
   });
 
+  it("serializes supported stop-loss and take-profit action variants", () => {
+    const keychain = createNodeKeychainAdapter();
+    const stop = keychain.prepareOrder(
+      {
+        type: "stop",
+        symbol: "BTC-USD",
+        isBuy: false,
+        size: 0.1,
+        triggerPrice: 98_000,
+        iso: false,
+      },
+      { account, nonce: 46 },
+    );
+    const takeProfit = keychain.prepareOrder(
+      {
+        type: "takeProfit",
+        symbol: "BTC-USD",
+        isBuy: true,
+        size: 0.1,
+        triggerPrice: 102_000,
+        iso: false,
+      },
+      { account, nonce: 47 },
+    );
+
+    const stopActions = JSON.parse(String(stop.actions));
+    const takeProfitActions = JSON.parse(String(takeProfit.actions));
+    expect(stopActions[0]).toHaveProperty("st");
+    expect(stopActions[0]).not.toHaveProperty("t");
+    expect(stopActions[0].st.d).toBe(false);
+    expect(takeProfitActions[0]).toHaveProperty("tp");
+    expect(takeProfitActions[0]).not.toHaveProperty("t");
+    expect(takeProfitActions[0].tp.d).toBe(true);
+  });
+
   it("signs prepared bytes only for the expected agent key", () => {
     const secretKey = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
     const expectedPublicKey = getNativeAgentPublicKey(secretKey);

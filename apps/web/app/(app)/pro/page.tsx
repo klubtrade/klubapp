@@ -818,7 +818,7 @@ function PanelOrderForm({
     const r = await submit(req);
     onResult(r);
 
-    // Bracket legs — fire reduce-only TP + SL after the main fills.
+    // Bracket legs — fire native TP + SL conditionals after the main fills.
     // Failures don't unwind the main; user gets a separate result for
     // each leg via the same modal pipe.
     if (!r.ok) return;
@@ -827,10 +827,10 @@ function PanelOrderForm({
       const tp = await submit({
         symbol,
         side: closeSide,
-        orderType: 'limit',
+        orderType: 'trigger',
         size,
-        price: tpPrice,
-        timeInForce: 'GTC',
+        triggerPrice: tpPrice,
+        tpSl: 'tp',
         reduceOnly: true,
       });
       if (!tp.ok) onResult(tp);
