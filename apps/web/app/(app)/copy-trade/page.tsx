@@ -8,7 +8,8 @@ import { useCopyTrade } from "@/components/copy-trade-provider";
 import { useWalletGate } from "@/hooks/use-wallet-gate";
 
 /**
- * /copy-trade — MVP copy-trading control panel.
+ * Legacy copy-trading control panel. `/copy-trade` redirects to the
+ * unified `/copy` center; this module remains temporarily for rollback.
  *
  * Simple by design (Day 4):
  *   - Form at the top: paste a leader's Bulk pubkey, set allocation
@@ -17,9 +18,7 @@ import { useWalletGate } from "@/hooks/use-wallet-gate";
  *   - A banner (mounted globally in the layout) surfaces mirror
  *     signals as the leader opens new trades.
  *
- * No leaderboard, no filtering, no profile pages. That lives at
- * `/follow` and is currently mock-data driven; Day 5+ will integrate
- * the two surfaces.
+ * New work belongs in `/copy`.
  *
  * Follows persist in localStorage keyed by the follower's wallet
  * pubkey. A Day-5 swap replaces this with DB-backed state.
@@ -108,7 +107,7 @@ export default function CopyTradePage() {
             Mirror another trader&apos;s positions at your own allocation.
           </p>
           <Link
-            href="/follow"
+            href="/copy"
             className="mt-3 inline-flex items-center gap-1 text-[13px] text-accent transition-colors hover:opacity-80"
           >
             Or browse the leaderboard →

@@ -1129,7 +1129,7 @@ function CommandPalette({
       }),
       { id: 'nav-quick', label: 'Open Trade', hint: '/trade', run: () => { window.location.href = '/trade'; } },
       { id: 'nav-home', label: 'Go to Portfolio', hint: '/portfolio', run: () => { window.location.href = '/portfolio'; } },
-      { id: 'nav-follow', label: 'Browse leaders', hint: '/follow', run: () => { window.location.href = '/follow'; } },
+      { id: 'nav-follow', label: 'Browse leaders', hint: '/copy', run: () => { window.location.href = '/copy'; } },
       { id: 'nav-health', label: 'Account health', hint: '/health', run: () => { window.location.href = '/health'; } },
       { id: 'nav-ramp', label: 'Add funds', hint: '/ramp', run: () => { window.location.href = '/ramp'; } },
     ],

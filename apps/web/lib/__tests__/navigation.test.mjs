@@ -18,6 +18,7 @@ describe("navigation", () => {
   it("marks canonical routes, nested routes, and legacy aliases active", () => {
     const portfolio = PRIMARY_NAVIGATION[0];
     const trade = PRIMARY_NAVIGATION[1];
+    const copy = PRIMARY_NAVIGATION[2];
     expect(isNavigationItemActive("/portfolio", portfolio)).toBe(true);
     expect(isNavigationItemActive("/home", portfolio)).toBe(true);
     expect(isNavigationItemActive("/health", portfolio)).toBe(true);
@@ -27,6 +28,9 @@ describe("navigation", () => {
     expect(isNavigationItemActive("/quick-trade", trade)).toBe(true);
     expect(isNavigationItemActive("/pro", trade)).toBe(false);
     expect(isNavigationItemActive("/trader", trade)).toBe(false);
+    expect(isNavigationItemActive("/copy", copy)).toBe(true);
+    expect(isNavigationItemActive("/follow/alpha", copy)).toBe(true);
+    expect(isNavigationItemActive("/copy-trade", copy)).toBe(true);
   });
 
   it("recognizes secondary routes without treating them as primary", () => {

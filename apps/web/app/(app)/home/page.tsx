@@ -127,7 +127,7 @@ function ConnectedHome() {
       <section className="mt-8 grid grid-cols-3 gap-3">
         <NavCircle href="/cash" label="Cash" icon={<IconWallet />} />
         <NavCircle href="/trade" label="Trade" icon={<IconTrade />} />
-        <NavCircle href="/follow" label="Copy" icon={<IconUsers />} />
+        <NavCircle href="/copy" label="Copy" icon={<IconUsers />} />
       </section>
 
       <section className="mt-8 grid grid-cols-2 gap-3">
@@ -170,7 +170,7 @@ function DisconnectedHome() {
             Connect wallet
           </button>
           <Link
-            href="/follow"
+            href="/copy"
             className="block text-center text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
           >
             Browse leaders without connecting →

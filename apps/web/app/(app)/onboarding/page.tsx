@@ -28,7 +28,7 @@ export default function OnboardingPage() {
     setPrefs({ riskProfile: profile, onboardingComplete: true });
     toast.success('Welcome to the klub');
     const route =
-      action === 'trade' ? '/trade' : action === 'follow' ? '/follow' : '/practice';
+      action === 'trade' ? '/trade' : action === 'follow' ? '/copy' : '/practice';
     router.push(route);
   }
 
