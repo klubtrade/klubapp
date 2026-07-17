@@ -1,17 +1,23 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { WalletButton } from '@/components/wallet-button';
+import { WalletButton } from "@/components/wallet-button";
+import {
+  isNavigationItemActive,
+  MORE_NAVIGATION,
+  PRIMARY_NAVIGATION,
+  type NavigationGroup,
+} from "@/lib/navigation";
 
 /**
  * <NavDrawer />
  *
  * One menu button (three horizontal bars) in the top-left of every
  * in-app page. Taps open a sliding panel with every navigable page
- * grouped minimally: Trade · Earn · More.
+ * grouped using the same route model as the desktop sidebar.
  *
  * Same component, same interaction, web and mobile. No separate
  * bottom nav, no dropdown, no breadcrumbs — one place for navigation.
@@ -24,46 +30,17 @@ import { WalletButton } from '@/components/wallet-button';
  *   - Menu button fixed position; top-left; always clickable
  */
 
-const NAV_GROUPS: readonly {
-  readonly label: string;
-  readonly items: readonly { readonly href: string; readonly label: string }[];
-}[] = [
+const NAV_GROUPS = [
   {
-    label: 'Account',
-    items: [
-      { href: '/home', label: 'Home' },
-      { href: '/cash', label: 'Cash' },
-    ],
+    label: "Main",
+    items: PRIMARY_NAVIGATION,
   },
+  ...MORE_NAVIGATION,
   {
-    label: 'Trade',
-    items: [
-      { href: '/quick-trade', label: 'Trade' },
-      { href: '/follow', label: 'Follow leaders' },
-      { href: '/copy-trade', label: 'Copy trade' },
-      { href: '/health', label: 'Portfolio health' },
-      { href: '/pro', label: 'Pro terminal' },
-    ],
+    label: "Account",
+    items: [{ href: "/settings", label: "Settings" }],
   },
-  {
-    label: 'Earn',
-    items: [
-      { href: '/basis', label: 'Basis vault' },
-      { href: '/desk', label: 'Funding desk' },
-    ],
-  },
-  {
-    label: 'More',
-    items: [
-      { href: '/calculator', label: 'The Math' },
-      { href: '/practice', label: 'Practice' },
-      { href: '/ramp', label: 'Add funds' },
-      { href: '/invite', label: 'Invite friends' },
-      { href: '/onboarding', label: 'Onboarding' },
-      { href: '/settings', label: 'Settings' },
-    ],
-  },
-];
+] satisfies readonly NavigationGroup[];
 
 export function NavDrawer() {
   const [open, setOpen] = useState(false);
@@ -78,11 +55,11 @@ export function NavDrawer() {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === "Escape") setOpen(false);
     }
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
@@ -90,7 +67,7 @@ export function NavDrawer() {
   useEffect(() => {
     if (open) {
       const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
       return () => {
         document.body.style.overflow = prev;
       };
@@ -165,9 +142,9 @@ export function NavDrawer() {
           its own GPU layer so the slide-in animates smoothly without
           repainting the parent. */}
       <aside
-        style={{ willChange: 'transform' }}
+        style={{ willChange: "transform" }}
         className={`fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[360px] flex-col border-r border-border-subtle bg-bg-base transition-transform duration-300 ease-out ${
-          open ? 'translate-x-0' : '-translate-x-full'
+          open ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-hidden={!open}
       >
@@ -195,18 +172,32 @@ export function NavDrawer() {
               </div>
               <ul className="space-y-1">
                 {g.items.map((item) => {
-                  const active = pathname === item.href;
+                  const active = isNavigationItemActive(pathname, item);
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
                         className={`block rounded-md px-3 py-2.5 text-[16px] transition-colors ${
                           active
-                            ? 'bg-bg-surface text-accent'
-                            : 'text-fg-primary hover:bg-bg-surface hover:text-fg-primary'
+                            ? "bg-bg-surface text-accent"
+                            : "text-fg-primary hover:bg-bg-surface hover:text-fg-primary"
                         }`}
                       >
-                        {item.label}
+                        <span className="flex items-center justify-between gap-3">
+                          <span>
+                            <span className="block">{item.label}</span>
+                            {item.description && (
+                              <span className="mt-0.5 block text-[11px] text-fg-muted">
+                                {item.description}
+                              </span>
+                            )}
+                          </span>
+                          {item.badge && (
+                            <span className="text-[9px] uppercase tracking-[0.08em] text-fg-muted">
+                              {item.badge}
+                            </span>
+                          )}
+                        </span>
                       </Link>
                     </li>
                   );

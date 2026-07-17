@@ -14,8 +14,8 @@ import { ActiveAccountProvider } from '@/hooks/use-active-account';
  *
  * Chrome:
  *   - Desktop (md+): persistent <Sidebar /> on the left (fixed,
- *     w-20 = 80px, full-height) with brand + Home/Cash/Trade/Follow/Pro +
- *     More popover + Settings cog. Page content is wrapped in
+ *     w-20 = 80px, full-height) with Portfolio/Trade/Copy + More +
+ *     Settings. Page content is wrapped in
  *     `md:pl-20` so it sits to the right of the rail.
  *   - Mobile (< md): hamburger drawer top-left (NavDrawer) +
  *     wallet pill top-right. The Sidebar is `hidden md:flex` so

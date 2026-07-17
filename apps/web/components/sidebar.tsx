@@ -1,8 +1,16 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+
+import {
+  isMoreNavigationActive,
+  isNavigationItemActive,
+  MORE_NAVIGATION,
+  PRIMARY_NAVIGATION,
+  type NavigationIcon,
+} from "@/lib/navigation";
 
 /**
  * Persistent left-rail navigation for desktop.
@@ -15,57 +23,17 @@ import { useEffect, useRef, useState } from 'react';
  *
  *   ┌──┐
  *   │● │  ← brand
- *   │⌂ │  ← Home
- *   │$ │  ← Cash
+ *   │⌂ │  ← Portfolio
  *   │↗ │  ← Trade
- *   │👥│  ← Follow
- *   │▣│  ← Pro
+ *   │👥│  ← Copy
  *   │⋯ │  ← More (popover panel to the right)
  *   │  │
  *   │⚙ │  ← Settings
  *   └──┘
  *
- * w-14 (56px) — fits 5 icons + brand + cog comfortably without
- * stealing horizontal real estate from the page content. Mobile keeps
- * the existing NavDrawer (hamburger top-left); the sidebar is
- * `hidden md:flex` so phones never see it.
+ * Secondary products live behind More so the primary journey stays
+ * legible. Mobile uses the same route model through NavDrawer.
  */
-
-const PRIMARY = [
-  { href: '/home', label: 'Home', icon: <IconHome /> },
-  { href: '/cash', label: 'Cash', icon: <IconWallet /> },
-  { href: '/quick-trade', label: 'Trade', icon: <IconTrade /> },
-  { href: '/follow', label: 'Follow', icon: <IconUsers /> },
-  { href: '/pro', label: 'Pro', icon: <IconTerminal /> },
-] as const;
-
-const MORE_GROUPS = [
-  {
-    label: 'Trade',
-    items: [
-      { href: '/copy-trade', label: 'Copy trade' },
-      { href: '/health', label: 'Portfolio health' },
-    ],
-  },
-  {
-    label: 'Earn',
-    items: [
-      { href: '/earn', label: 'Earn overview' },
-      { href: '/basis', label: 'Basis vault' },
-      { href: '/desk', label: 'Funding desk' },
-    ],
-  },
-  {
-    label: 'Tools',
-    items: [
-      { href: '/calculator', label: 'The Math' },
-      { href: '/practice', label: 'Practice' },
-      { href: '/ramp', label: 'Add funds' },
-      { href: '/invite', label: 'Invite friends' },
-      { href: '/onboarding', label: 'Onboarding' },
-    ],
-  },
-] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -79,19 +47,15 @@ export function Sidebar() {
         setMoreOpen(false);
       }
     }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
   }, [moreOpen]);
 
   useEffect(() => {
     setMoreOpen(false);
   }, [pathname]);
 
-  const moreActive = MORE_GROUPS.some((g) =>
-    g.items.some(
-      (i) => pathname === i.href || pathname?.startsWith(i.href + '/'),
-    ),
-  );
+  const moreActive = isMoreNavigationActive(pathname);
 
   return (
     <aside
@@ -109,10 +73,8 @@ export function Sidebar() {
             className="h-3 w-3 rounded-full bg-accent shadow-[0_0_14px_rgba(232,182,71,0.7)]"
           />
         </Link>
-        {PRIMARY.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href !== '/home' && pathname?.startsWith(item.href + '/'));
+        {PRIMARY_NAVIGATION.map((item) => {
+          const active = isNavigationItemActive(pathname, item);
           return (
             <Link
               key={item.href}
@@ -121,11 +83,11 @@ export function Sidebar() {
               aria-label={item.label}
               className={`flex h-12 w-12 items-center justify-center rounded-lg transition-colors ${
                 active
-                  ? 'bg-bg-surface text-accent'
-                  : 'text-fg-muted hover:bg-bg-surface hover:text-fg-primary'
+                  ? "bg-bg-surface text-accent"
+                  : "text-fg-muted hover:bg-bg-surface hover:text-fg-primary"
               }`}
             >
-              {item.icon}
+              {getPrimaryIcon(item.icon)}
             </Link>
           );
         })}
@@ -139,8 +101,8 @@ export function Sidebar() {
             aria-label="More"
             className={`flex h-12 w-12 items-center justify-center rounded-lg transition-colors ${
               moreActive || moreOpen
-                ? 'bg-bg-surface text-accent'
-                : 'text-fg-muted hover:bg-bg-surface hover:text-fg-primary'
+                ? "bg-bg-surface text-accent"
+                : "text-fg-muted hover:bg-bg-surface hover:text-fg-primary"
             }`}
           >
             <IconMore />
@@ -150,27 +112,32 @@ export function Sidebar() {
               role="menu"
               className="absolute left-full top-0 z-50 ml-2 max-h-[calc(100vh-2rem)] w-[260px] overflow-y-auto rounded-klub-lg border border-border-subtle bg-bg-elevated p-2 shadow-[0_16px_48px_rgba(0,0,0,0.55)]"
             >
-              {MORE_GROUPS.map((group) => (
+              {MORE_NAVIGATION.map((group) => (
                 <div key={group.label} className="mb-2 last:mb-0">
                   <div className="px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
                     {group.label}
                   </div>
                   <ul>
                     {group.items.map((item) => {
-                      const active =
-                        pathname === item.href ||
-                        pathname?.startsWith(item.href + '/');
+                      const active = isNavigationItemActive(pathname, item);
                       return (
                         <li key={item.href}>
                           <Link
                             href={item.href}
                             className={`block rounded-md px-2 py-1.5 text-[13px] transition-colors ${
                               active
-                                ? 'bg-bg-surface text-accent'
-                                : 'text-fg-primary hover:bg-bg-surface'
+                                ? "bg-bg-surface text-accent"
+                                : "text-fg-primary hover:bg-bg-surface"
                             }`}
                           >
-                            {item.label}
+                            <span className="flex items-center justify-between gap-2">
+                              <span>{item.label}</span>
+                              {item.badge && (
+                                <span className="text-[9px] uppercase tracking-[0.08em] text-fg-muted">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </span>
                           </Link>
                         </li>
                       );
@@ -187,9 +154,9 @@ export function Sidebar() {
         title="Settings"
         aria-label="Settings"
         className={`flex h-12 w-12 items-center justify-center rounded-lg transition-colors ${
-          pathname?.startsWith('/settings')
-            ? 'bg-bg-surface text-accent'
-            : 'text-fg-muted hover:bg-bg-surface hover:text-fg-primary'
+          pathname?.startsWith("/settings")
+            ? "bg-bg-surface text-accent"
+            : "text-fg-muted hover:bg-bg-surface hover:text-fg-primary"
         }`}
       >
         <IconCog />
@@ -202,6 +169,19 @@ export function Sidebar() {
 // Icons
 // ---------------------------------------------------------------------------
 
+function getPrimaryIcon(icon: NavigationIcon | undefined) {
+  switch (icon) {
+    case "portfolio":
+      return <IconHome />;
+    case "trade":
+      return <IconTrade />;
+    case "copy":
+      return <IconUsers />;
+    default:
+      return <IconMore />;
+  }
+}
+
 function IconHome() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -212,20 +192,6 @@ function IconHome() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function IconWallet() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 8a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <circle cx="16" cy="12" r="1" fill="currentColor" />
-      <path d="M3 9h18" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -249,29 +215,6 @@ function IconUsers() {
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 6.5a3 3 0 1 1 3 5.2M21.5 20a5 5 0 0 0-4-4.9"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconTerminal() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="16"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M7 9l3 3-3 3M13 15h4"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"

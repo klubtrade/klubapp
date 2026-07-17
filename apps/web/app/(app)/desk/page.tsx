@@ -89,7 +89,7 @@ export default function DeskPage() {
               return (
                 <li key={sym}>
                   <Link
-                    href="/quick-trade"
+                    href="/trade"
                     className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-1 py-3.5 transition-colors hover:bg-bg-surface"
                   >
                     <div className="min-w-0">

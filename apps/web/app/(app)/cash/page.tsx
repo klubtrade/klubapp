@@ -157,7 +157,7 @@ function CashPageInner() {
             icon={<IconReceive />}
           />
           <ActionCircle label="Add" href="/ramp" icon={<IconAdd />} />
-          <ActionCircle label="Trade" href="/quick-trade" icon={<IconTrade />} />
+          <ActionCircle label="Trade" href="/trade" icon={<IconTrade />} />
         </section>
 
         {/* Faucet — testnet utility, demoted to a thin row below the

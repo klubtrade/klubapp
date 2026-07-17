@@ -16,7 +16,7 @@ import type { SubmitOrderResult } from '@/lib/bulk/orders';
 import { MARKETS } from '@/lib/markets';
 
 /**
- * /quick-trade — minimalist 3-tap trade.
+ * /trade — the default, focused trading flow.
  *
  * Desktop (lg+):
  *   ┌──────────────┬──────────────────────┬──────────────────┐
@@ -75,6 +75,7 @@ export default function QuickTradePage() {
   const [amountPct, setAmountPct] = useState(10);
   const [confirming, setConfirming] = useState(false);
   const [leverage, setLeverage] = useState(5);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   // Take profit + stop loss expressed as percent move from entry. Retail-
   // friendly: instead of asking for a price, ask "how much do you want
   // to lock in / how much can you stomach losing." Defaults seed from
@@ -387,31 +388,6 @@ export default function QuickTradePage() {
             />
           </div>
 
-          {/* Leverage slider — capped per market. */}
-          <div className="mt-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-                Leverage
-              </span>
-              <span className="font-mono text-[14px] text-accent">{leverage}×</span>
-            </div>
-            <input
-              type="range"
-              min={1}
-              max={market.defaultLeverage}
-              step={0.5}
-              value={leverage}
-              onChange={(e) => setLeverage(Number(e.target.value))}
-              className="mt-2 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
-            />
-            <div className="mt-1 flex justify-between text-[10px] text-fg-muted">
-              <span>1×</span>
-              <span>
-                {market.defaultLeverage}× max · {market.label}
-              </span>
-            </div>
-          </div>
-
           {/* Position size — accent card. Live, updates with margin
               + leverage so the user sees what their leverage is
               actually doing. */}
@@ -428,22 +404,55 @@ export default function QuickTradePage() {
             </div>
           </div>
 
-          {/* TP / SL as percents — retail framing. */}
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <PercentField
-              label="Take profit"
-              value={tpPct}
-              onChange={setTpPct}
-              tone="long"
-              suffix={`+$${Math.abs(wouldMake).toFixed(0)}`}
-            />
-            <PercentField
-              label="Stop loss"
-              value={slPct}
-              onChange={setSlPct}
-              tone="short"
-              suffix={`−$${couldLose.toFixed(0)}`}
-            />
+          <div className="mt-3">
+            <CollapseRow
+              label="Risk settings"
+              hint={`${leverage}× · stop ${slPct.toFixed(1)}% · target ${tpPct.toFixed(1)}%`}
+              open={showAdvanced}
+              onToggle={() => setShowAdvanced((value) => !value)}
+            >
+              <div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
+                    Leverage
+                  </span>
+                  <span className="font-mono text-[14px] text-accent">
+                    {leverage}×
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={market.defaultLeverage}
+                  step={0.5}
+                  value={leverage}
+                  onChange={(e) => setLeverage(Number(e.target.value))}
+                  className="mt-2 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
+                />
+                <div className="mt-1 flex justify-between text-[10px] text-fg-muted">
+                  <span>1×</span>
+                  <span>
+                    {market.defaultLeverage}× max · {market.label}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <PercentField
+                  label="Take profit"
+                  value={tpPct}
+                  onChange={setTpPct}
+                  tone="long"
+                  suffix={`+$${Math.abs(wouldMake).toFixed(0)}`}
+                />
+                <PercentField
+                  label="Stop loss"
+                  value={slPct}
+                  onChange={setSlPct}
+                  tone="short"
+                  suffix={`−$${couldLose.toFixed(0)}`}
+                />
+              </div>
+            </CollapseRow>
           </div>
 
           {/* Submit */}
@@ -549,7 +558,7 @@ export default function QuickTradePage() {
 
 /**
  * <CollapseRow /> — a tappable row that reveals its content inline
- * below. Used for Math + My trades on /quick-trade so they sit one
+ * below. Used for Math + My trades on /trade so they sit one
  * tap away from the trade panel without forcing a scroll.
  */
 function CollapseRow({
