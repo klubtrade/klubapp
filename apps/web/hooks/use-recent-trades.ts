@@ -32,6 +32,10 @@ export function useRecentTrades(
     // for a split second while the first WS batch arrives.
     setTrades([]);
 
+    if (!marketData.hasConfiguredWs()) {
+      return undefined;
+    }
+
     const unsub = marketData.onTrades(symbol, (batch: readonly TradeUpdate[]) => {
       if (batch.length === 0) return;
       // Bulk sends batches; newest can be first or last depending on

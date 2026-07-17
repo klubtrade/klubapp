@@ -48,6 +48,15 @@ export function useL2Book(
     lastBookRef.current = null;
     setState({ status: 'loading', book: null });
 
+    if (!marketData.hasConfiguredWs()) {
+      setState({
+        status: 'error',
+        book: null,
+        error: 'Bulk WebSocket is not configured. Live order book is unavailable.',
+      });
+      return undefined;
+    }
+
     const staleTimer = setTimeout(() => {
       setState((s) =>
         s.status === 'loading'

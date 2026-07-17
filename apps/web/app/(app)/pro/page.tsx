@@ -52,10 +52,6 @@ const TIMEFRAMES: readonly { readonly label: string; readonly value: CandleInter
 
 const ALL_SYMBOLS = MARKETS.map((m) => m.symbol);
 
-function seedPriceFor(symbol: string): number {
-  return MARKETS.find((m) => m.symbol === symbol)?.seedPrice ?? 0;
-}
-
 function maxLeverageFor(symbol: string): number {
   return MARKETS.find((m) => m.symbol === symbol)?.defaultLeverage ?? 10;
 }
@@ -78,7 +74,7 @@ export default function ProPage() {
   const livePrices = useTickers(ALL_SYMBOLS);
   const { state: accountState, refresh: refreshAccount } = useBulkAccount(pubkey);
 
-  const mark = livePrices[symbol]?.mark ?? seedPriceFor(symbol);
+  const mark = livePrices[symbol]?.mark ?? 0;
 
   // ⌘K opens palette; Esc closes palette/result.
   useEffect(() => {
@@ -132,7 +128,7 @@ export default function ProPage() {
       </div>
 
       {/* Desktop advanced terminal */}
-      <main className="hidden min-h-screen bg-bg-base lg:block">
+      <main className="hidden h-screen min-h-0 overflow-hidden bg-bg-base lg:flex lg:flex-col">
         <ProHeader symbol={symbol} mark={mark} onOpenPalette={() => setShowPalette(true)} />
         <ProMarketStrip
           symbol={symbol}
@@ -140,21 +136,20 @@ export default function ProPage() {
           livePrices={livePrices}
         />
 
-        <div className="grid h-[calc(100vh-56px-56px-64px)] grid-cols-[240px_minmax(0,1fr)_360px] gap-3 p-3">
+        <div className="grid min-h-0 flex-1 grid-cols-[210px_minmax(0,1fr)_320px] gap-2 p-2 xl:grid-cols-[220px_minmax(0,1fr)_330px] min-[1750px]:grid-cols-[240px_minmax(0,1fr)_350px]">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}
             livePrices={livePrices}
           />
 
-          <div className="grid min-w-0 grid-rows-[minmax(360px,1.35fr)_minmax(220px,0.85fr)] gap-3">
+          <div className="grid min-w-0 grid-rows-[minmax(0,1fr)_minmax(150px,0.38fr)] gap-2">
             <PanelChart
               symbol={symbol}
               interval={interval}
               onInterval={setInterval}
-              mark={mark}
             />
-            <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)] gap-3">
+            <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(220px,0.65fr)] gap-2">
               <PanelPositions
                 positions={accountState.data?.positions ?? []}
                 openOrders={accountState.data?.openOrders ?? []}
@@ -167,7 +162,7 @@ export default function ProPage() {
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-rows-[minmax(390px,1.2fr)_minmax(260px,0.8fr)] gap-3">
+          <div className="grid min-w-0 grid-rows-[minmax(0,1fr)_minmax(160px,0.62fr)] gap-2">
             <PanelOrderForm
               symbol={symbol}
               mark={mark}
@@ -219,7 +214,7 @@ function ProHeader({
   // reserve room on the right for the layout-shell wallet pill (the
   // WalletButton). px-6 / md:pr-[20rem] does that.
   return (
-    <header className="flex h-14 items-center justify-between gap-4 border-b border-white/[0.06] bg-bg-base/90 pl-6 pr-72 backdrop-blur md:pr-[20rem]">
+    <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-white/[0.06] bg-bg-base/90 pl-5 pr-72 backdrop-blur md:pr-[20rem]">
       <div className="flex min-w-0 items-center gap-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
@@ -227,9 +222,9 @@ function ProHeader({
           </div>
           <div className="mt-0.5 flex items-baseline gap-2 font-mono">
             <span className="text-[14px] text-fg-primary">{symbol}</span>
-            {mark > 0 && (
-              <span className="text-[13px] text-fg-muted">${formatPrice(mark)}</span>
-            )}
+            <span className="text-[13px] text-fg-muted">
+              {mark > 0 ? `$${formatPrice(mark)}` : 'waiting for Bulk'}
+            </span>
           </div>
         </div>
       </div>
@@ -257,10 +252,10 @@ function ProMarketStrip({
   readonly livePrices: Record<string, LivePrice | undefined>;
 }) {
   return (
-    <div className="grid h-16 grid-cols-5 gap-2 border-b border-white/[0.04] bg-bg-base px-3 py-2">
+    <div className="flex h-[52px] shrink-0 gap-2 overflow-x-auto border-b border-white/[0.04] bg-bg-base px-2 py-1.5">
       {MARKETS.slice(0, 5).map((market) => {
         const live = livePrices[market.symbol];
-        const mark = live?.mark ?? market.seedPrice;
+        const mark = live?.mark ?? null;
         const change = live?.change24hPct;
         const active = market.symbol === symbol;
         const tone =
@@ -270,7 +265,7 @@ function ProMarketStrip({
             key={market.symbol}
             type="button"
             onClick={() => onSelect(market.symbol)}
-            className={`rounded-xl border px-3 text-left transition-colors ${
+            className={`min-w-[180px] rounded-xl border px-3 text-left transition-colors ${
               active
                 ? 'border-accent/50 bg-accent/10'
                 : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]'
@@ -285,7 +280,7 @@ function ProMarketStrip({
               </span>
             </div>
             <div className="mt-1 font-mono text-[13px] text-fg-secondary">
-              ${formatPrice(mark)}
+              {mark === null ? '—' : `$${formatPrice(mark)}`}
             </div>
           </button>
         );
@@ -311,8 +306,8 @@ function ProStatusBar({
     equity !== null && free !== null ? Math.max(equity - free, 0) : null;
 
   return (
-    <footer className="flex h-14 items-center justify-between border-t border-white/[0.06] bg-bg-base px-4 font-mono text-[11px] text-fg-muted">
-      <div className="flex items-center gap-6">
+    <footer className="flex h-9 shrink-0 items-center justify-between gap-4 overflow-hidden border-t border-white/[0.06] bg-bg-base px-3 font-mono text-[10px] text-fg-muted">
+      <div className="flex min-w-0 items-center gap-4 overflow-hidden whitespace-nowrap">
         {isReconnecting ? (
           <span className="flex items-center gap-2 text-alert-orange">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-alert-orange" />
@@ -324,9 +319,9 @@ function ProStatusBar({
             Live
           </span>
         ) : isDemo ? (
-          <span className="flex items-center gap-2" title="No WS URL — simulated ticks">
+          <span className="flex items-center gap-2" title="REST ticker snapshots active; Bulk WS is not configured.">
             <span className="h-1.5 w-1.5 rounded-full bg-fg-muted" />
-            Demo
+            REST only
           </span>
         ) : (
           <span className="flex items-center gap-2">
@@ -334,12 +329,12 @@ function ProStatusBar({
             Idle
           </span>
         )}
-        <span>{connected ? 'Wallet · connected' : 'Wallet · disconnected'}</span>
-        <span>Equity · {equity !== null ? `$${formatUsd(equity)}` : '—'}</span>
-        <span>Used margin · {used !== null ? `$${formatUsd(used)}` : '—'}</span>
-        <span>Free · {free !== null ? `$${formatUsd(free)}` : '—'}</span>
+        <span>{connected ? 'Wallet connected' : 'Wallet disconnected'}</span>
+        <span>Equity {equity !== null ? `$${formatUsd(equity)}` : '—'}</span>
+        <span>Used {used !== null ? `$${formatUsd(used)}` : '—'}</span>
+        <span>Free {free !== null ? `$${formatUsd(free)}` : '—'}</span>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-3">
         <button type="button" onClick={onOpenPalette} className="text-accent">
           ⌘K
         </button>
@@ -368,7 +363,7 @@ function PanelWatchlist({
       <div className="flex-1 overflow-auto">
         {MARKETS.map((m) => {
           const live = livePrices[m.symbol];
-          const displayMark = live?.mark ?? m.seedPrice;
+          const displayMark = live?.mark ?? null;
           const chg = live?.change24hPct;
           const chgTone =
             chg === undefined ? 'text-fg-muted'
@@ -387,7 +382,9 @@ function PanelWatchlist({
                 {m.label}
               </span>
               <span className="flex items-baseline gap-2">
-                <span className="text-fg-secondary">${formatPrice(displayMark)}</span>
+                <span className="text-fg-secondary">
+                  {displayMark === null ? '—' : `$${formatPrice(displayMark)}`}
+                </span>
                 <span className={chgTone}>
                   {chg === undefined
                     ? '—'
@@ -410,27 +407,28 @@ function PanelChart({
   symbol,
   interval,
   onInterval,
-  mark,
 }: {
   readonly symbol: string;
   readonly interval: CandleInterval;
   readonly onInterval: (i: CandleInterval) => void;
-  readonly mark: number;
 }) {
   const { state } = useCandles(symbol, interval);
   const candles = state.candles;
 
   const last = candles.length > 0 ? candles[candles.length - 1]! : null;
-  const o = last ? Number(last.o) : mark * 0.99;
-  const h = last ? Number(last.h) : mark * 1.01;
-  const l = last ? Number(last.l) : mark * 0.99;
-  const c = last ? Number(last.c) : mark;
+  const o = last ? Number(last.o) : null;
+  const h = last ? Number(last.h) : null;
+  const l = last ? Number(last.l) : null;
+  const c = last ? Number(last.c) : null;
 
   return (
     <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>
         <div className="flex items-center justify-between">
           <span>Chart · {symbol}</span>
+          <span className="ml-3 rounded-full border border-border-subtle px-2 py-0.5 text-[9px] text-fg-muted">
+            {state.status === 'ok' ? 'Bulk candles' : state.status === 'loading' ? 'Loading' : 'Retrying'}
+          </span>
           <div className="flex gap-1">
             {TIMEFRAMES.map((tf) => (
               <button
@@ -455,11 +453,12 @@ function PanelChart({
             Couldn&rsquo;t load candles. Bulk&rsquo;s API may be slow — retrying.
           </div>
         ) : (
-          <CandleChart key={`${symbol}-${interval}`} candles={candles} height={420} />
+          <CandleChart key={`${symbol}-${interval}`} candles={candles} height={340} />
         )}
       </div>
       <div className="border-t border-border-subtle px-4 py-1.5 font-mono text-[11px] text-fg-muted">
-        O ${formatPrice(o)} · H ${formatPrice(h)} · L ${formatPrice(l)} · C ${formatPrice(c)}
+        O {o === null ? '—' : `$${formatPrice(o)}`} · H {h === null ? '—' : `$${formatPrice(h)}`} · L{' '}
+        {l === null ? '—' : `$${formatPrice(l)}`} · C {c === null ? '—' : `$${formatPrice(c)}`}
       </div>
     </section>
   );
@@ -498,7 +497,7 @@ function PanelOrderbook({ symbol, mark }: { readonly symbol: string; readonly ma
           )}
         </div>
         <div className="border-y border-border-subtle px-3 py-1.5 text-center font-mono text-[13px] text-accent">
-          ${formatPrice(mark)}
+          {mark > 0 ? `$${formatPrice(mark)}` : '—'}
         </div>
         <div className="flex-1 overflow-auto">
           {ladder.bids.length === 0 ? (
@@ -824,8 +823,8 @@ function PanelOrderForm({
   const [side, setSide] = useState<'long' | 'short'>('long');
   const [type, setType] = useState<'limit' | 'market'>('limit');
   const [tif, setTif] = useState<'GTC' | 'IOC' | 'ALO'>('GTC');
-  const [price, setPrice] = useState(mark);
-  const [size, setSize] = useState(0.05);
+  const [price, setPrice] = useState(mark > 0 ? mark : 0);
+  const [size, setSize] = useState(0.01);
   const [lev, setLev] = useState(5);
   const [reduceOnly, setReduceOnly] = useState(false);
   // TP/SL price targets. Optional — when 0/undefined the order ships
@@ -843,7 +842,7 @@ function PanelOrderForm({
   // TP/SL since their numeric values are tied to the prior symbol's
   // price scale.
   useEffect(() => {
-    setPrice(mark);
+    if (mark > 0) setPrice(mark);
     setLev((cur) => Math.min(cur, maxLeverageFor(symbol)));
     setTpPrice(0);
     setSlPrice(0);
@@ -852,6 +851,7 @@ function PanelOrderForm({
   const refPx = type === 'limit' ? price : mark;
   const notional = size * refPx;
   const margin = lev > 0 ? notional / lev : 0;
+  const hasMarketPrice = mark > 0 && Number.isFinite(mark);
 
   async function onSubmit() {
     if (!connected) {
@@ -859,6 +859,14 @@ function PanelOrderForm({
         ok: false,
         reason: 'rejected_invalid',
         message: 'Connect a wallet first.',
+      });
+      return;
+    }
+    if (!hasMarketPrice || refPx <= 0) {
+      onResult({
+        ok: false,
+        reason: 'rejected_invalid',
+        message: 'Waiting for a live Bulk price before submitting.',
       });
       return;
     }
@@ -908,6 +916,8 @@ function PanelOrderForm({
   const submitting = state.status === 'submitting';
   const buttonLabel = !connected
     ? 'Connect wallet'
+    : !hasMarketPrice
+      ? 'Waiting for Bulk price'
     : submitting
       ? usingAgent
         ? 'Submitting…'
@@ -922,10 +932,10 @@ function PanelOrderForm({
           {usingAgent && <span className="text-accent">Agent · silent</span>}
         </div>
       </PanelHead>
-      <div className="flex-1 space-y-3 overflow-auto p-4">
-        <div className="rounded-klub border border-accent/20 bg-accent/5 p-3 text-[11px] leading-relaxed text-fg-secondary">
-          Advanced order entry. If you only need a safer guided flow,
-          use <Link href="/trade" className="text-accent hover:text-accent-strong">Simple Trade</Link>.
+      <div className="flex-1 space-y-2 overflow-auto p-3">
+        <div className="rounded-klub border border-accent/20 bg-accent/5 px-3 py-2 text-[11px] leading-relaxed text-fg-secondary">
+          Advanced entry. Newer users should use{' '}
+          <Link href="/trade" className="text-accent hover:text-accent-strong">Simple Trade</Link>.
         </div>
 
         <div className="grid grid-cols-2 overflow-hidden rounded-klub border border-border">
@@ -987,7 +997,7 @@ function PanelOrderForm({
             step={0.5}
             value={lev}
             onChange={(e) => setLev(Number(e.target.value))}
-            className="mt-1.5 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
+            className="mt-1.5 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#f3ba2f]"
           />
         </div>
 
@@ -1044,29 +1054,29 @@ function PanelOrderForm({
             leverage. Notional is what the position controls; margin
             is what the user actually puts up; these update on every
             input change. */}
-        <div className="rounded-klub border border-accent/30 bg-accent/5 p-3">
-          <div className="flex items-baseline justify-between font-mono text-[12px]">
+        <div className="rounded-klub border border-accent/30 bg-accent/5 px-3 py-2">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-3 font-mono text-[12px]">
             <span className="text-fg-muted">Notional</span>
-            <span className="text-[14px] font-semibold text-fg-primary">
+            <span className="truncate text-right text-[13px] font-semibold text-fg-primary">
               ${notional.toFixed(2)}
             </span>
           </div>
-          <div className="mt-1 flex items-baseline justify-between font-mono text-[12px]">
+          <div className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-3 font-mono text-[12px]">
             <span className="text-fg-muted">Margin</span>
-            <span className="text-[14px] font-semibold text-accent">
+            <span className="truncate text-right text-[13px] font-semibold text-accent">
               ${margin.toFixed(2)}
             </span>
           </div>
-          <div className="mt-1 flex items-baseline justify-between font-mono text-[11px] text-fg-muted">
+          <div className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-3 font-mono text-[11px] text-fg-muted">
             <span>Mark</span>
-            <span>${formatPrice(mark)}</span>
+            <span className="truncate text-right">{hasMarketPrice ? `$${formatPrice(mark)}` : 'waiting'}</span>
           </div>
         </div>
 
         <button
           type="button"
           onClick={onSubmit}
-          disabled={submitting}
+          disabled={submitting || !hasMarketPrice}
           className={`btn-block py-2.5 text-[13px] font-medium disabled:opacity-50 ${
             side === 'long' ? 'btn-primary' : 'btn-danger'
           }`}
@@ -1180,11 +1190,11 @@ function CommandPalette({
   const commands = useMemo(
     () => [
       ...MARKETS.map((m) => {
-        const live = livePrices[m.symbol]?.mark ?? m.seedPrice;
+        const live = livePrices[m.symbol]?.mark ?? null;
         return {
           id: `sym-${m.symbol}`,
           label: `Go to ${m.symbol}`,
-          hint: `$${formatPrice(live)}`,
+          hint: live === null ? 'waiting' : `$${formatPrice(live)}`,
           run: () => onSymbol(m.symbol),
         };
       }),

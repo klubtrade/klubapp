@@ -240,6 +240,10 @@ class MarketDataClient {
     return this.demoMode || !this.wsUrl;
   }
 
+  hasConfiguredWs(): boolean {
+    return this.wsUrl.length > 0;
+  }
+
   // -------------------------------------------------------------------
 
   private ensureWs(): void {

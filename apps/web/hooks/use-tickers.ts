@@ -1,5 +1,6 @@
 'use client';
 
+import type { Ticker } from '@klub/api-client';
 import { useEffect, useState } from 'react';
 
 import { marketData } from '@/lib/market-data/client';
@@ -52,6 +53,45 @@ export function useTickers(
     if (symbols.length === 0) return;
 
     const wanted = new Set(symbols);
+    let cancelled = false;
+
+    async function fetchSnapshot(): Promise<void> {
+      try {
+        const res = await fetch('/api/bulk/tickers', { cache: 'no-store' });
+        if (!res.ok) return;
+        const body = (await res.json()) as {
+          tickers?: readonly (Ticker & { readonly s?: string; readonly symbol?: string })[];
+        };
+        if (cancelled) return;
+        setPrices((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          const now = Date.now();
+          for (const row of body.tickers ?? []) {
+            const symbol = row.symbol ?? row.s;
+            if (!symbol || !wanted.has(symbol)) continue;
+            next[symbol] = tickerToLivePrice(symbol, row, now);
+            changed = true;
+          }
+          return changed ? next : prev;
+        });
+      } catch {
+        // Keep stale WS/REST values. UI surfaces empties where no real
+        // snapshot has ever arrived.
+      }
+    }
+
+    void fetchSnapshot();
+    const restInterval = window.setInterval(() => {
+      void fetchSnapshot();
+    }, 5_000);
+
+    if (!marketData.hasConfiguredWs()) {
+      return () => {
+        cancelled = true;
+        window.clearInterval(restInterval);
+      };
+    }
 
     const unsub = marketData.onFrontendContext((rows) => {
       setPrices((prev) => {
@@ -78,12 +118,27 @@ export function useTickers(
     });
 
     return () => {
+      cancelled = true;
+      window.clearInterval(restInterval);
       unsub();
     };
     // Joined string = stable dep for readonly array inputs
   }, [symbols.join(',')]);
 
   return prices;
+}
+
+function tickerToLivePrice(symbol: string, row: Ticker, now: number): LivePrice {
+  return {
+    symbol,
+    mark: Number.isFinite(row.markPrice) ? row.markPrice : row.lastPrice,
+    last: row.lastPrice,
+    fundingRate: row.fundingRate,
+    change24hPct: row.priceChangePercent,
+    volume24h: row.quoteVolume,
+    openInterest: row.openInterest,
+    updatedAt: now,
+  };
 }
 
 /**
