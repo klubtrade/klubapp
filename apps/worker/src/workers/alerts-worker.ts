@@ -1,14 +1,14 @@
 // apps/worker/src/workers/alerts-worker.ts
 /* eslint-disable no-console */
 
-import { alertDeliveries, alertSubscriptions, type Db, users } from '@klub/db';
-import { Queue, Worker, type Job } from 'bullmq';
-import { eq } from 'drizzle-orm';
-import type { Redis } from 'ioredis';
+import { alertDeliveries, alertSubscriptions, type Db, users } from "@klub/db";
+import { Queue, Worker, type Job } from "bullmq";
+import { eq } from "drizzle-orm";
+import type { Redis } from "ioredis";
 
-import { sendPush } from '../notifications/push';
-import { sendAlertEmail } from '../notifications/resend';
-import { sendTelegram } from '../notifications/telegram';
+import { sendPush } from "../notifications/push.js";
+import { sendAlertEmail } from "../notifications/resend.js";
+import { formatAlertText, sendTelegram } from "../notifications/telegram.js";
 
 /**
  * Alerts worker.
@@ -32,7 +32,7 @@ import { sendTelegram } from '../notifications/telegram';
 // Queue + Worker setup
 // -------------------------------------------------------------------
 
-const QUEUE_NAME = 'klub.alerts';
+const QUEUE_NAME = "klub.alerts";
 
 export interface AlertJobPayload {
   readonly userId: string;
@@ -42,7 +42,7 @@ export interface AlertJobPayload {
   readonly liqPrice: number;
   readonly markPrice: number;
   readonly positionSizeBase: number;
-  readonly side: 'long' | 'short';
+  readonly side: "long" | "short";
   readonly detectedAt: number;
 }
 
@@ -81,7 +81,7 @@ export function createAlertsWorker({
     },
   );
 
-  worker.on('failed', (job, err) => {
+  worker.on("failed", (job, err) => {
     console.error(`[alerts] job ${job?.id} failed`, err);
   });
 
@@ -112,7 +112,7 @@ async function handleAlertJob({
   const user = userRows[0];
   if (!user || user.disabledAt) return;
 
-  const channels = (sub.channels as readonly string[]) ?? ['push'];
+  const channels = (sub.channels as readonly string[]) ?? ["push"];
   const message = composeAlertMessage(p);
 
   // Dispatch in parallel, log every attempt
@@ -120,14 +120,27 @@ async function handleAlertJob({
     channels.map(async (channel) => {
       try {
         switch (channel) {
-          case 'push':
+          case "push":
             await sendPush(user.id, message);
             break;
-          case 'email':
+          case "email":
             await sendAlertEmail(user.email, message);
             break;
-          case 'telegram':
-            await sendTelegram(user.id, message);
+          case "telegram":
+            if (!sub.telegramChatId) {
+              throw new Error("Telegram chat ID is not configured");
+            }
+            {
+              const delivery = await sendTelegram({
+                chatId: sub.telegramChatId,
+                text: formatAlertText(p),
+              });
+              if (!delivery.ok) {
+                throw new Error(
+                  `Telegram delivery failed: ${delivery.error ?? "unknown"}`,
+                );
+              }
+            }
             break;
         }
         await db.insert(alertDeliveries).values({
@@ -157,12 +170,16 @@ async function handleAlertJob({
 export function composeAlertMessage(p: AlertJobPayload): {
   readonly title: string;
   readonly body: string;
-  readonly severity: 'info' | 'warning' | 'critical';
+  readonly severity: "info" | "warning" | "critical";
 } {
-  const severity: 'info' | 'warning' | 'critical' =
-    p.tier === 0.25 ? 'info' : p.tier === 0.1 ? 'warning' : 'critical';
+  const severity: "info" | "warning" | "critical" =
+    p.tier === 0.25 ? "info" : p.tier === 0.1 ? "warning" : "critical";
   const tierLabel =
-    p.tier === 0.25 ? '25% buffer' : p.tier === 0.1 ? '10% buffer' : '3% buffer — act now';
+    p.tier === 0.25
+      ? "25% buffer"
+      : p.tier === 0.1
+        ? "10% buffer"
+        : "3% buffer — act now";
   const title = `${p.symbol} ${p.side.toUpperCase()} · ${tierLabel}`;
   const body = `Mark $${p.markPrice.toFixed(2)} · Liq $${p.liqPrice.toFixed(2)} · Buffer ${(p.bufferPct * 100).toFixed(1)}%. Open KLUB to add margin, reduce, or close.`;
   return { title, body, severity };

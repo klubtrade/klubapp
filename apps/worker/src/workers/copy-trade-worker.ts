@@ -1,12 +1,12 @@
 // apps/worker/src/workers/copy-trade-worker.ts
 /* eslint-disable no-console */
 
-import { agentWallets, type Db, follows } from '@klub/db';
-import { Queue, Worker, type Job } from 'bullmq';
-import { and, eq, isNull } from 'drizzle-orm';
-import type { Redis } from 'ioredis';
+import { agentWallets, type Db, follows } from "@klub/db";
+import { Queue, Worker, type Job } from "bullmq";
+import { and, eq, isNull } from "drizzle-orm";
+import type { Redis } from "ioredis";
 
-import { signAndSubmit } from '../signing/bulk-keychain';
+import { signAndSubmit } from "../signing/bulk-execution.js";
 
 /**
  * Copy-trade worker.
@@ -29,7 +29,7 @@ import { signAndSubmit } from '../signing/bulk-keychain';
  *     relationship and email the user.
  */
 
-const QUEUE_NAME = 'klub.copy-trade';
+const QUEUE_NAME = "klub.copy-trade";
 
 export interface CopyTradeJobPayload {
   readonly followerId: string;
@@ -37,8 +37,8 @@ export interface CopyTradeJobPayload {
   readonly leaderHandle: string;
   readonly agentWalletId: string;
   readonly symbol: string;
-  readonly side: 'long' | 'short';
-  readonly orderType: 'market' | 'limit';
+  readonly side: "long" | "short";
+  readonly orderType: "market" | "limit";
   readonly leaderSizeBase: number;
   readonly leaderEntryPrice: number;
   readonly leaderNotionalUsd: number;
@@ -54,7 +54,9 @@ export function createCopyTradeWorker({
   readonly redis: Redis;
   readonly db: Db;
 }): Worker<CopyTradeJobPayload> {
-  const queue = new Queue<CopyTradeJobPayload>(QUEUE_NAME, { connection: redis });
+  const queue = new Queue<CopyTradeJobPayload>(QUEUE_NAME, {
+    connection: redis,
+  });
   void queue;
 
   // TODO(phase-3.5): start leader subscription loop here.
@@ -75,7 +77,7 @@ export function createCopyTradeWorker({
     },
   );
 
-  worker.on('failed', (job, err) => {
+  worker.on("failed", (job, err) => {
     console.error(`[copy-trade] job ${job?.id} failed`, err);
   });
 
@@ -98,7 +100,9 @@ async function handleMirrorJob({
   // 1. Compute the follower's mirrored size
   const mirroredSizeBase = computeMirroredSize(p);
   if (mirroredSizeBase <= 0) {
-    console.log(`[copy-trade] skipping ${p.leaderHandle}→${p.followerId}: zero size`);
+    console.log(
+      `[copy-trade] skipping ${p.leaderHandle}→${p.followerId}: zero size`,
+    );
     return;
   }
 
@@ -108,8 +112,14 @@ async function handleMirrorJob({
     .from(agentWallets)
     .where(eq(agentWallets.id, p.agentWalletId));
   const wallet = aw[0];
-  if (!wallet || wallet.revokedAt || (wallet.expiresAt && wallet.expiresAt < new Date())) {
-    console.warn(`[copy-trade] agent wallet ${p.agentWalletId} no longer valid; pausing follow`);
+  if (
+    !wallet ||
+    wallet.revokedAt ||
+    (wallet.expiresAt && wallet.expiresAt < new Date())
+  ) {
+    console.warn(
+      `[copy-trade] agent wallet ${p.agentWalletId} no longer valid; pausing follow`,
+    );
     await db
       .update(follows)
       .set({ pausedAt: new Date() })

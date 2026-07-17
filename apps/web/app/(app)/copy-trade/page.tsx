@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useWallet } from '@solana/wallet-adapter-react';
-import Link from 'next/link';
-import { useState } from 'react';
+import { useWallet } from "@solana/wallet-adapter-react";
+import Link from "next/link";
+import { useState } from "react";
 
-import { useCopyTrade } from '@/components/copy-trade-provider';
-import { useWalletGate } from '@/hooks/use-wallet-gate';
+import { useCopyTrade } from "@/components/copy-trade-provider";
+import { useWalletGate } from "@/hooks/use-wallet-gate";
 
 /**
  * /copy-trade — MVP copy-trading control panel.
@@ -30,8 +30,8 @@ export default function CopyTradePage() {
   const { promptConnect, mounted } = useWalletGate();
   const { follows, follow, unfollow } = useCopyTrade();
 
-  const [leaderInput, setLeaderInput] = useState('');
-  const [labelInput, setLabelInput] = useState('');
+  const [leaderInput, setLeaderInput] = useState("");
+  const [labelInput, setLabelInput] = useState("");
   const [allocationPct, setAllocationPct] = useState(20);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -43,11 +43,11 @@ export default function CopyTradePage() {
             Copy trade
           </h1>
           <p className="mt-2 text-[13px] text-fg-muted">
-            Mirror another trader's positions automatically.
+            Mirror another trader&rsquo;s positions automatically.
           </p>
           <p className="mt-8 text-[14px] leading-relaxed text-fg-secondary">
-            Connect a wallet to follow other traders and mirror their
-            trades at your chosen allocation.
+            Connect a wallet to follow other traders and mirror their trades at
+            your chosen allocation.
           </p>
           <button
             type="button"
@@ -64,26 +64,28 @@ export default function CopyTradePage() {
     );
   }
 
-  const followerPubkey = wallet.publicKey?.toBase58() ?? '';
+  const followerPubkey = wallet.publicKey?.toBase58() ?? "";
 
   function onFollow(e: React.FormEvent): void {
     e.preventDefault();
     setFormError(null);
     const trimmed = leaderInput.trim();
     if (!isPlausiblePubkey(trimmed)) {
-      setFormError('That doesn’t look like a valid wallet address. Paste a base58 address.');
+      setFormError(
+        "That doesn’t look like a valid wallet address. Paste a base58 address.",
+      );
       return;
     }
     if (trimmed === followerPubkey) {
-      setFormError('You can’t follow yourself.');
+      setFormError("You can’t follow yourself.");
       return;
     }
     if (allocationPct < 1 || allocationPct > 100) {
-      setFormError('Allocation must be 1-100%.');
+      setFormError("Allocation must be 1-100%.");
       return;
     }
     if (follows.some((f) => f.leaderPubkey === trimmed)) {
-      setFormError('Already following that leader.');
+      setFormError("Already following that leader.");
       return;
     }
     follow({
@@ -91,8 +93,8 @@ export default function CopyTradePage() {
       ...(labelInput.trim() ? { label: labelInput.trim() } : {}),
       allocationPct,
     });
-    setLeaderInput('');
-    setLabelInput('');
+    setLeaderInput("");
+    setLabelInput("");
   }
 
   return (
@@ -186,8 +188,7 @@ export default function CopyTradePage() {
                 className="mt-3 w-full accent-accent"
               />
               <p className="mt-2 text-[11px] text-fg-muted">
-                {allocationPct}% of your equity goes into each mirrored
-                trade.
+                {allocationPct}% of your equity goes into each mirrored trade.
               </p>
             </div>
 
@@ -209,7 +210,7 @@ export default function CopyTradePage() {
               Following
             </h2>
             <span className="text-[10px] uppercase tracking-[0.12em] text-fg-muted">
-              {follows.length} {follows.length === 1 ? 'leader' : 'leaders'}
+              {follows.length} {follows.length === 1 ? "leader" : "leaders"}
             </span>
           </div>
 
@@ -238,7 +239,7 @@ export default function CopyTradePage() {
                     </div>
                     <div className="mt-0.5 font-mono text-[10px] text-fg-muted">
                       {shortenPubkey(f.leaderPubkey)} · {f.allocationPct}% alloc
-                      {f.baselineSymbols.length === 0 ? ' · syncing…' : ''}
+                      {f.baselineSymbols.length === 0 ? " · syncing…" : ""}
                     </div>
                   </div>
                   <button

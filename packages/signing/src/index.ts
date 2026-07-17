@@ -20,7 +20,7 @@
 //   - `apps/worker/src/workers/alerts-worker` — signs account-stream
 //     subscriptions (read-only, still authenticated)
 
-export * from './types';
-export * from './signer';
-export * from './payloads';
-export * from './agent-wallet';
+export * from "./types.js";
+export * from "./signer.js";
+export * from "./payloads.js";
+export * from "./agent-wallet.js";

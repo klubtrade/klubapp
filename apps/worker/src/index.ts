@@ -1,12 +1,12 @@
 // apps/worker/src/index.ts
 /* eslint-disable no-console */
 
-import { createDbClient } from '@klub/db';
-import { Redis } from 'ioredis';
+import { createDbClient } from "@klub/db";
+import { Redis } from "ioredis";
 
-import { startAccountSubscriber } from './workers/account-subscriber';
-import { createAlertsWorker } from './workers/alerts-worker';
-import { createCopyTradeWorker } from './workers/copy-trade-worker';
+import { startAccountSubscriber } from "./workers/account-subscriber.js";
+import { createAlertsWorker } from "./workers/alerts-worker.js";
+import { createCopyTradeWorker } from "./workers/copy-trade-worker.js";
 
 /**
  * KLUB background worker entrypoint.
@@ -33,14 +33,14 @@ function env(name: string): string {
 }
 
 async function main() {
-  console.log('[klub-worker] boot');
+  console.log("[klub-worker] boot");
 
-  const redis = new Redis(env('REDIS_URL'), {
+  const redis = new Redis(env("REDIS_URL"), {
     maxRetriesPerRequest: null, // required by BullMQ
   });
 
   const db = createDbClient({
-    connectionString: env('DATABASE_URL'),
+    connectionString: env("DATABASE_URL"),
     maxConnections: 5,
   });
 
@@ -59,14 +59,14 @@ async function main() {
     process.exit(0);
   }
 
-  process.on('SIGTERM', () => {
-    void shutdown('SIGTERM');
+  process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
   });
-  process.on('SIGINT', () => {
-    void shutdown('SIGINT');
+  process.on("SIGINT", () => {
+    void shutdown("SIGINT");
   });
-  process.on('unhandledRejection', (reason) => {
-    console.error('[klub-worker] unhandled rejection', reason);
+  process.on("unhandledRejection", (reason) => {
+    console.error("[klub-worker] unhandled rejection", reason);
   });
 
   console.log(
@@ -75,6 +75,6 @@ async function main() {
 }
 
 void main().catch((err) => {
-  console.error('[klub-worker] fatal', err);
+  console.error("[klub-worker] fatal", err);
   process.exit(1);
 });

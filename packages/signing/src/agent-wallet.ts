@@ -1,7 +1,11 @@
 // packages/signing/src/agent-wallet.ts
-import type { AgentWalletScope, Signer } from './types';
-import { signEnvelope } from './payloads';
-import { base58Encode, createEd25519Signer, generateKeypair } from './signer';
+import type { AgentWalletScope, Signer } from "./types.js";
+import { signEnvelope } from "./payloads.js";
+import {
+  base58Encode,
+  createEd25519Signer,
+  generateKeypair,
+} from "./signer.js";
 
 /**
  * Mint a new agent-wallet keypair.
@@ -51,15 +55,15 @@ export async function buildAgentWalletAuthorization(params: {
     // Defense in depth: even with a malicious config upstream,
     // KLUB-built agent-wallet authorizations must never grant
     // withdrawal rights. This is an invariant, not a default.
-    throw new Error('agent wallets cannot carry withdrawal authority');
+    throw new Error("agent wallets cannot carry withdrawal authority");
   }
   if (params.scope.expiresAt <= Date.now()) {
-    throw new Error('agent wallet expiry must be in the future');
+    throw new Error("agent wallet expiry must be in the future");
   }
   return signEnvelope({
     body: {
-      op: 'manageAgentWallet' as const,
-      action: 'authorize' as const,
+      op: "manageAgentWallet" as const,
+      action: "authorize" as const,
       userPubkey: params.scope.userPubkey,
       agentPubkey: params.scope.agentPubkey,
       allowedMarkets: params.scope.allowedMarkets,
@@ -81,8 +85,8 @@ export async function buildAgentWalletRevocation(params: {
 }) {
   return signEnvelope({
     body: {
-      op: 'manageAgentWallet' as const,
-      action: 'revoke' as const,
+      op: "manageAgentWallet" as const,
+      action: "revoke" as const,
       agentPubkey: params.agentPubkey,
     },
     signer: params.userSigner,
@@ -94,7 +98,7 @@ export async function buildAgentWalletRevocation(params: {
  * for UI contexts. Keeps the first 2 and last 4 chars.
  */
 export function shortenPubkey(pubkey: string | Uint8Array): string {
-  const s = typeof pubkey === 'string' ? pubkey : base58Encode(pubkey);
+  const s = typeof pubkey === "string" ? pubkey : base58Encode(pubkey);
   if (s.length <= 8) return s;
   return `${s.slice(0, 2)}…${s.slice(-4)}`;
 }

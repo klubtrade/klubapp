@@ -13,8 +13,8 @@
  */
 
 // Core
-export { BulkClient } from './client.js';
-export type { BulkClientConfig, Signer } from './client.js';
+export { BulkClient } from "./client.js";
+export type { BulkClientConfig, Signer } from "./client.js";
 
 // Errors
 export {
@@ -23,7 +23,7 @@ export {
   BulkNetworkError,
   BulkSigningRequiredError,
   BulkValidationError,
-} from './errors.js';
+} from "./errors.js";
 
 // Endpoints
 export {
@@ -44,11 +44,12 @@ export {
   queryUserFills,
   requestFaucet,
   updateUserSettings,
-} from './endpoints.js';
+} from "./endpoints.js";
 
 // WebSocket
-export { BulkWebSocket } from './websocket.js';
+export { BulkWebSocket } from "./websocket.js";
 export type {
+  AccountUpdate,
   BulkWebSocketConfig,
   ConnectionState,
   FrontendContextRow,
@@ -63,7 +64,7 @@ export type {
   TradeUpdate,
   WSTransport,
   WSTransportConstructor,
-} from './websocket.js';
+} from "./websocket.js";
 
 // Types
 export type {
@@ -107,4 +108,4 @@ export type {
   TrailingStopOrderType,
   UserFill,
   UserFillResponseItem,
-} from './types.js';
+} from "./types.js";

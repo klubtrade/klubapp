@@ -1,14 +1,14 @@
 // apps/worker/src/workers/account-subscriber.ts
 /* eslint-disable no-console */
 
-import { BulkWebSocket, type StreamPayloads } from '@klub/api-client';
-import { alertSubscriptions, users, type Db } from '@klub/db';
-import { Queue } from 'bullmq';
-import { and, eq, isNull } from 'drizzle-orm';
-import type { Redis } from 'ioredis';
-import WebSocket from 'ws';
+import { BulkWebSocket, type AccountUpdate } from "@klub/api-client";
+import { alertSubscriptions, users, type Db } from "@klub/db";
+import { Queue } from "bullmq";
+import { and, eq, isNull } from "drizzle-orm";
+import type { Redis } from "ioredis";
+import WebSocket from "ws";
 
-import type { AlertJobPayload } from './alerts-worker';
+import type { AlertJobPayload } from "./alerts-worker.js";
 
 /**
  * Bulk account-stream subscriber.
@@ -35,13 +35,16 @@ import type { AlertJobPayload } from './alerts-worker';
  *     `subscribeUser(userId, pubkey)` to bring them into the pool
  */
 
-const WS_URL = process.env['BULK_WS_URL'] ?? 'wss://exchange-api.bulk.trade/ws';
-const ALERTS_QUEUE_NAME = 'klub.alerts';
+const WS_URL =
+  process.env["BULK_WS_URL"] ??
+  process.env["NEXT_PUBLIC_BULK_WS_URL"] ??
+  "wss://exchange-ws1.bulk.trade";
+const ALERTS_QUEUE_NAME = "klub.alerts";
 
 const TIERS = [
-  { pct: 0.25, key: 'tier25' as const, tier: 0.25 as const },
-  { pct: 0.1, key: 'tier10' as const, tier: 0.1 as const },
-  { pct: 0.03, key: 'tier03' as const, tier: 0.03 as const },
+  { pct: 0.25, key: "tier25" as const, tier: 0.25 as const },
+  { pct: 0.1, key: "tier10" as const, tier: 0.1 as const },
+  { pct: 0.03, key: "tier03" as const, tier: 0.03 as const },
 ];
 
 export interface AccountSubscriberHandle {
@@ -75,7 +78,7 @@ export async function startAccountSubscriber({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     WebSocketImpl: WebSocket as any,
     log: (msg, meta) => {
-      console.log(`[account-sub] ${msg}`, meta ?? '');
+      console.log(`[account-sub] ${msg}`, meta ?? "");
     },
   });
 
@@ -83,8 +86,13 @@ export async function startAccountSubscriber({
     console.log(`[account-sub] ws state = ${state}`);
   });
 
-  const alertsQueue = new Queue<AlertJobPayload>(ALERTS_QUEUE_NAME, { connection: redis });
-  const subscribedUsers = new Map<string, { pubkey: string; unsub: () => void }>();
+  const alertsQueue = new Queue<AlertJobPayload>(ALERTS_QUEUE_NAME, {
+    connection: redis,
+  });
+  const subscribedUsers = new Map<
+    string,
+    { pubkey: string; unsub: () => void }
+  >();
 
   // Load every active user with alerts enabled and subscribe to their account stream.
   const activeUsers = await db
@@ -100,16 +108,15 @@ export async function startAccountSubscriber({
     subscribeOne(row.id, row.pubkey);
   }
 
-  console.log(`[account-sub] booted with ${subscribedUsers.size} user subscriptions`);
+  console.log(
+    `[account-sub] booted with ${subscribedUsers.size} user subscriptions`,
+  );
 
   function subscribeOne(userId: string, pubkey: string): void {
     if (subscribedUsers.has(userId)) return;
-    const unsub = ws.subscribe(
-      { type: 'account', user: pubkey },
-      (payload) => {
-        void processAccountUpdate({ userId, payload, alertsQueue, redis });
-      },
-    );
+    const unsub = ws.onAccount(pubkey, (payload) => {
+      void processAccountUpdate({ userId, payload, alertsQueue, redis });
+    });
     subscribedUsers.set(userId, { pubkey, unsub });
   }
 
@@ -146,7 +153,7 @@ async function processAccountUpdate({
   redis,
 }: {
   readonly userId: string;
-  readonly payload: StreamPayloads['account'];
+  readonly payload: AccountUpdate;
   readonly alertsQueue: Queue<AlertJobPayload>;
   readonly redis: Redis;
 }): Promise<void> {
@@ -155,14 +162,18 @@ async function processAccountUpdate({
     const markPrice = Number(position.markPx ?? position.entryPx ?? 0);
     const liqPrice = Number(position.liqPx ?? 0);
     const sizeBase = Number(position.sz ?? 0);
-    if (!Number.isFinite(markPrice) || !Number.isFinite(liqPrice) || liqPrice === 0) {
+    if (
+      !Number.isFinite(markPrice) ||
+      !Number.isFinite(liqPrice) ||
+      liqPrice === 0
+    ) {
       continue;
     }
     if (sizeBase === 0) continue;
 
-    const side = sizeBase > 0 ? 'long' : 'short';
+    const side = sizeBase > 0 ? "long" : "short";
     const buffer =
-      side === 'long'
+      side === "long"
         ? (markPrice - liqPrice) / markPrice
         : (liqPrice - markPrice) / markPrice;
 
@@ -174,14 +185,14 @@ async function processAccountUpdate({
 
       // Redis dedupe key — one alert per (user, symbol, tier) per 5 min
       const dedupeKey = `klub:alert:${userId}:${symbol}:${tier.key}`;
-      const acquired = await redis.set(dedupeKey, '1', 'EX', 300, 'NX');
-      if (acquired !== 'OK') {
+      const acquired = await redis.set(dedupeKey, "1", "EX", 300, "NX");
+      if (acquired !== "OK") {
         // Already fired recently; skip this tier but CHECK lower tiers —
         // if the position drops further it should still alert.
         continue;
       }
 
-      await alertsQueue.add('tier-crossed', {
+      await alertsQueue.add("tier-crossed", {
         userId,
         symbol,
         tier: tier.tier,

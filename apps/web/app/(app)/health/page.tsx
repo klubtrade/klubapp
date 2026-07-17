@@ -1,16 +1,21 @@
-'use client';
+"use client";
 
-import { healthScore, type HealthInput, type HealthOutput, type SubScore } from '@klub/calc';
-import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import {
+  healthScore,
+  type HealthInput,
+  type HealthOutput,
+  type SubScore,
+} from "@klub/calc";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 
-import { useBulkAccount } from '@/hooks/use-bulk-account';
-import { useRiskSurfacesRest } from '@/hooks/use-risk-surfaces-rest';
-import { useTickers } from '@/hooks/use-tickers';
-import { buildHealthInput } from '@/lib/health-input';
-import { marketData } from '@/lib/market-data/client';
-import { MARKETS, type MarketSymbol } from '@/lib/markets';
+import { useBulkAccount } from "@/hooks/use-bulk-account";
+import { useRiskSurfacesRest } from "@/hooks/use-risk-surfaces-rest";
+import { useTickers } from "@/hooks/use-tickers";
+import { buildHealthInput } from "@/lib/health-input";
+import { marketData } from "@/lib/market-data/client";
+import { MARKETS, type MarketSymbol } from "@/lib/markets";
 
 /**
  * /health — minimalist portfolio health.
@@ -39,32 +44,33 @@ import { MARKETS, type MarketSymbol } from '@/lib/markets';
  *   Bulk margin calculator with real risk-surface lambdas.
  */
 
-const BAND_TONE: Record<HealthOutput['band'], string> = {
-  healthy: 'text-pnl-long',
-  fine: 'text-pnl-long',
-  caution: 'text-accent',
-  risky: 'text-alert-orange',
-  critical: 'text-pnl-short',
+const BAND_TONE: Record<HealthOutput["band"], string> = {
+  healthy: "text-pnl-long",
+  fine: "text-pnl-long",
+  caution: "text-accent",
+  risky: "text-alert-orange",
+  critical: "text-pnl-short",
 };
 
-const BAND_LABEL: Record<HealthOutput['band'], string> = {
-  healthy: 'Healthy',
-  fine: 'Fine',
-  caution: 'Watch it',
-  risky: 'Risky',
-  critical: 'Critical',
+const BAND_LABEL: Record<HealthOutput["band"], string> = {
+  healthy: "Healthy",
+  fine: "Fine",
+  caution: "Watch it",
+  risky: "Risky",
+  critical: "Critical",
 };
 
 export default function HealthPage() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showAdvice, setShowAdvice] = useState(false);
-  const [riskTick, setRiskTick] = useState(0);
+  const [, setRiskTick] = useState(0);
   const subscribedRef = useRef<Set<string>>(new Set());
   const unsubscribeRef = useRef(new Map<string, () => void>());
 
   const wallet = useWallet();
   const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
-  const { state: accountState, refresh: refreshAccount } = useBulkAccount(pubkey);
+  const { state: accountState, refresh: refreshAccount } =
+    useBulkAccount(pubkey);
 
   // Auto-refresh the account snapshot every 10 seconds so health
   // reflects newly opened/closed positions without a manual reload.
@@ -93,7 +99,7 @@ export default function HealthPage() {
   const livePrices = useTickers(allSymbols);
 
   const snapshot = accountState.data;
-  const positions = snapshot?.positions ?? [];
+  const positions = useMemo(() => snapshot?.positions ?? [], [snapshot]);
   const connected = wallet.connected;
 
   // Subscribe to risk surfaces for every symbol the user has a
@@ -107,6 +113,15 @@ export default function HealthPage() {
   );
 
   useEffect(() => {
+    const activeSymbols = new Set(symbols);
+
+    for (const [symbol, unsubscribe] of unsubscribeRef.current) {
+      if (activeSymbols.has(symbol)) continue;
+      unsubscribe();
+      unsubscribeRef.current.delete(symbol);
+      subscribedRef.current.delete(symbol);
+    }
+
     for (const symbol of symbols) {
       if (subscribedRef.current.has(symbol)) continue;
       const unsubscribeRisk = marketData.subscribeRisk(symbol);
@@ -119,25 +134,29 @@ export default function HealthPage() {
         unsubscribeRisk();
       });
     }
-  }, [symbols.join(',')]);
+  }, [symbols]);
 
   useEffect(() => {
+    const unsubscribes = unsubscribeRef.current;
+    const subscribed = subscribedRef.current;
     return () => {
-      for (const unsubscribe of unsubscribeRef.current.values()) {
+      for (const unsubscribe of unsubscribes.values()) {
         unsubscribe();
       }
-      unsubscribeRef.current.clear();
-      subscribedRef.current.clear();
+      unsubscribes.clear();
+      subscribed.clear();
     };
   }, []);
 
-  const regimeLabel = useMemo(() => {
+  const regimeLabel = (() => {
     const regimes = symbols
-      .map((symbol) => extractSurfaceRegime(marketData.getLiveRiskSurface(symbol)))
-      .filter((regime): regime is number => typeof regime === 'number');
+      .map((symbol) =>
+        extractSurfaceRegime(marketData.getLiveRiskSurface(symbol)),
+      )
+      .filter((regime): regime is number => typeof regime === "number");
 
     if (regimes.length === 0) {
-      return 'unavailable';
+      return "unavailable";
     }
 
     const counts = new Map<number, number>();
@@ -158,11 +177,11 @@ export default function HealthPage() {
     }
 
     if (selectedRegime === null) {
-      return 'unavailable';
+      return "unavailable";
     }
 
     return regimeLabelForValue(selectedRegime);
-  }, [symbols.join(','), riskTick]);
+  })();
 
   // REST snapshot of per-market mm/im fractions, refreshed every 30s.
   // This is what actually powers the health math today — the stream
@@ -201,8 +220,8 @@ export default function HealthPage() {
                 <>
                   <span aria-hidden>·</span>
                   <span>
-                    {positions.length}{' '}
-                    {positions.length === 1 ? 'position' : 'positions'}
+                    {positions.length}{" "}
+                    {positions.length === 1 ? "position" : "positions"}
                   </span>
                 </>
               )}
@@ -229,14 +248,14 @@ export default function HealthPage() {
             ctaHref="/home"
             ctaLabel="Go to home"
           />
-        ) : accountState.status === 'loading' && !snapshot ? (
+        ) : accountState.status === "loading" && !snapshot ? (
           <div className="mt-12 rounded-klub-lg border border-border-subtle bg-bg-surface/40 px-5 py-12 text-center text-[13px] text-fg-muted">
             Loading your account…
           </div>
-        ) : accountState.status === 'error' ? (
+        ) : accountState.status === "error" ? (
           <div className="mt-12 rounded-klub-lg border border-pnl-short/30 bg-pnl-short/5 p-5 text-[13px] text-pnl-short">
-            Couldn&rsquo;t load your account.{' '}
-            {accountState.error ?? 'Try again in a moment.'}
+            Couldn&rsquo;t load your account.{" "}
+            {accountState.error ?? "Try again in a moment."}
           </div>
         ) : positions.length === 0 ? (
           <EmptyState
@@ -312,14 +331,26 @@ function HealthReadout({
           className="flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-surface px-4 py-3 text-[13px] text-fg-secondary transition-colors hover:bg-bg-elevated"
         >
           <span>Breakdown</span>
-          <span className="text-fg-muted">{showBreakdown ? '▲' : '▼'}</span>
+          <span className="text-fg-muted">{showBreakdown ? "▲" : "▼"}</span>
         </button>
         {showBreakdown && (
           <div className="space-y-3 rounded-klub border border-border-subtle bg-bg-surface/40 p-4">
-            <SubscoreRow label="Liquidation proximity" sub={result.subscores.liquidationProximity} />
-            <SubscoreRow label="Leverage" sub={result.subscores.leverageExposure} />
-            <SubscoreRow label="Concentration" sub={result.subscores.concentrationRisk} />
-            <SubscoreRow label="Funding burn" sub={result.subscores.fundingBurn} />
+            <SubscoreRow
+              label="Liquidation proximity"
+              sub={result.subscores.liquidationProximity}
+            />
+            <SubscoreRow
+              label="Leverage"
+              sub={result.subscores.leverageExposure}
+            />
+            <SubscoreRow
+              label="Concentration"
+              sub={result.subscores.concentrationRisk}
+            />
+            <SubscoreRow
+              label="Funding burn"
+              sub={result.subscores.fundingBurn}
+            />
           </div>
         )}
 
@@ -332,7 +363,7 @@ function HealthReadout({
               className="flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-surface px-4 py-3 text-[13px] text-fg-secondary transition-colors hover:bg-bg-elevated"
             >
               <span>What should I do?</span>
-              <span className="text-fg-muted">{showAdvice ? '▲' : '▼'}</span>
+              <span className="text-fg-muted">{showAdvice ? "▲" : "▼"}</span>
             </button>
             {showAdvice && (
               <ul className="space-y-2 rounded-klub border border-border-subtle bg-bg-surface/40 p-4 text-[13px] leading-relaxed text-fg-secondary">
@@ -406,7 +437,11 @@ function SubscoreRow({
   readonly sub: SubScore;
 }) {
   const tone =
-    sub.score >= 75 ? 'text-pnl-long' : sub.score >= 50 ? 'text-fg-primary' : 'text-pnl-short';
+    sub.score >= 75
+      ? "text-pnl-long"
+      : sub.score >= 50
+        ? "text-fg-primary"
+        : "text-pnl-short";
   const summary = formatSubscoreSummary(sub);
   return (
     <div>
@@ -422,11 +457,11 @@ function SubscoreRow({
 function formatSubscoreSummary(sub: SubScore): string {
   const scoreLabel = `score ${sub.score}/100`;
 
-  if (sub.rawUnit === 'multiple') {
+  if (sub.rawUnit === "multiple") {
     return `${sub.rawValue.toFixed(1)}x · ${scoreLabel}`;
   }
 
-  if (sub.rawUnit === 'fraction') {
+  if (sub.rawUnit === "fraction") {
     return `${formatPercentage(sub.rawValue)} · ${scoreLabel}`;
   }
 
@@ -439,24 +474,26 @@ function formatPercentage(value: number): string {
   return `${(value * 100).toFixed(digits)}%`;
 }
 
-function regimeLabelForValue(regime: number): 'bearish' | 'neutral' | 'bullish' {
-  if (regime < 0) return 'bearish';
-  if (regime > 0) return 'bullish';
-  return 'neutral';
+function regimeLabelForValue(
+  regime: number,
+): "bearish" | "neutral" | "bullish" {
+  if (regime < 0) return "bearish";
+  if (regime > 0) return "bullish";
+  return "neutral";
 }
 
 function extractSurfaceRegime(surface: unknown): number | null {
-  if (!surface || typeof surface !== 'object') {
+  if (!surface || typeof surface !== "object") {
     return null;
   }
 
   const topLevel = (surface as { regime?: unknown }).regime;
-  if (typeof topLevel === 'number' && Number.isFinite(topLevel)) {
+  if (typeof topLevel === "number" && Number.isFinite(topLevel)) {
     return topLevel;
   }
 
   const nested = (surface as { risk?: { regime?: unknown } }).risk?.regime;
-  if (typeof nested === 'number' && Number.isFinite(nested)) {
+  if (typeof nested === "number" && Number.isFinite(nested)) {
     return nested;
   }
 

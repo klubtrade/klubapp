@@ -64,7 +64,7 @@ export async function runFundingArbDetectorOnce(
     (await fetchCurrentFundingRates({
       symbols:
         options.symbols ?? parseSymbolList(process.env["FUNDING_ARB_SYMBOLS"]),
-      wsUrl: options.wsUrl ?? createWsUrlFromEnv(),
+      ...optionalWsUrl(options.wsUrl ?? createWsUrlFromEnv()),
       timeoutMs: options.snapshotTimeoutMs ?? DEFAULT_SNAPSHOT_TIMEOUT_MS,
     }));
 
@@ -251,6 +251,10 @@ function normalizeFundingRows(
 
 function createWsUrlFromEnv(): string | undefined {
   return process.env["BULK_WS_URL"] ?? process.env["NEXT_PUBLIC_BULK_WS_URL"];
+}
+
+function optionalWsUrl(wsUrl: string | undefined): { readonly wsUrl?: string } {
+  return wsUrl ? { wsUrl } : {};
 }
 
 function parsePositiveInt(raw: string | undefined): number | undefined {

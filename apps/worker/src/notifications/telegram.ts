@@ -22,31 +22,34 @@ export async function sendTelegram(params: {
   readonly chatId: string;
   readonly text: string;
 }): Promise<TelegramDelivery> {
-  const token = process.env['TELEGRAM_BOT_TOKEN'];
+  const token = process.env["TELEGRAM_BOT_TOKEN"];
   if (!token) {
-    return { ok: false, error: 'missing_token' };
+    return { ok: false, error: "missing_token" };
   }
 
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: params.chatId,
-        text: params.text,
-        parse_mode: 'Markdown',
-        disable_web_page_preview: true,
-      }),
-    });
+    const res = await fetch(
+      `https://api.telegram.org/bot${token}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: params.chatId,
+          text: params.text,
+          parse_mode: "Markdown",
+          disable_web_page_preview: true,
+        }),
+      },
+    );
     if (!res.ok) {
       const body = await res.text();
-      console.warn('[telegram] non-2xx', res.status, body);
+      console.warn("[telegram] non-2xx", res.status, body);
       return { ok: false, error: `http_${res.status}` };
     }
     return { ok: true };
   } catch (err) {
-    console.warn('[telegram] threw', err);
-    return { ok: false, error: err instanceof Error ? err.message : 'unknown' };
+    console.warn("[telegram] threw", err);
+    return { ok: false, error: err instanceof Error ? err.message : "unknown" };
   }
 }
 
@@ -57,22 +60,26 @@ export async function sendTelegram(params: {
 export function formatAlertText(alert: {
   readonly tier: 0.25 | 0.1 | 0.03;
   readonly symbol: string;
-  readonly side: 'long' | 'short';
+  readonly side: "long" | "short";
   readonly bufferPct: number;
   readonly liqPrice: number;
   readonly markPrice: number;
 }): string {
   const tierLabel =
-    alert.tier === 0.25 ? 'Heads up' : alert.tier === 0.1 ? 'Close to liq' : 'ACTION NEEDED';
-  const emoji = alert.tier === 0.25 ? '🟡' : alert.tier === 0.1 ? '🟠' : '🔴';
+    alert.tier === 0.25
+      ? "Heads up"
+      : alert.tier === 0.1
+        ? "Close to liq"
+        : "ACTION NEEDED";
+  const emoji = alert.tier === 0.25 ? "🟡" : alert.tier === 0.1 ? "🟠" : "🔴";
   return [
     `${emoji} *${tierLabel}* · ${alert.symbol}`,
     ``,
-    `Your ${alert.side} position is at *${alert.bufferPct.toFixed(1)}%* buffer.`,
+    `Your ${alert.side} position is at *${(alert.bufferPct * 100).toFixed(1)}%* buffer.`,
     `Mark: \`$${fmt(alert.markPrice)}\` · Liq: \`$${fmt(alert.liqPrice)}\``,
     ``,
     `Reply /add to add margin, /reduce to trim, /close to exit.`,
-  ].join('\n');
+  ].join("\n");
 }
 
 function fmt(n: number): string {

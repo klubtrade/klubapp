@@ -1,15 +1,16 @@
 // packages/signing/src/signer.ts
-import * as ed25519 from '@noble/ed25519';
-import { sha512 } from '@noble/hashes/sha512';
+import * as ed25519 from "@noble/ed25519";
+import { sha512 } from "@noble/hashes/sha512";
 
-import type { Ed25519Keypair, Signer } from './types';
+import type { Ed25519Keypair, Signer } from "./types.js";
 
 // @noble/ed25519 v2 requires a sync hash function to be configured once.
 // We use their recommended path: sha512 from @noble/hashes, sync API.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (ed25519 as any).etc ??= {};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-(ed25519 as any).etc.sha512Sync = (...msgs: Uint8Array[]) => sha512(concat(msgs));
+(ed25519 as any).etc.sha512Sync = (...msgs: Uint8Array[]) =>
+  sha512(concat(msgs));
 
 function concat(arrs: readonly Uint8Array[]): Uint8Array {
   const len = arrs.reduce((n, a) => n + a.length, 0);
@@ -26,10 +27,11 @@ function concat(arrs: readonly Uint8Array[]): Uint8Array {
 // Base58 encode/decode — Bulk uses base58 for all pubkey display (Solana convention)
 // ---------------------------------------------------------------------------
 
-const B58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const B58_ALPHABET =
+  "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 export function base58Encode(bytes: Uint8Array): string {
-  if (bytes.length === 0) return '';
+  if (bytes.length === 0) return "";
   const digits: number[] = [0];
   for (let i = 0; i < bytes.length; i++) {
     let carry = bytes[i]!;
@@ -44,8 +46,16 @@ export function base58Encode(bytes: Uint8Array): string {
     }
   }
   // Leading zeros become leading '1'
-  let out = '';
-  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) out += '1';
+  let out = "";
+  let leadingZeros = 0;
+  for (
+    ;
+    leadingZeros < bytes.length && bytes[leadingZeros] === 0;
+    leadingZeros++
+  ) {
+    out += "1";
+  }
+  if (leadingZeros === bytes.length) return out;
   for (let i = digits.length - 1; i >= 0; i--) out += B58_ALPHABET[digits[i]!];
   return out;
 }
@@ -69,7 +79,8 @@ export function base58Decode(s: string): Uint8Array {
     }
   }
   let leadingOnes = 0;
-  for (let i = 0; i < s.length && s[i] === '1'; i++) leadingOnes++;
+  for (let i = 0; i < s.length && s[i] === "1"; i++) leadingOnes++;
+  if (leadingOnes === s.length) return new Uint8Array(leadingOnes);
   const out = new Uint8Array(leadingOnes + bytes.length);
   out.set(bytes.reverse(), leadingOnes);
   return out;
@@ -102,7 +113,7 @@ export function generateKeypair(): Ed25519Keypair {
  */
 export function derivePublicKey(privateKey: Uint8Array): Uint8Array {
   if (privateKey.length !== 32) {
-    throw new Error('private key must be 32 bytes');
+    throw new Error("private key must be 32 bytes");
   }
   return ed25519.getPublicKey(privateKey);
 }
@@ -119,10 +130,10 @@ export function derivePublicKey(privateKey: Uint8Array): Uint8Array {
  */
 export function createEd25519Signer(keypair: Ed25519Keypair): Signer {
   if (keypair.privateKey.length !== 32) {
-    throw new Error('private key must be 32 bytes');
+    throw new Error("private key must be 32 bytes");
   }
   if (keypair.publicKey.length !== 32) {
-    throw new Error('public key must be 32 bytes');
+    throw new Error("public key must be 32 bytes");
   }
   return {
     publicKey: keypair.publicKey,
@@ -145,7 +156,11 @@ export async function verifyEd25519(params: {
   if (params.signature.length !== 64) return false;
   if (params.publicKey.length !== 32) return false;
   try {
-    return await ed25519.verify(params.signature, params.payload, params.publicKey);
+    return await ed25519.verify(
+      params.signature,
+      params.payload,
+      params.publicKey,
+    );
   } catch {
     return false;
   }

@@ -1,7 +1,7 @@
 // packages/signing/src/payloads.ts
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from "@noble/hashes/sha256";
 
-import type { SignedEnvelope, Signer } from './types';
+import type { SignedEnvelope, Signer } from "./types.js";
 
 /**
  * Canonical payload serialization for Bulk-signed requests.
@@ -21,8 +21,8 @@ import type { SignedEnvelope, Signer } from './types';
  */
 
 export interface RequestEnvelope<B> {
-  readonly nonce: string;      // hex, 32 chars
-  readonly timestamp: number;  // unix ms
+  readonly nonce: string; // hex, 32 chars
+  readonly timestamp: number; // unix ms
   readonly body: B;
 }
 
@@ -76,23 +76,26 @@ export async function signEnvelope<B>(params: {
 // ---------------------------------------------------------------------------
 
 function canonicalJson(value: unknown): string {
-  if (value === null) return 'null';
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('non-finite number in payload');
+  if (value === null) return "null";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value))
+      throw new Error("non-finite number in payload");
     return String(value);
   }
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "string") return JSON.stringify(value);
   if (Array.isArray(value)) {
-    return '[' + value.map((v) => canonicalJson(v)).join(',') + ']';
+    return "[" + value.map((v) => canonicalJson(v)).join(",") + "]";
   }
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
     const keys = Object.keys(obj).sort();
     return (
-      '{' +
-      keys.map((k) => JSON.stringify(k) + ':' + canonicalJson(obj[k])).join(',') +
-      '}'
+      "{" +
+      keys
+        .map((k) => JSON.stringify(k) + ":" + canonicalJson(obj[k]))
+        .join(",") +
+      "}"
     );
   }
   throw new Error(`unsupported value in canonical JSON: ${typeof value}`);
@@ -101,5 +104,5 @@ function canonicalJson(value: unknown): string {
 function generateNonce(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

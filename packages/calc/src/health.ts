@@ -49,7 +49,7 @@ export interface HealthInput {
 // Outputs
 // ---------------------------------------------------------------------------
 
-export type HealthBand = 'healthy' | 'fine' | 'caution' | 'risky' | 'critical';
+export type HealthBand = "healthy" | "fine" | "caution" | "risky" | "critical";
 
 export interface SubScore {
   /** 0–100, higher is better. */
@@ -59,7 +59,7 @@ export interface SubScore {
   /** Raw value feeding the score (for transparency). */
   readonly rawValue: number;
   /** Unit of the raw value. */
-  readonly rawUnit: 'fraction' | 'multiple' | 'usd';
+  readonly rawUnit: "fraction" | "multiple" | "usd";
 }
 
 export interface HealthOutput {
@@ -113,7 +113,13 @@ export function healthScore(input: HealthInput): HealthOutput {
     lev.score * WEIGHT_LEVERAGE +
     conc.score * WEIGHT_CONCENTRATION +
     fund.score * WEIGHT_FUNDING;
-  const score = Math.round(clamp(weighted, 0, 100));
+  // A weighted average must never let otherwise-safe dimensions hide an
+  // immediate liquidation threat. Red/orange alert tiers therefore cap the
+  // overall score in the matching critical/risky band.
+  const score = Math.min(
+    Math.round(clamp(weighted, 0, 100)),
+    liquidationRiskScoreCap(liqProx.rawValue),
+  );
 
   const recommendations = buildRecommendations({
     liqProx,
@@ -167,9 +173,9 @@ function scoreLiqProximity(input: HealthInput): SubScore {
   if (!Number.isFinite(minBuffer)) {
     return {
       score: 100,
-      label: 'No active positions',
+      label: "No active positions",
       rawValue: 1,
-      rawUnit: 'fraction',
+      rawUnit: "fraction",
     };
   }
 
@@ -186,16 +192,23 @@ function scoreLiqProximity(input: HealthInput): SubScore {
     score,
     label: labelForBuffer(bufferPct),
     rawValue: bufferPct,
-    rawUnit: 'fraction',
+    rawUnit: "fraction",
   };
 }
 
 function labelForBuffer(b: number): string {
-  if (b >= 0.4) return 'Comfortable buffer';
-  if (b >= 0.25) return 'Healthy buffer';
-  if (b >= 0.1) return 'Watching closely';
-  if (b >= 0.03) return 'Tight — add margin';
-  return 'On the edge';
+  if (b >= 0.4) return "Comfortable buffer";
+  if (b >= 0.25) return "Healthy buffer";
+  if (b >= 0.1) return "Watching closely";
+  if (b >= 0.03) return "Tight — add margin";
+  return "On the edge";
+}
+
+function liquidationRiskScoreCap(buffer: number): number {
+  if (buffer <= 0) return 0;
+  if (buffer <= 0.03) return 19;
+  if (buffer <= 0.1) return 39;
+  return 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,23 +233,27 @@ function scoreLeverage(input: HealthInput): SubScore {
   }
   const effLev = grossNotional / input.equityUsd;
 
-  const score = piecewise(effLev, [
-    [0, 100],
-    [2, 100],
-    [3, 90],
-    [5, 70],
-    [10, 40],
-    [20, 10],
-    [30, 0],
-  ], /* monotonicallyIncreasing */ false);
+  const score = piecewise(
+    effLev,
+    [
+      [0, 100],
+      [2, 100],
+      [3, 90],
+      [5, 70],
+      [10, 40],
+      [20, 10],
+      [30, 0],
+    ],
+    /* monotonicallyIncreasing */ false,
+  );
 
   let label: string;
-  if (effLev <= 2) label = 'Conservative';
-  else if (effLev <= 5) label = 'Moderate';
-  else if (effLev <= 10) label = 'Aggressive';
-  else label = 'Extreme';
+  if (effLev <= 2) label = "Conservative";
+  else if (effLev <= 5) label = "Moderate";
+  else if (effLev <= 10) label = "Aggressive";
+  else label = "Extreme";
 
-  return { score, label, rawValue: effLev, rawUnit: 'multiple' };
+  return { score, label, rawValue: effLev, rawUnit: "multiple" };
 }
 
 // ---------------------------------------------------------------------------
@@ -268,9 +285,9 @@ function scoreConcentration(input: HealthInput): SubScore {
   if (totalNotional === 0) {
     return {
       score: 100,
-      label: 'No exposure',
+      label: "No exposure",
       rawValue: 0,
-      rawUnit: 'fraction',
+      rawUnit: "fraction",
     };
   }
 
@@ -280,22 +297,26 @@ function scoreConcentration(input: HealthInput): SubScore {
     hhi += share * share;
   }
 
-  const score = piecewise(hhi, [
-    [0, 100],
-    [0.3, 100],
-    [0.5, 80],
-    [0.7, 60],
-    [0.9, 30],
-    [1.0, 15],
-  ], /* monotonicallyIncreasing */ false);
+  const score = piecewise(
+    hhi,
+    [
+      [0, 100],
+      [0.3, 100],
+      [0.5, 80],
+      [0.7, 60],
+      [0.9, 30],
+      [1.0, 15],
+    ],
+    /* monotonicallyIncreasing */ false,
+  );
 
   let label: string;
-  if (hhi <= 0.3) label = 'Well diversified';
-  else if (hhi <= 0.6) label = 'Balanced';
-  else if (hhi < 1) label = 'Concentrated';
-  else label = 'Single position';
+  if (hhi <= 0.3) label = "Well diversified";
+  else if (hhi <= 0.6) label = "Balanced";
+  else if (hhi < 1) label = "Concentrated";
+  else label = "Single position";
 
-  return { score, label, rawValue: hhi, rawUnit: 'fraction' };
+  return { score, label, rawValue: hhi, rawUnit: "fraction" };
 }
 
 // ---------------------------------------------------------------------------
@@ -326,22 +347,26 @@ function scoreFunding(input: HealthInput): SubScore {
   }
   const rate = fundingPerDay / input.equityUsd;
 
-  const score = piecewise(rate, [
-    [0, 100],
-    [0.0005, 100],
-    [0.002, 80],
-    [0.005, 60],
-    [0.01, 30],
-    [0.02, 0],
-  ], /* monotonicallyIncreasing */ false);
+  const score = piecewise(
+    rate,
+    [
+      [0, 100],
+      [0.0005, 100],
+      [0.002, 80],
+      [0.005, 60],
+      [0.01, 30],
+      [0.02, 0],
+    ],
+    /* monotonicallyIncreasing */ false,
+  );
 
   let label: string;
-  if (rate <= 0.0005) label = 'Negligible';
-  else if (rate <= 0.005) label = 'Manageable';
-  else if (rate <= 0.01) label = 'High';
-  else label = 'Bleeding';
+  if (rate <= 0.0005) label = "Negligible";
+  else if (rate <= 0.005) label = "Manageable";
+  else if (rate <= 0.01) label = "High";
+  else label = "Bleeding";
 
-  return { score, label, rawValue: rate, rawUnit: 'fraction' };
+  return { score, label, rawValue: rate, rawUnit: "fraction" };
 }
 
 // ---------------------------------------------------------------------------
@@ -372,7 +397,7 @@ function buildRecommendations(args: {
   }
   if (args.conc.score < 50) {
     recs.push(
-      'Your book is concentrated in one asset. Consider diversifying so a single liquidation doesn\u2019t end the day.',
+      "Your book is concentrated in one asset. Consider diversifying so a single liquidation doesn\u2019t end the day.",
     );
   }
   if (args.fund.score < 50) {
@@ -383,7 +408,9 @@ function buildRecommendations(args: {
   return recs;
 }
 
-function closestToLiq(positions: readonly HealthPosition[]): HealthPosition | undefined {
+function closestToLiq(
+  positions: readonly HealthPosition[],
+): HealthPosition | undefined {
   let best: HealthPosition | undefined;
   let bestBuffer = Infinity;
   for (const p of positions) {
@@ -438,16 +465,14 @@ export function stressTest(
 
   for (const p of portfolio.positions) {
     const apply =
-      correlated && !stress.shouldApply ? true : (stress.shouldApply?.(p) ?? false);
-    const mark = apply
-      ? p.markPrice * (1 + stress.shockFrac)
-      : p.markPrice;
+      correlated && !stress.shouldApply
+        ? true
+        : (stress.shouldApply?.(p) ?? false);
+    const mark = apply ? p.markPrice * (1 + stress.shockFrac) : p.markPrice;
 
     // Detect liquidation — for longs, liquidated if mark ≤ liqPrice.
     const isLong = p.size > 0;
-    const liquidatedHere = isLong
-      ? mark <= p.liqPrice
-      : mark >= p.liqPrice;
+    const liquidatedHere = isLong ? mark <= p.liqPrice : mark >= p.liqPrice;
 
     // PnL from this shock
     const move = mark - p.markPrice;
@@ -483,10 +508,15 @@ export function stressTest(
 // ---------------------------------------------------------------------------
 
 function flatBookResponse(): HealthOutput {
-  const max: SubScore = { score: 100, label: 'No exposure', rawValue: 0, rawUnit: 'fraction' };
+  const max: SubScore = {
+    score: 100,
+    label: "No exposure",
+    rawValue: 0,
+    rawUnit: "fraction",
+  };
   return {
     score: 100,
-    band: 'healthy',
+    band: "healthy",
     subscores: {
       liquidationProximity: max,
       leverageExposure: max,
@@ -498,26 +528,33 @@ function flatBookResponse(): HealthOutput {
 }
 
 function underwaterResponse(): HealthOutput {
-  const zero: SubScore = { score: 0, label: 'Underwater', rawValue: 0, rawUnit: 'usd' };
+  const zero: SubScore = {
+    score: 0,
+    label: "Underwater",
+    rawValue: 0,
+    rawUnit: "usd",
+  };
   return {
     score: 0,
-    band: 'critical',
+    band: "critical",
     subscores: {
       liquidationProximity: zero,
       leverageExposure: zero,
       concentrationRisk: zero,
       fundingBurn: zero,
     },
-    recommendations: ['Account equity is zero or negative. Close positions and re-fund.'],
+    recommendations: [
+      "Account equity is zero or negative. Close positions and re-fund.",
+    ],
   };
 }
 
 export function bandFor(score: number): HealthBand {
-  if (score >= 80) return 'healthy';
-  if (score >= 60) return 'fine';
-  if (score >= 40) return 'caution';
-  if (score >= 20) return 'risky';
-  return 'critical';
+  if (score >= 80) return "healthy";
+  if (score >= 60) return "fine";
+  if (score >= 40) return "caution";
+  if (score >= 20) return "risky";
+  return "critical";
 }
 
 function clamp(n: number, lo: number, hi: number): number {
