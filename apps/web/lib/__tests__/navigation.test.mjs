@@ -16,7 +16,11 @@ describe("navigation", () => {
   });
 
   it("marks canonical routes, nested routes, and legacy aliases active", () => {
+    const portfolio = PRIMARY_NAVIGATION[0];
     const trade = PRIMARY_NAVIGATION[1];
+    expect(isNavigationItemActive("/portfolio", portfolio)).toBe(true);
+    expect(isNavigationItemActive("/home", portfolio)).toBe(true);
+    expect(isNavigationItemActive("/health", portfolio)).toBe(true);
     expect(trade).toBeDefined();
     expect(isNavigationItemActive("/trade", trade)).toBe(true);
     expect(isNavigationItemActive("/trade/BTC-USD", trade)).toBe(true);

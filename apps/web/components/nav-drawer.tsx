@@ -109,7 +109,7 @@ export function NavDrawer() {
         </button>
 
         <Link
-          href="/home"
+          href="/portfolio"
           aria-label="KLUB home"
           className="flex items-center gap-2 font-semibold tracking-[-0.02em] text-fg-primary transition-opacity hover:opacity-70"
         >

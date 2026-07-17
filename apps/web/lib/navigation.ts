@@ -17,9 +17,9 @@ export interface NavigationGroup {
 /** The only destinations that compete for primary-navigation attention. */
 export const PRIMARY_NAVIGATION: readonly NavigationItem[] = [
   {
-    href: "/home",
+    href: "/portfolio",
     label: "Portfolio",
-    aliases: ["/health"],
+    aliases: ["/home", "/health"],
     icon: "portfolio",
   },
   {

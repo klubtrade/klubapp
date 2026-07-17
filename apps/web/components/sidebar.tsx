@@ -64,7 +64,7 @@ export function Sidebar() {
     >
       <div className="flex flex-col items-center gap-2">
         <Link
-          href="/home"
+          href="/portfolio"
           aria-label="KLUB home"
           className="mb-4 flex h-12 w-12 items-center justify-center"
         >

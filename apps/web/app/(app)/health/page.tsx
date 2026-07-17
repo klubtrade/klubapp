@@ -245,8 +245,8 @@ export default function HealthPage() {
           <EmptyState
             title="Connect your wallet"
             body="Your health score appears once you connect a wallet and open a position."
-            ctaHref="/home"
-            ctaLabel="Go to home"
+            ctaHref="/portfolio"
+            ctaLabel="Go to portfolio"
           />
         ) : accountState.status === "loading" && !snapshot ? (
           <div className="mt-12 rounded-klub-lg border border-border-subtle bg-bg-surface/40 px-5 py-12 text-center text-[13px] text-fg-muted">

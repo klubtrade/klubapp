@@ -10,6 +10,11 @@ const config = {
         destination: "/trade",
         permanent: true,
       },
+      {
+        source: "/home",
+        destination: "/portfolio",
+        permanent: true,
+      },
     ];
   },
 };
