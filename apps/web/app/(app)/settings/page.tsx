@@ -41,7 +41,7 @@ export default function SettingsPage() {
       }
       toast.success('Cleared');
       setTimeout(() => {
-        window.location.href = '/home';
+        window.location.href = '/portfolio';
       }, 600);
     } catch {
       toast.error('Could not clear');

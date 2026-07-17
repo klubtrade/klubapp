@@ -124,8 +124,8 @@ export default function ProPage() {
             <Link href="/trade" className="btn-primary btn-compact">
               Open Trade
             </Link>
-            <Link href="/home" className="text-[13px] text-fg-muted transition-colors hover:text-fg-primary">
-              Back to home
+            <Link href="/portfolio" className="text-[13px] text-fg-muted transition-colors hover:text-fg-primary">
+              Back to portfolio
             </Link>
           </div>
         </div>
@@ -1128,7 +1128,7 @@ function CommandPalette({
         };
       }),
       { id: 'nav-quick', label: 'Open Trade', hint: '/trade', run: () => { window.location.href = '/trade'; } },
-      { id: 'nav-home', label: 'Go to Home', hint: '/home', run: () => { window.location.href = '/home'; } },
+      { id: 'nav-home', label: 'Go to Portfolio', hint: '/portfolio', run: () => { window.location.href = '/portfolio'; } },
       { id: 'nav-follow', label: 'Browse leaders', hint: '/follow', run: () => { window.location.href = '/follow'; } },
       { id: 'nav-health', label: 'Account health', hint: '/health', run: () => { window.location.href = '/health'; } },
       { id: 'nav-ramp', label: 'Add funds', hint: '/ramp', run: () => { window.location.href = '/ramp'; } },

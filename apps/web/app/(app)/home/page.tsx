@@ -1,6 +1,6 @@
 'use client';
 
-import { healthScore } from '@klub/calc';
+import { healthScore, type HealthOutput } from '@klub/calc';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
@@ -11,27 +11,26 @@ import { useConnectionState } from '@/hooks/use-connection-state';
 import { useRiskSurfacesRest } from '@/hooks/use-risk-surfaces-rest';
 import { useTickers } from '@/hooks/use-tickers';
 import { useWalletGate } from '@/hooks/use-wallet-gate';
-import { buildHealthInput, type LivePriceMap, type RiskSurfaceMap } from '@/lib/health-input';
+import { buildHealthInput } from '@/lib/health-input';
 import { MARKETS, SEED_PRICES, type MarketSymbol } from '@/lib/markets';
+import { buildPortfolioRiskView } from '@/lib/portfolio-risk';
 import { useUserPrefs } from '@/lib/user-prefs';
 
 /**
- * /home — account dashboard.
+ * /portfolio — balance, positions, and liquidation risk in one place.
  *
  * Two distinct surfaces depending on connection state:
  *
  *   - Connected: Revolut/Venmo-style account home. Hero total balance,
- *     4-up icon-circle actions (Cash / Trade / Follow / Pro), and a
- *     stat strip (Positions / Health / 24h PnL) above a markets
- *     snapshot. The user sees their actual numbers immediately — no
- *     "Show details" toggle to bury balance behind a tap.
+ *     short action row, then a portfolio-level risk summary above the
+ *     positions and free-margin snapshot.
  *
  *   - Disconnected: minimal welcome with one primary CTA. "What do you
  *     want to do?" was the original framing; kept because it's a clear
  *     entry pitch for a brand-new visitor.
  *
- * The health score is computed by the same `buildHealthInput +
- * healthScore()` pipeline as /health so the two pages never disagree.
+ * The health score and closest liquidation buffer use the same shared
+ * pipeline as the detailed /health drill-down.
  */
 
 const TICKER_SYMBOLS = ['BTC-USD', 'ETH-USD', 'SOL-USD'] as const;
@@ -83,12 +82,21 @@ function ConnectedHome() {
 
   const equity = snapshot?.equityUsd ?? null;
   const totalPnl = computeTotalPnl(snapshot);
+  const portfolioHealth = useMemo<HealthOutput | null>(() => {
+    const input = buildHealthInput(snapshot, livePrices, mmSurfaces);
+    if (!input) return null;
+    try {
+      return healthScore(input);
+    } catch {
+      return null;
+    }
+  }, [snapshot, livePrices, mmSurfaces]);
 
   return (
     <>
       <section className="text-center">
         <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
-          Total balance
+          Portfolio balance
         </div>
         <div className="mt-2 font-mono text-[48px] font-semibold leading-none tracking-[-0.02em] text-fg-primary md:text-[60px]">
           {equity === null ? '$—' : `$${formatUsd(equity)}`}
@@ -111,17 +119,19 @@ function ConnectedHome() {
         </div>
       </section>
 
-      <section className="mt-10 grid grid-cols-5 gap-2">
+      <RiskSummary
+        result={portfolioHealth}
+        positionCount={snapshot?.positions.length ?? null}
+      />
+
+      <section className="mt-8 grid grid-cols-3 gap-3">
         <NavCircle href="/cash" label="Cash" icon={<IconWallet />} />
         <NavCircle href="/trade" label="Trade" icon={<IconTrade />} />
-        <NavCircle href="/follow" label="Follow" icon={<IconUsers />} />
-        <NavCircle href="/earn" label="Earn" icon={<IconEarn />} />
-        <NavCircle href="/pro" label="Pro" icon={<IconTerminal />} />
+        <NavCircle href="/follow" label="Copy" icon={<IconUsers />} />
       </section>
 
-      <section className="mt-10 grid grid-cols-3 gap-3">
+      <section className="mt-8 grid grid-cols-2 gap-3">
         <StatCard snapshot={snapshot} kind="positions" />
-        <StatCard snapshot={snapshot} kind="health" livePrices={livePrices} mmSurfaces={mmSurfaces} />
         <StatCard snapshot={snapshot} kind="margin" />
       </section>
 
@@ -245,61 +255,100 @@ function IconUsers() {
   );
 }
 
-function IconEarn() {
+// ---------------------------------------------------------------------------
+// Risk summary + account stats
+// ---------------------------------------------------------------------------
+
+function RiskSummary({
+  result,
+  positionCount,
+}: {
+  readonly result: HealthOutput | null;
+  readonly positionCount: number | null;
+}) {
+  const view = buildPortfolioRiskView({ positionCount, result });
+
+  if (view.state === 'loading') {
+    return (
+      <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface p-5 text-[13px] text-fg-muted">
+        Loading portfolio risk…
+      </section>
+    );
+  }
+
+  if (view.state === 'flat') {
+    return (
+      <section className="mt-8 rounded-klub-lg border border-pnl-long/25 bg-pnl-long/5 p-5">
+        <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-pnl-long">
+          No liquidation risk
+        </div>
+        <p className="mt-2 text-[13px] leading-relaxed text-fg-secondary">
+          You have no open positions. Your collateral is not exposed to liquidation.
+        </p>
+      </section>
+    );
+  }
+
+  if (view.state === 'unavailable') {
+    return (
+      <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface p-5 text-[13px] text-fg-muted">
+        Risk data is incomplete. Open the detailed view to refresh the account and market inputs.
+        <Link href="/health" className="mt-3 block text-accent">
+          Open risk details →
+        </Link>
+      </section>
+    );
+  }
+
+  const tone =
+    view.level === 'critical'
+      ? 'text-pnl-short'
+      : view.level === 'risky'
+        ? 'text-alert-orange'
+        : view.level === 'watch'
+          ? 'text-accent'
+          : 'text-pnl-long';
+
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 18c2-6 6-9 18-12M21 6v5m0-5h-5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-fg-muted">
+            Portfolio health
+          </div>
+          <div className={`mt-2 font-mono text-[34px] font-semibold leading-none ${tone}`}>
+            {view.score}
+            <span className="ml-1 text-[13px] font-normal text-fg-muted">/ 100</span>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+            Closest liquidation
+          </div>
+          <div className={`mt-1 font-mono text-[16px] font-semibold ${tone}`}>
+            {view.bufferPct.toFixed(1)}% away
+          </div>
+        </div>
+      </div>
+      <p className="mt-4 text-[13px] leading-relaxed text-fg-secondary">
+        {view.recommendation}
+      </p>
+      <Link href="/health" className="mt-4 inline-block text-[12px] font-medium text-accent">
+        View risk breakdown →
+      </Link>
+    </section>
   );
 }
-
-function IconTerminal() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="16"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M7 9l3 3-3 3M13 15h4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Stat cards (Positions / Health / Margin used)
-// ---------------------------------------------------------------------------
 
 function StatCard({
   snapshot,
   kind,
-  livePrices,
-  mmSurfaces,
 }: {
   readonly snapshot: BulkAccountSnapshot | null;
-  readonly kind: 'positions' | 'health' | 'margin';
-  readonly livePrices?: LivePriceMap;
-  readonly mmSurfaces?: RiskSurfaceMap;
+  readonly kind: 'positions' | 'margin';
 }) {
   let label = '';
   let value = '—';
-  let tone: 'long' | 'short' | 'neutral' = 'neutral';
 
   if (kind === 'positions') {
     label = 'Positions';
@@ -309,35 +358,14 @@ function StatCard({
     if (snapshot?.freeMarginUsd !== null && snapshot?.freeMarginUsd !== undefined) {
       value = `$${formatUsd(snapshot.freeMarginUsd)}`;
     }
-  } else if (kind === 'health' && snapshot && livePrices && mmSurfaces) {
-    label = 'Health';
-    const input = buildHealthInput(snapshot, livePrices, mmSurfaces);
-    if (input) {
-      try {
-        const result = healthScore(input);
-        value = String(result.score);
-        tone = result.score >= 75 ? 'long' : result.score >= 50 ? 'neutral' : 'short';
-      } catch {
-        // leave default
-      }
-    }
-  } else if (kind === 'health') {
-    label = 'Health';
   }
-
-  const color =
-    tone === 'long'
-      ? 'text-pnl-long'
-      : tone === 'short'
-        ? 'text-pnl-short'
-        : 'text-fg-primary';
 
   return (
     <div className="rounded-klub-lg border border-border-subtle bg-bg-surface px-3 py-3 text-center">
       <div className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">
         {label}
       </div>
-      <div className={`mt-1.5 font-mono text-[15px] font-semibold ${color}`}>
+      <div className="mt-1.5 font-mono text-[15px] font-semibold text-fg-primary">
         {value}
       </div>
     </div>
