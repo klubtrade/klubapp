@@ -26,13 +26,13 @@ const config = {
   async redirects() {
     return [
       {
-        source: "/quick-trade",
-        destination: "/trade",
+        source: "/quick-trade/:path*",
+        destination: "/trade/:path*",
         permanent: true,
       },
       {
-        source: "/home",
-        destination: "/portfolio",
+        source: "/home/:path*",
+        destination: "/portfolio/:path*",
         permanent: true,
       },
       {
@@ -41,18 +41,18 @@ const config = {
         permanent: true,
       },
       {
-        source: "/copy-trade",
-        destination: "/copy#following",
+        source: "/copy-trade/:path*",
+        destination: "/copy/:path*",
         permanent: true,
       },
       {
-        source: "/cash",
-        destination: "/funding",
+        source: "/cash/:path*",
+        destination: "/funding/:path*",
         permanent: true,
       },
       {
-        source: "/ramp",
-        destination: "/funding/add",
+        source: "/ramp/:path*",
+        destination: "/funding/add/:path*",
         permanent: true,
       },
     ];

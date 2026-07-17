@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canonicalizePathname,
   isMoreNavigationActive,
   isNavigationItemActive,
   MORE_NAVIGATION,
@@ -44,12 +45,23 @@ describe("navigation", () => {
     expect(isMoreNavigationActive("/trade")).toBe(false);
   });
 
+  it("canonicalizes legacy and overlapping routes", () => {
+    expect(canonicalizePathname("/home")).toBe("/portfolio");
+    expect(canonicalizePathname("/home/positions")).toBe("/portfolio/positions");
+    expect(canonicalizePathname("/cash")).toBe("/funding");
+    expect(canonicalizePathname("/quick-trade")).toBe("/trade");
+    expect(canonicalizePathname("/follow/alpha")).toBe("/copy/alpha");
+    expect(canonicalizePathname("/copy-trade")).toBe("/copy");
+    expect(canonicalizePathname("/ramp")).toBe("/funding/add");
+    expect(canonicalizePathname("/portfolio")).toBeNull();
+  });
+
   it("labels advanced and research products explicitly", () => {
     const items = MORE_NAVIGATION.flatMap((group) => group.items);
     expect(items.find(({ href }) => href === "/pro")?.badge).toBe("Advanced");
     expect(items.find(({ href }) => href === "/basis")?.badge).toBe("Lab");
     expect(
-      items.find(({ href }) => href === "/funding")?.badge,
-    ).toBeUndefined();
+      items.find(({ href }) => href === "/funding")?.label,
+    ).toBe("Cash");
   });
 });

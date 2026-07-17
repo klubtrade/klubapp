@@ -14,6 +14,15 @@ export interface NavigationGroup {
   readonly items: readonly NavigationItem[];
 }
 
+export const CANONICAL_ROUTE_ALIASES = [
+  { from: "/home", to: "/portfolio" },
+  { from: "/cash", to: "/funding" },
+  { from: "/quick-trade", to: "/trade" },
+  { from: "/follow", to: "/copy" },
+  { from: "/copy-trade", to: "/copy" },
+  { from: "/ramp", to: "/funding/add" },
+] as const;
+
 /** The only destinations that compete for primary-navigation attention. */
 export const PRIMARY_NAVIGATION: readonly NavigationItem[] = [
   {
@@ -43,8 +52,8 @@ export const MORE_NAVIGATION: readonly NavigationGroup[] = [
     items: [
       {
         href: "/funding",
-        label: "Funding",
-        description: "Send, receive and add funds",
+        label: "Cash",
+        description: "Add, send and receive funds",
         aliases: ["/cash", "/ramp"],
       },
     ],
@@ -114,6 +123,17 @@ export function isMoreNavigationActive(pathname: string | null): boolean {
   return MORE_NAVIGATION.some((group) =>
     group.items.some((item) => isNavigationItemActive(pathname, item)),
   );
+}
+
+export function canonicalizePathname(pathname: string): string | null {
+  const current = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  for (const alias of CANONICAL_ROUTE_ALIASES) {
+    if (current === alias.from || current.startsWith(`${alias.from}/`)) {
+      const suffix = current.slice(alias.from.length);
+      return `${alias.to}${suffix}`;
+    }
+  }
+  return null;
 }
 
 function matchesRoute(pathname: string, href: string): boolean {
