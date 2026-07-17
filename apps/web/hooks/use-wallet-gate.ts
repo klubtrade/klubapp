@@ -1,8 +1,6 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * Single source of truth for "does this user have a wallet connected".
@@ -24,24 +22,12 @@ export function useWalletGate(): {
   readonly mounted: boolean;
   readonly promptConnect: () => void;
 } {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const wallet = useWallet();
-  const walletModal = useWalletModal();
-
-  const promptConnect = useCallback(() => {
-    walletModal.setVisible(true);
-  }, [walletModal]);
-
-  const pubkey = wallet.publicKey ? wallet.publicKey.toBase58() : null;
+  const wallet = useTradingWallet();
 
   return {
-    connected: mounted && wallet.connected,
-    pubkey,
-    mounted,
-    promptConnect,
+    connected: wallet.connected,
+    pubkey: wallet.publicKeyBase58,
+    mounted: wallet.ready,
+    promptConnect: wallet.promptConnect,
   };
 }

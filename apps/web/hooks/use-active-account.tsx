@@ -1,6 +1,5 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import {
   createContext,
   useCallback,
@@ -12,6 +11,7 @@ import {
 } from 'react';
 
 import { useSubAccounts } from '@/hooks/use-sub-accounts';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * Active account context — which on-chain account is the user
@@ -50,8 +50,8 @@ const Ctx = createContext<ActiveAccountValue | null>(null);
 const STORAGE_PREFIX = 'klub.activeAccount.';
 
 export function ActiveAccountProvider({ children }: { readonly children: ReactNode }) {
-  const { publicKey, connected } = useWallet();
-  const masterPubkey = connected && publicKey ? publicKey.toBase58() : null;
+  const wallet = useTradingWallet();
+  const masterPubkey = wallet.connected ? wallet.publicKeyBase58 : null;
 
   // Sub-accounts are queried for the master pubkey only. The hook
   // reuses `useBulkAccount`'s polling so this doesn't add a new fetch.

@@ -1,6 +1,7 @@
 'use client';
 
 import { PrivyProvider } from '@privy-io/react-auth';
+import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import {
   ConnectionProvider,
   WalletProvider,
@@ -8,6 +9,11 @@ import {
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
+
+import {
+  PrivyTradingWalletProvider,
+  WalletAdapterTradingWalletProvider,
+} from '@/lib/trading-wallet';
 
 /**
  * App-wide providers.
@@ -50,16 +56,18 @@ export function Providers({ children }: { readonly children: React.ReactNode }) 
   // that exposes itself via the @wallet-standard interface.
   const wallets = useMemo(() => [], []);
 
-  const walletStack = (
+  const walletStack = (content: React.ReactNode) => (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>{children}</WalletModalProvider>
+        <WalletModalProvider>{content}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
 
   if (!privyAppId) {
-    return walletStack;
+    return walletStack(
+      <WalletAdapterTradingWalletProvider>{children}</WalletAdapterTradingWalletProvider>,
+    );
   }
 
   return (
@@ -68,7 +76,7 @@ export function Providers({ children }: { readonly children: React.ReactNode }) 
       config={{
         appearance: {
           theme: 'dark',
-          accentColor: '#A78BFA',
+          accentColor: '#E8B647',
           logo: '/logo.svg',
           showWalletLoginFirst: false,
         },
@@ -76,9 +84,14 @@ export function Providers({ children }: { readonly children: React.ReactNode }) 
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
         },
+        externalWallets: {
+          solana: {
+            connectors: toSolanaWalletConnectors({ shouldAutoConnect: true }),
+          },
+        },
       }}
     >
-      {walletStack}
+      {walletStack(<PrivyTradingWalletProvider>{children}</PrivyTradingWalletProvider>)}
     </PrivyProvider>
   );
 }

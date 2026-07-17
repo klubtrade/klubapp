@@ -180,7 +180,8 @@ export default function QuickTradePage() {
     });
     setResultModal(outcome);
 
-    // 2. If main filled, fire TP + SL as reduce-only brackets. Failures
+    // 2. If main filled, fire native TP + SL conditionals. Bulk's
+    // conditional actions are reduce-only by default. Failures
     // here don't roll back the main position — Bulk has the trade
     // open and the user can close manually from My trades. We toast
     // each failure individually so the user knows the bracket leg
@@ -191,10 +192,10 @@ export default function QuickTradePage() {
       const tp = await submit({
         symbol: market.symbol,
         side: closeSide,
-        orderType: 'limit',
+        orderType: 'trigger',
         size: sizeBase,
-        price: targetPrice,
-        timeInForce: 'GTC',
+        triggerPrice: targetPrice,
+        tpSl: 'tp',
         reduceOnly: true,
       });
       if (!tp.ok) {

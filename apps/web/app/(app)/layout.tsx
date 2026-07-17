@@ -4,6 +4,7 @@ import { AccountSwitcher } from '@/components/account-switcher';
 import { CopyTradeBanner } from '@/components/copy-trade-banner';
 import { CopyTradeProvider } from '@/components/copy-trade-provider';
 import { NavDrawer } from '@/components/nav-drawer';
+import { OnboardingGuard } from '@/components/onboarding-guard';
 import { Sidebar } from '@/components/sidebar';
 import { ToastProvider } from '@/components/toast';
 import { WalletButton } from '@/components/wallet-button';
@@ -45,6 +46,7 @@ export default function AppLayout({
     <ToastProvider>
       <ActiveAccountProvider>
         <CopyTradeProvider>
+          <OnboardingGuard />
           <Sidebar />
           <NavDrawer />
           <div className="pointer-events-none fixed right-4 top-4 z-30 flex items-center gap-2 md:right-6 md:top-6">

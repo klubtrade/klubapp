@@ -1,6 +1,5 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useCallback, useState } from 'react';
 
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
@@ -9,6 +8,7 @@ import {
   submitTransfer,
   type SubmitOrderResult,
 } from '@/lib/bulk/orders';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * Hooks for KLUB Cash actions that map to Bulk v1.0.14 sub-account /
@@ -25,16 +25,24 @@ type ActionState =
   | { readonly status: 'error'; readonly result: Extract<SubmitOrderResult, { ok: false }> };
 
 function useSigner() {
-  const { publicKey, signMessage, connected } = useWallet();
+  const wallet = useTradingWallet();
   const { agent, agentSigner } = useAgentWallet();
 
-  const ready = connected && publicKey !== null;
-  const mainPubkey = publicKey?.toBase58() ?? null;
+  const ready = wallet.connected && wallet.publicKeyBase58 !== null;
+  const mainPubkey = wallet.publicKeyBase58;
   const canUseAgent =
     agent !== null && agentSigner !== null && mainPubkey !== null && agent.account === mainPubkey;
   const usingAgent = canUseAgent;
 
-  return { ready, mainPubkey, canUseAgent, agent, agentSigner, signMessage, usingAgent };
+  return {
+    ready,
+    mainPubkey,
+    canUseAgent,
+    agent,
+    agentSigner,
+    signMessage: wallet.signMessage,
+    usingAgent,
+  };
 }
 
 export function useCreatePot(): {

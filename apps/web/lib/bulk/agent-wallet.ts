@@ -5,8 +5,7 @@
  * Lifecycle:
  *   1. Main wallet (Solflare) signs a one-time `agentWalletCreation`
  *      tx authorizing an ephemeral agent pubkey on Bulk.
- *   2. Agent private key lives in localStorage, keyed on the user's
- *      main account pubkey.
+ *   2. Legacy testnet builds stored the agent private key in localStorage.
  *   3. All subsequent orders/cancels sign locally with the agent key.
  *      Bulk accepts them because `signer=agent_pub` is in its
  *      authorized-agents set for `account=user_pub`.
@@ -14,13 +13,11 @@
  *      clears local storage.
  *
  * Security notes (important):
- *   - Private key in localStorage is readable by any JS on the
- *     domain. Agent keys CANNOT withdraw funds (Bulk enforces
- *     `canWithdraw:false` for agents) — worst case on compromise is
- *     an attacker trades with your collateral.
- *   - This is acceptable for testnet mockUSDC. Before mainnet, this
- *     module should be replaced with an Ika dWallet flow (see
- *     Week 10 roadmap).
+ *   - Private keys in localStorage are readable by any JS on the domain.
+ *     New browser-key agents are therefore disabled by default.
+ *   - Existing records are stripped to public revocation metadata by
+ *     `useAgentWallet`; production signing belongs in Privy or a server
+ *     signer backed by KMS/HSM, never ordinary browser storage.
  *   - Keys are NOT shared across tabs/windows. Each browser origin
  *     has one agent per main account.
  */
@@ -44,7 +41,7 @@ import nacl from 'tweetnacl';
 export interface StoredAgentWallet {
   readonly account: string;
   readonly agentPublicKeyBase58: string;
-  readonly secretKeyBase64: string;
+  readonly secretKeyBase64?: string;
   readonly authorizedAt: number;
   /** Version field for forward-compat if we ever rotate key format. */
   readonly v: 1;
@@ -121,8 +118,8 @@ function isValidStoredAgent(raw: unknown, expectedAccount: string): raw is Store
     r['account'] === expectedAccount &&
     typeof r['agentPublicKeyBase58'] === 'string' &&
     r['agentPublicKeyBase58'].length > 0 &&
-    typeof r['secretKeyBase64'] === 'string' &&
-    r['secretKeyBase64'].length > 0 &&
+    (r['secretKeyBase64'] === undefined ||
+      (typeof r['secretKeyBase64'] === 'string' && r['secretKeyBase64'].length > 0)) &&
     typeof r['authorizedAt'] === 'number'
   );
 }
@@ -170,7 +167,8 @@ export function generateAgentKeypair(): GeneratedAgentKeypair {
 export function agentSignerFromStored(stored: StoredAgentWallet): {
   readonly publicKeyBase58: string;
   readonly signMessage: (bytes: Uint8Array) => Promise<Uint8Array>;
-} {
+} | null {
+  if (!stored.secretKeyBase64) return null;
   const secretKey = fromBase64(stored.secretKeyBase64);
   if (secretKey.length !== 64) {
     throw new Error('Stored agent key is malformed (wrong length)');
@@ -184,6 +182,12 @@ export function agentSignerFromStored(stored: StoredAgentWallet): {
       return nacl.sign.detached(bytes, secretKey);
     },
   };
+}
+
+/** Remove browser-readable key material while preserving revocation metadata. */
+export function stripStoredAgentSecret(stored: StoredAgentWallet): StoredAgentWallet {
+  const { secretKeyBase64: _secret, ...metadata } = stored;
+  return metadata;
 }
 
 // -------------------------------------------------------------------------

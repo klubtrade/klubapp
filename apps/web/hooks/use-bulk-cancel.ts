@@ -1,11 +1,11 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useCallback, useState } from 'react';
 
 import { useActiveAccount } from '@/hooks/use-active-account';
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
 import { submitCancel, type SubmitCancelInput, type SubmitOrderResult } from '@/lib/bulk/orders';
+import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
  * React hook that wraps the client-side Bulk cancel-order flow.
@@ -34,7 +34,7 @@ export function useBulkCancel(): {
   readonly reset: () => void;
   readonly usingAgent: boolean;
 } {
-  const { publicKey, signMessage, connected } = useWallet();
+  const wallet = useTradingWallet();
   const { agent, agentSigner } = useAgentWallet();
   const { pubkey: activePubkey } = useActiveAccount();
   const [state, setState] = useState<BulkCancelState>({ status: 'idle' });
@@ -45,7 +45,7 @@ export function useBulkCancel(): {
 
   const cancel = useCallback(
     async (req: BulkCancelRequest): Promise<SubmitOrderResult> => {
-      if (!connected || !publicKey) {
+      if (!wallet.connected || !wallet.publicKeyBase58) {
         const failure: SubmitOrderResult = {
           ok: false,
           reason: 'rejected_invalid',
@@ -55,7 +55,7 @@ export function useBulkCancel(): {
         return failure;
       }
 
-      const mainPubkey = publicKey.toBase58();
+      const mainPubkey = wallet.publicKeyBase58;
       const account = req.account ?? activePubkey ?? mainPubkey;
       setState({ status: 'submitting' });
 
@@ -73,7 +73,7 @@ export function useBulkCancel(): {
         return result;
       }
 
-      if (!signMessage) {
+      if (!wallet.signMessage) {
         const failure: SubmitOrderResult = {
           ok: false,
           reason: 'rejected_invalid',
@@ -88,7 +88,7 @@ export function useBulkCancel(): {
         account,
         signer: {
           publicKeyBase58: mainPubkey,
-          signMessage,
+          signMessage: wallet.signMessage,
         },
       });
 
@@ -96,15 +96,15 @@ export function useBulkCancel(): {
       else setState({ status: 'error', result });
       return result;
     },
-    [activePubkey, agent, agentSigner, connected, publicKey, signMessage],
+    [activePubkey, agent, agentSigner, wallet],
   );
 
   const usingAgent =
     agent !== null &&
     agentSigner !== null &&
-    connected &&
-    publicKey !== null &&
-    agent.account === publicKey.toBase58();
+    wallet.connected &&
+    wallet.publicKeyBase58 !== null &&
+    agent.account === wallet.publicKeyBase58;
 
   return { state, cancel, reset, usingAgent };
 }

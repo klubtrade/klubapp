@@ -19,6 +19,7 @@ export type RiskProfile = 'conservative' | 'balanced' | 'aggressive';
 export interface UserPrefs {
   readonly riskProfile: RiskProfile;
   readonly onboardingComplete: boolean;
+  readonly onboardingWallet: string | null;
   readonly preferredTradeMode: 'simple' | 'expert';
   readonly defaultCopyAllocPct: number;
   readonly alertsEnabled: boolean;
@@ -27,6 +28,7 @@ export interface UserPrefs {
 const DEFAULT_PREFS: UserPrefs = {
   riskProfile: 'balanced',
   onboardingComplete: false,
+  onboardingWallet: null,
   preferredTradeMode: 'simple',
   defaultCopyAllocPct: 20,
   alertsEnabled: true,

@@ -63,16 +63,18 @@ export function Sidebar() {
       aria-label="Primary navigation"
     >
       <div className="flex flex-col items-center gap-2">
-        <Link
-          href="/portfolio"
-          aria-label="KLUB home"
+        <div
+          role="img"
+          aria-label="KLUB"
           className="mb-4 flex h-12 w-12 items-center justify-center"
         >
           <span
             aria-hidden
-            className="h-3 w-3 rounded-full bg-accent shadow-[0_0_14px_rgba(232,182,71,0.7)]"
-          />
-        </Link>
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-accent/35 bg-accent/10 text-[13px] font-semibold text-accent shadow-[0_0_18px_rgba(232,182,71,0.12)]"
+          >
+            K
+          </span>
+        </div>
         {PRIMARY_NAVIGATION.map((item) => {
           const active = isNavigationItemActive(pathname, item);
           return (
