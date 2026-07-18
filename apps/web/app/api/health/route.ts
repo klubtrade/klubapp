@@ -14,12 +14,17 @@ export async function GET() {
   if (!databaseUrl) {
     return NextResponse.json(
       {
-        ok: true,
+        ok: false,
+        status: "degraded",
         service: "klub-web",
-        database: { configured: false },
+        database: {
+          configured: false,
+          ok: false,
+          error: "database_not_configured",
+        },
         worker: { configured: false },
       },
-      { headers: { "Cache-Control": "no-store" } },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -48,6 +53,8 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: !workerStale || latestHeartbeat === null,
+        status:
+          workerStale && latestHeartbeat !== null ? "degraded" : "healthy",
         service: "klub-web",
         database: {
           configured: true,
@@ -63,7 +70,10 @@ export async function GET() {
           activeSnapshots: snapshotCountRows[0]?.count ?? 0,
         },
       },
-      { headers: { "Cache-Control": "no-store" } },
+      {
+        status: workerStale && latestHeartbeat !== null ? 503 : 200,
+        headers: { "Cache-Control": "no-store" },
+      },
     );
   } catch (err) {
     const message =
@@ -75,11 +85,12 @@ export async function GET() {
     if (workerSchemaMissing) {
       return NextResponse.json(
         {
-          ok: true,
+          ok: false,
+          status: "degraded",
           service: "klub-web",
           database: {
             configured: true,
-            ok: true,
+            ok: false,
           },
           worker: {
             configured: false,
@@ -87,13 +98,14 @@ export async function GET() {
             error: "Worker tables are not migrated yet. Run @klub/db migrate.",
           },
         },
-        { headers: { "Cache-Control": "no-store" } },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     return NextResponse.json(
       {
-        ok: true,
+        ok: false,
+        status: "degraded",
         service: "klub-web",
         database: {
           configured: true,
@@ -106,7 +118,7 @@ export async function GET() {
             "Database is unreachable from this deployment. Use Railway public proxy DATABASE_URL on Vercel, not postgres.railway.internal.",
         },
       },
-      { headers: { "Cache-Control": "no-store" } },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
