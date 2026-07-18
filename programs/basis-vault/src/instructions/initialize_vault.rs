@@ -1,4 +1,8 @@
-use {crate::state::*, quasar_lang::prelude::*};
+use {
+    crate::state::*,
+    quasar_lang::prelude::*,
+    quasar_spl::{Mint, Token},
+};
 
 #[derive(Accounts)]
 pub struct InitializeVault<'info> {
@@ -6,6 +10,16 @@ pub struct InitializeVault<'info> {
     pub authority: &'info mut Signer,
     #[account(mut, init, payer = authority, seeds = [b"basis_vault", authority], bump)]
     pub vault: &'info mut Account<VaultConfig>,
+    #[account(mut,
+        init,
+        seeds = [b"basis_vault_usdc", vault],
+        bump,
+        token::mint = usdc_mint, token::authority = vault,
+    )]
+    pub vault_usdc: &'info mut Account<Token>,
+    #[account(mint::decimals = 6)]
+    pub usdc_mint: &'info Account<Mint>,
+    pub token_program: &'info Program<Token>,
     pub system_program: &'info Program<System>,
 }
 
@@ -13,7 +27,6 @@ impl<'info> InitializeVault<'info> {
     #[inline(always)]
     pub fn handler(
         &mut self,
-        usdc_mint: Address,
         strategy_authority: Address,
         management_fee_bps: u16,
         performance_fee_bps: u16,
@@ -32,11 +45,15 @@ impl<'info> InitializeVault<'info> {
 
         self.vault.set_inner(
             *self.authority.address(),
-            usdc_mint,
+            *self.usdc_mint.address(),
+            *self.vault_usdc.address(),
             strategy_authority,
             management_fee_bps,
             performance_fee_bps,
             min_deposit_usdc,
+            self.usdc_mint.decimals(),
+            0,
+            0,
             0,
             0,
             0,

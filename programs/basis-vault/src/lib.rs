@@ -15,14 +15,12 @@ mod basis_vault {
     #[instruction(discriminator = [1])]
     pub fn initialize_vault(
         ctx: Ctx<InitializeVault>,
-        usdc_mint: Address,
         strategy_authority: Address,
         management_fee_bps: u16,
         performance_fee_bps: u16,
         min_deposit_usdc: u64,
     ) -> Result<(), ProgramError> {
         ctx.accounts.handler(
-            usdc_mint,
             strategy_authority,
             management_fee_bps,
             performance_fee_bps,
@@ -46,7 +44,7 @@ mod basis_vault {
         ctx: Ctx<RequestWithdraw>,
         amount_usdc: u64,
     ) -> Result<(), ProgramError> {
-        ctx.accounts.handler(amount_usdc)
+        ctx.accounts.handler(amount_usdc, &ctx.bumps)
     }
 
     #[instruction(discriminator = [5])]

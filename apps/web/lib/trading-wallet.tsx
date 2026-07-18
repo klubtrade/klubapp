@@ -1,7 +1,11 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useCreateWallet, useWallets } from "@privy-io/react-auth/solana";
+import {
+  useCreateWallet,
+  useSignAndSendTransaction,
+  useWallets,
+} from "@privy-io/react-auth/solana";
 import {
   createContext,
   useCallback,
@@ -16,6 +20,9 @@ export interface TradingWalletSession {
   readonly connected: boolean;
   readonly publicKeyBase58: string | null;
   readonly signMessage: ((bytes: Uint8Array) => Promise<Uint8Array>) | null;
+  readonly signAndSendTransaction:
+    | ((transaction: Uint8Array) => Promise<Uint8Array>)
+    | null;
   readonly source: "privy" | null;
   readonly promptConnect: () => void;
   readonly disconnect: () => Promise<void>;
@@ -42,6 +49,7 @@ export function PrivyTradingWalletProvider({
   const privy = usePrivy();
   const solana = useWallets();
   const { createWallet } = useCreateWallet();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
   const privyWallet = solana.wallets[0] ?? null;
 
   const promptConnect = useCallback(() => {
@@ -73,11 +81,29 @@ export function PrivyTradingWalletProvider({
             return result.signature;
           }
         : null,
+      signAndSendTransaction: privyWallet
+        ? async (transaction) => {
+            const result = await signAndSendTransaction({
+              transaction,
+              wallet: privyWallet,
+              chain: "solana:devnet",
+              options: { optimisticBroadcast: true },
+            });
+            return result.signature;
+          }
+        : null,
       source: privyWallet ? "privy" : null,
       promptConnect,
       disconnect: async () => privy.logout(),
     }),
-    [mounted, privy, privyWallet, promptConnect, solana.ready],
+    [
+      mounted,
+      privy,
+      privyWallet,
+      promptConnect,
+      signAndSendTransaction,
+      solana.ready,
+    ],
   );
 
   return (

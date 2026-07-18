@@ -1,41 +1,10 @@
-// packages/calc/src/health.ts
-/**
- * Portfolio Health Score.
- *
- * A single 0–100 score, decomposed into four subscores that each tell
- * the user something actionable:
- *
- *   1. Liquidation proximity (weight 40%) — how close the riskiest
- *      position is to being liquidated.
- *   2. Leverage exposure (weight 25%)    — blended effective leverage.
- *   3. Concentration risk (weight 20%)   — Herfindahl-style concentration.
- *   4. Funding burn rate (weight 15%)    — share of equity consumed by
- *      funding payments per day at current rates.
- *
- * Design intent: the subscores should be boring, explainable, and
- * survive being screenshotted. No black boxes. Every component has a
- * transparent formula with thresholds a human can argue about.
- *
- * Stress-test: given a market-wide directional shock, returns the
- * hypothetical state of each position, flagging which get liquidated
- * and the resulting equity.
- */
-
-// ---------------------------------------------------------------------------
-// Inputs
-// ---------------------------------------------------------------------------
-
-/** A single open position — subset of Bulk's Position type, as numbers. */
 export interface HealthPosition {
   readonly symbol: string;
-  /** Signed size in base units. Positive = long, negative = short. */
   readonly size: number;
   readonly entryPrice: number;
   readonly markPrice: number;
   readonly liqPrice: number;
-  /** Maintenance margin requirement for this position, in USDC. */
   readonly maintenanceMarginUsd: number;
-  /** Current funding rate per 8h as a decimal. */
   readonly funding8hRate: number;
 }
 
@@ -45,25 +14,16 @@ export interface HealthInput {
   readonly positions: readonly HealthPosition[];
 }
 
-// ---------------------------------------------------------------------------
-// Outputs
-// ---------------------------------------------------------------------------
-
 export type HealthBand = "healthy" | "fine" | "caution" | "risky" | "critical";
 
 export interface SubScore {
-  /** 0–100, higher is better. */
   readonly score: number;
-  /** Plain-English interpretation. */
   readonly label: string;
-  /** Raw value feeding the score (for transparency). */
   readonly rawValue: number;
-  /** Unit of the raw value. */
   readonly rawUnit: "fraction" | "multiple" | "usd";
 }
 
 export interface HealthOutput {
-  /** Overall weighted score, 0–100. */
   readonly score: number;
   readonly band: HealthBand;
   readonly subscores: {
@@ -72,29 +32,14 @@ export interface HealthOutput {
     readonly concentrationRisk: SubScore;
     readonly fundingBurn: SubScore;
   };
-  /** Plain-English recommendations, ordered by priority. */
   readonly recommendations: readonly string[];
 }
-
-// ---------------------------------------------------------------------------
-// Weights
-// ---------------------------------------------------------------------------
 
 const WEIGHT_LIQ_PROXIMITY = 0.4;
 const WEIGHT_LEVERAGE = 0.25;
 const WEIGHT_CONCENTRATION = 0.2;
 const WEIGHT_FUNDING = 0.15;
 
-// ---------------------------------------------------------------------------
-// Scoring
-// ---------------------------------------------------------------------------
-
-/**
- * Compute the health score for a portfolio.
- *
- * If there are no open positions, score is 100 (you can't liquidate a
- * flat book).
- */
 export function healthScore(input: HealthInput): HealthOutput {
   if (input.positions.length === 0) {
     return flatBookResponse();
@@ -113,9 +58,6 @@ export function healthScore(input: HealthInput): HealthOutput {
     lev.score * WEIGHT_LEVERAGE +
     conc.score * WEIGHT_CONCENTRATION +
     fund.score * WEIGHT_FUNDING;
-  // A weighted average must never let otherwise-safe dimensions hide an
-  // immediate liquidation threat. Red/orange alert tiers therefore cap the
-  // overall score in the matching critical/risky band.
   const score = Math.min(
     Math.round(clamp(weighted, 0, 100)),
     liquidationRiskScoreCap(liqProx.rawValue),
@@ -142,24 +84,6 @@ export function healthScore(input: HealthInput): HealthOutput {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Subscore: liquidation proximity
-// ---------------------------------------------------------------------------
-
-/**
- * Score is driven by the CLOSEST-to-liquidation position in the book.
- * Buffer is expressed as (distance to liq) / mark.
- *
- * Mapping (buffer → score):
- *   ≥ 40%   → 100 (comfortable)
- *   25%     → 80  (our "yellow" alert tier cutoff)
- *   10%     → 50  (orange alert)
- *   3%      → 20  (red alert)
- *   0%      → 0   (on the edge)
- *
- * Piecewise linear between anchors. The alert tiers in the product UI
- * map directly to these thresholds — they're the same number.
- */
 function scoreLiqProximity(input: HealthInput): SubScore {
   let minBuffer = Infinity;
   for (const p of input.positions) {
@@ -211,21 +135,6 @@ function liquidationRiskScoreCap(buffer: number): number {
   return 100;
 }
 
-// ---------------------------------------------------------------------------
-// Subscore: leverage exposure
-// ---------------------------------------------------------------------------
-
-/**
- * Effective leverage = sum(|notional|) / equity.
- *
- * Mapping:
- *   ≤ 2×   → 100 (conservative)
- *   3×     → 90
- *   5×     → 70
- *   10×    → 40
- *   20×    → 10
- *   ≥ 30×  → 0
- */
 function scoreLeverage(input: HealthInput): SubScore {
   let grossNotional = 0;
   for (const p of input.positions) {
@@ -256,24 +165,6 @@ function scoreLeverage(input: HealthInput): SubScore {
   return { score, label, rawValue: effLev, rawUnit: "multiple" };
 }
 
-// ---------------------------------------------------------------------------
-// Subscore: concentration
-// ---------------------------------------------------------------------------
-
-/**
- * Herfindahl–Hirschman Index on |notional| shares.
- *   HHI = Σ(share_i²)
- *
- * HHI = 1     → entirely one asset
- * HHI = 1/n   → perfectly diversified across n positions
- *
- * Mapping:
- *   ≤ 0.3   → 100 (well diversified, ≥ ~4 positions)
- *   0.5     → 80  (balanced, 2–3 positions)
- *   0.7     → 60
- *   0.9     → 30
- *   1.0     → 15  (single-position book — still okay if the one trade is sized well)
- */
 function scoreConcentration(input: HealthInput): SubScore {
   let totalNotional = 0;
   const perSymbol = new Map<string, number>();
@@ -319,21 +210,6 @@ function scoreConcentration(input: HealthInput): SubScore {
   return { score, label, rawValue: hhi, rawUnit: "fraction" };
 }
 
-// ---------------------------------------------------------------------------
-// Subscore: funding burn
-// ---------------------------------------------------------------------------
-
-/**
- * Total funding cost per day as a fraction of equity. Only counts
- * positions that are *paying* funding (ignores ones earning).
- *
- * Mapping:
- *   ≤ 0.05%/day → 100 (negligible)
- *   0.2%        → 80
- *   0.5%        → 60
- *   1%          → 30
- *   ≥ 2%        → 0   (you're being taxed to death)
- */
 function scoreFunding(input: HealthInput): SubScore {
   let fundingPerDay = 0;
   for (const p of input.positions) {
@@ -341,7 +217,6 @@ function scoreFunding(input: HealthInput): SubScore {
     const fundingSign = p.size > 0 ? 1 : -1;
     const per8h = notional * p.funding8hRate * fundingSign;
     if (per8h > 0) {
-      // Only pays, not receives
       fundingPerDay += per8h * 3;
     }
   }
@@ -368,10 +243,6 @@ function scoreFunding(input: HealthInput): SubScore {
 
   return { score, label, rawValue: rate, rawUnit: "fraction" };
 }
-
-// ---------------------------------------------------------------------------
-// Recommendations
-// ---------------------------------------------------------------------------
 
 function buildRecommendations(args: {
   readonly liqProx: SubScore;
@@ -427,18 +298,8 @@ function closestToLiq(
   return best;
 }
 
-// ---------------------------------------------------------------------------
-// Stress test
-// ---------------------------------------------------------------------------
-
 export interface StressTestInput {
-  /** Directional shock as a fraction (e.g. -0.1 = market drops 10%). */
   readonly shockFrac: number;
-  /**
-   * Whether the shock is correlated across all assets (default true).
-   * If false, shock applies only to positions where `shouldApply(pos)`
-   * returns true — used for single-asset stress tests.
-   */
   readonly correlated?: boolean;
   readonly shouldApply?: (pos: HealthPosition) => boolean;
 }
@@ -447,9 +308,7 @@ export interface StressTestOutput {
   readonly shockedEquityUsd: number;
   readonly liquidatedPositions: readonly string[];
   readonly survivingPositions: readonly string[];
-  /** Total PnL from the shock (negative = loss). */
   readonly shockPnl: number;
-  /** Overall health score AFTER the shock. */
   readonly shockedScore: number;
 }
 
@@ -470,11 +329,9 @@ export function stressTest(
         : (stress.shouldApply?.(p) ?? false);
     const mark = apply ? p.markPrice * (1 + stress.shockFrac) : p.markPrice;
 
-    // Detect liquidation — for longs, liquidated if mark ≤ liqPrice.
     const isLong = p.size > 0;
     const liquidatedHere = isLong ? mark <= p.liqPrice : mark >= p.liqPrice;
 
-    // PnL from this shock
     const move = mark - p.markPrice;
     const positionPnl = isLong ? p.size * move : p.size * move; // signed
     shockPnl += positionPnl;
@@ -502,10 +359,6 @@ export function stressTest(
     shockedScore: post.score,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function flatBookResponse(): HealthOutput {
   const max: SubScore = {
@@ -561,12 +414,6 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
 }
 
-/**
- * Piecewise-linear interpolation between anchor points. Anchors must be
- * given in increasing order of `x`. If `monotonicallyIncreasing` is
- * true, values outside the range clamp to the edge scores; if false,
- * the mapping is "higher x means worse" and we clamp accordingly.
- */
 function piecewise(
   x: number,
   anchors: readonly (readonly [number, number])[],

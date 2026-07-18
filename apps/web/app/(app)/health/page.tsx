@@ -17,33 +17,6 @@ import { marketData } from "@/lib/market-data/client";
 import { MARKETS, type MarketSymbol } from "@/lib/markets";
 import { useTradingWallet } from "@/lib/trading-wallet";
 
-/**
- * /health — minimalist portfolio health.
- *
- * Big 0-100 score + one-line band. Subscore breakdown behind
- * "Show breakdown". Recommendations behind "What should I do".
- *
- * WEEK 2 DAY 1 REWORK:
- *   Previously ran entirely on `DEMO_INPUT` — a hardcoded 1-position
- *   BTC portfolio that had no relationship to the user's actual
- *   account. Now reads from `useBulkAccount` and computes health
- *   against real positions.
- *
- *   Three states:
- *     1. Not connected        → "Connect wallet to see your health"
- *     2. Connected, no positions → "Open a position to see your health"
- *     3. Connected with positions → real score + breakdown + advice
- *
- *   The stress-test slider is NOT in this Day-1 rework. Reason: it
- *   needs `@klub/calc` to accept a shocked-equity and produce a
- *   shocked-score, which isn't in the current API. That's Day 3
- *   work (alongside the bulk-margin formula refactor).
- *
- *   Health math now runs through the shared adapter backed by
- *   `/api/bulk/account` + `/api/risk-surfaces`, which feeds the
- *   Bulk margin calculator with real risk-surface lambdas.
- */
-
 const BAND_TONE: Record<HealthOutput["band"], string> = {
   healthy: "text-pnl-long",
   fine: "text-pnl-long",
@@ -256,7 +229,10 @@ export default function HealthPage() {
         ) : accountUnavailable ? (
           <EmptyState
             title="Bulk is temporarily unavailable"
-            body={snapshot?.warning ?? "Bulk account data is unavailable right now. Your wallet is still connected; try refreshing in a few minutes."}
+            body={
+              snapshot?.warning ??
+              "Bulk account data is unavailable right now. Your wallet is still connected; try refreshing in a few minutes."
+            }
             ctaHref="/portfolio"
             ctaLabel="Go to portfolio"
             secondaryHref="/trade"
@@ -298,10 +274,8 @@ export default function HealthPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Rendering subcomponents — kept local so this page stays self-contained.
 // If any of these gets reused on another page, extract to /components.
-// ---------------------------------------------------------------------------
 
 function HealthReadout({
   result,

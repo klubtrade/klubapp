@@ -1,25 +1,17 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
+import Link from "next/link";
 
-import { useFundingRates } from '@/hooks/use-funding-rates';
-import { MARKETS, type MarketSymbol } from '@/lib/markets';
-
-/**
- * /earn — index of yield surfaces.
- *
- * Three earn options live in the app:
- *   1. Basis trade planner (delta-neutral funding carry) → /basis
- *   2. Funding desk (live per-market funding rates) → /desk
- *   3. Yield (Q2 — passive yield on idle USDC balance) → coming soon
- *
- * This page is the user's single entry point: a Revolut/Phantom-style
- * "Yield" hub. Each option is a card with its current headline metric
- * and a tap-through to the detail page. The Yield card is dimmed
- * with a "Soon" tag while the underlying product is still in design.
- */
+import { useFundingRates } from "@/hooks/use-funding-rates";
+import {
+  formatBasisVaultFee,
+  getBasisVaultConfig,
+} from "@/lib/basis-vault/config";
+import { MARKETS, type MarketSymbol } from "@/lib/markets";
 
 export default function EarnPage() {
+  const vault = getBasisVaultConfig();
+
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
       <div className="mx-auto w-full max-w-md">
@@ -28,31 +20,36 @@ export default function EarnPage() {
             Earn
           </h1>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Make your USDC work for you.
+            Deposit USDC. Earn basis carry.
           </p>
         </header>
 
-        <div className="mt-6 rounded-klub border border-accent/25 bg-accent/5 px-4 py-3 text-[11px] leading-relaxed text-fg-secondary">
-          <span className="font-medium text-accent">Live rates, locked deposits.</span>{' '}
-          Funding data comes from Bulk. KLUB is not accepting deposits into an
-          Earn or Basis contract until the Solana contracts are connected.
+        <div className="mt-6 rounded-klub-lg border border-border-subtle bg-bg-surface p-4">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <MiniStat label="Min" value={`$${vault.minDepositUsdc}`} />
+            <MiniStat
+              label="Fee"
+              value={formatBasisVaultFee(vault.performanceFeeBps)}
+            />
+            <MiniStat label="Withdraw" value="Instant" />
+          </div>
         </div>
 
         <div className="mt-8 space-y-3">
-          <BasisCard />
+          <BasisCard ready={vault.ready} />
           <FundingCard />
           <YieldCard />
         </div>
 
         <footer className="mt-10 rounded-klub border border-border-subtle bg-bg-surface/40 p-4 text-[11px] text-fg-muted">
           <div className="font-mono uppercase tracking-[0.12em] text-accent">
-            How earn works
+            Vault status
           </div>
-          <ul className="mt-1.5 space-y-1 leading-relaxed">
-            <li>· Basis Trade ranks long/short funding-carry pairs.</li>
-            <li>· Funding Desk monitors rates published by Bulk `/stats`.</li>
-            <li>· Passive yield routing remains a product concept.</li>
-          </ul>
+          <p className="mt-1.5 leading-relaxed">
+            {vault.ready
+              ? "Program configuration is present. Deposits can use the Solana vault flow."
+              : `Setup needed: ${vault.missing.join(", ")}`}
+          </p>
         </footer>
       </div>
     </main>
@@ -63,7 +60,26 @@ export default function EarnPage() {
 // Cards
 // ---------------------------------------------------------------------------
 
-function BasisCard() {
+function MiniStat({
+  label,
+  value,
+}: {
+  readonly label: string;
+  readonly value: string;
+}) {
+  return (
+    <div>
+      <div className="font-mono text-[18px] font-semibold text-fg-primary">
+        {value}
+      </div>
+      <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function BasisCard({ ready }: { readonly ready: boolean }) {
   const symbols = MARKETS.map((m) => m.symbol) as MarketSymbol[];
   const rates = useFundingRates(symbols);
   const top = topBasisCarry(symbols, rates);
@@ -83,16 +99,16 @@ function BasisCard() {
               Basis vault
             </div>
             <div className="mt-0.5 text-[11px] text-fg-muted">
-              Delta-neutral funding carry planner
+              Delta-neutral funding carry
             </div>
           </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-[20px] font-semibold leading-none text-accent">
-            {top !== null ? `+${top.toFixed(1)}%` : '—'}
+            {top !== null ? `+${top.toFixed(1)}%` : "—"}
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            top carry
+            {ready ? "ready" : "setup"}
           </div>
         </div>
       </div>
@@ -108,7 +124,7 @@ function FundingCard() {
   let topPct: number | null = null;
   for (const sym of symbols) {
     const annualPct = rates[sym]?.annualPct;
-    if (typeof annualPct === 'number' && Number.isFinite(annualPct)) {
+    if (typeof annualPct === "number" && Number.isFinite(annualPct)) {
       if (topPct === null || annualPct > topPct) topPct = annualPct;
     }
   }
@@ -135,14 +151,12 @@ function FundingCard() {
         <div className="text-right">
           <div
             className={`font-mono text-[20px] font-semibold leading-none ${
-              topPct !== null && topPct > 0
-                ? 'text-pnl-long'
-                : 'text-fg-muted'
+              topPct !== null && topPct > 0 ? "text-pnl-long" : "text-fg-muted"
             }`}
           >
             {topPct !== null
-              ? `${topPct >= 0 ? '+' : ''}${topPct.toFixed(1)}%`
-              : '—'}
+              ? `${topPct >= 0 ? "+" : ""}${topPct.toFixed(1)}%`
+              : "—"}
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
             top annual
@@ -159,7 +173,10 @@ function topBasisCarry(
 ): number | null {
   const annuals = symbols
     .map((symbol) => rates[symbol]?.annualPct)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+    .filter(
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value),
+    );
   if (annuals.length < 2) return null;
   return Math.max(...annuals) - Math.min(...annuals);
 }
