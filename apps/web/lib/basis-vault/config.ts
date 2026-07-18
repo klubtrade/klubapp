@@ -18,19 +18,54 @@ export const BASIS_VAULT_DEFAULT_MIN_DEPOSIT_USDC = 100;
 export const BASIS_VAULT_DEFAULT_MANAGEMENT_FEE_BPS = 0;
 export const BASIS_VAULT_DEFAULT_PERFORMANCE_FEE_BPS = 10;
 
+// Public devnet addresses. These are on-chain identifiers, not secrets. Keeping
+// working defaults here means a missed Vercel variable cannot turn a deployed
+// testnet product into a developer setup screen. Every value remains
+// overridable for staging and the eventual mainnet migration.
+const DEVNET_DEFAULTS = {
+  programId: "AZWFCfPmynzsrHevyUWgHpMDN5uJLAyGKRbAeUHe8scx",
+  admin: "HssCPh192ZHgPu3zV3nFDDM4v6AM28fGV3tuJGy1K8zj",
+  strategyAuthority: "9pQCDtJxfHDaJzyGsgNyDxakivx1vuD3XQPFYCtiajgh",
+  usdcMint: "724V1jFMAqpYNybSof6FLe5BENAuz3HXbDYD2mBDrai6",
+  vaultAddress: "BpjvJVuG9ki5DzVp1x6U7FwWS6HTrRccYAHuaFuZoiw5",
+  vaultUsdcAccount: "8gt84p9Lubbx83qQkxSVuobayduBEhLvspwxz1pcS6i2",
+  adminFeeTokenAccount: "FXJW2kcBHk9bWqSgb5Q6oruZBfAfe1CBBCLdxrFTVvuh",
+  rpcUrl: "https://api.devnet.solana.com",
+} as const;
+
 export function getBasisVaultConfig(): BasisVaultConfig {
-  const programId = readEnv("NEXT_PUBLIC_BASIS_VAULT_PROGRAM_ID");
-  const admin = readEnv("NEXT_PUBLIC_BASIS_VAULT_ADMIN");
+  const programId = readEnv(
+    process.env.NEXT_PUBLIC_BASIS_VAULT_PROGRAM_ID,
+    DEVNET_DEFAULTS.programId,
+  );
+  const admin = readEnv(
+    process.env.NEXT_PUBLIC_BASIS_VAULT_ADMIN,
+    DEVNET_DEFAULTS.admin,
+  );
   const strategyAuthority = readEnv(
-    "NEXT_PUBLIC_BASIS_VAULT_STRATEGY_AUTHORITY",
+    process.env.NEXT_PUBLIC_BASIS_VAULT_STRATEGY_AUTHORITY,
+    DEVNET_DEFAULTS.strategyAuthority,
   );
-  const usdcMint = readEnv("NEXT_PUBLIC_BASIS_VAULT_USDC_MINT");
-  const vaultAddress = readEnv("NEXT_PUBLIC_BASIS_VAULT_ADDRESS");
-  const vaultUsdcAccount = readEnv("NEXT_PUBLIC_BASIS_VAULT_USDC_ACCOUNT");
+  const usdcMint = readEnv(
+    process.env.NEXT_PUBLIC_BASIS_VAULT_USDC_MINT,
+    DEVNET_DEFAULTS.usdcMint,
+  );
+  const vaultAddress = readEnv(
+    process.env.NEXT_PUBLIC_BASIS_VAULT_ADDRESS,
+    DEVNET_DEFAULTS.vaultAddress,
+  );
+  const vaultUsdcAccount = readEnv(
+    process.env.NEXT_PUBLIC_BASIS_VAULT_USDC_ACCOUNT,
+    DEVNET_DEFAULTS.vaultUsdcAccount,
+  );
   const adminFeeTokenAccount = readEnv(
-    "NEXT_PUBLIC_BASIS_VAULT_ADMIN_FEE_TOKEN_ACCOUNT",
+    process.env.NEXT_PUBLIC_BASIS_VAULT_ADMIN_FEE_TOKEN_ACCOUNT,
+    DEVNET_DEFAULTS.adminFeeTokenAccount,
   );
-  const rpcUrl = readEnv("NEXT_PUBLIC_SOLANA_RPC_URL");
+  const rpcUrl = readEnv(
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+    DEVNET_DEFAULTS.rpcUrl,
+  );
 
   const required: readonly (readonly [string, string | null])[] = [
     ["NEXT_PUBLIC_BASIS_VAULT_PROGRAM_ID", programId],
@@ -55,15 +90,15 @@ export function getBasisVaultConfig(): BasisVaultConfig {
     vaultUsdcAccount,
     adminFeeTokenAccount,
     minDepositUsdc: readNumberEnv(
-      "NEXT_PUBLIC_BASIS_VAULT_MIN_DEPOSIT_USDC",
+      process.env.NEXT_PUBLIC_BASIS_VAULT_MIN_DEPOSIT_USDC,
       BASIS_VAULT_DEFAULT_MIN_DEPOSIT_USDC,
     ),
     managementFeeBps: readNumberEnv(
-      "NEXT_PUBLIC_BASIS_VAULT_MANAGEMENT_FEE_BPS",
+      process.env.NEXT_PUBLIC_BASIS_VAULT_MANAGEMENT_FEE_BPS,
       BASIS_VAULT_DEFAULT_MANAGEMENT_FEE_BPS,
     ),
     performanceFeeBps: readNumberEnv(
-      "NEXT_PUBLIC_BASIS_VAULT_PERFORMANCE_FEE_BPS",
+      process.env.NEXT_PUBLIC_BASIS_VAULT_PERFORMANCE_FEE_BPS,
       BASIS_VAULT_DEFAULT_PERFORMANCE_FEE_BPS,
     ),
     rpcUrl,
@@ -74,14 +109,16 @@ export function formatBasisVaultFee(bps: number): string {
   return `${(bps / 100).toFixed(bps % 100 === 0 ? 0 : 2)}%`;
 }
 
-function readEnv(name: string): string | null {
-  const value = process.env[name];
-  return value && value.trim().length > 0 ? value.trim() : null;
+function readEnv(
+  value: string | undefined,
+  fallback: string | null = null,
+): string | null {
+  return value && value.trim().length > 0 ? value.trim() : fallback;
 }
 
-function readNumberEnv(name: string, fallback: number): number {
-  const value = readEnv(name);
-  if (!value) return fallback;
-  const parsed = Number(value);
+function readNumberEnv(value: string | undefined, fallback: number): number {
+  const normalized = readEnv(value);
+  if (!normalized) return fallback;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : fallback;
 }

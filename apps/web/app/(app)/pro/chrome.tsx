@@ -59,7 +59,7 @@ export function ProMarketStrip({
   readonly livePrices: Record<string, LivePrice | undefined>;
 }) {
   return (
-    <div className="flex h-[52px] shrink-0 gap-2 overflow-x-auto border-b border-white/[0.04] bg-bg-base px-2 py-1.5">
+    <div className="grid h-[58px] shrink-0 grid-cols-5 gap-2 overflow-hidden border-b border-white/[0.04] bg-bg-base px-2 py-1.5">
       {MARKETS.slice(0, 5).map((market) => {
         const live = livePrices[market.symbol];
         const mark = live?.mark ?? null;
@@ -76,7 +76,7 @@ export function ProMarketStrip({
             key={market.symbol}
             type="button"
             onClick={() => onSelect(market.symbol)}
-            className={`min-w-[180px] rounded-xl border px-3 text-left transition-colors ${
+            className={`min-w-0 overflow-hidden rounded-xl border px-3 text-left transition-colors ${
               active
                 ? "border-accent/50 bg-accent/10"
                 : "border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.05]"
@@ -98,7 +98,7 @@ export function ProMarketStrip({
                   : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
               </span>
             </div>
-            <div className="mt-1 font-mono text-[13px] text-fg-secondary">
+            <div className="mt-1 truncate font-mono text-[13px] text-fg-secondary">
               {mark === null ? "—" : `$${formatPrice(mark)}`}
             </div>
           </button>

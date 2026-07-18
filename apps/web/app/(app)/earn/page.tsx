@@ -41,16 +41,9 @@ export default function EarnPage() {
           <YieldCard />
         </div>
 
-        <footer className="mt-10 rounded-klub border border-border-subtle bg-bg-surface/40 p-4 text-[11px] text-fg-muted">
-          <div className="font-mono uppercase tracking-[0.12em] text-accent">
-            Vault status
-          </div>
-          <p className="mt-1.5 leading-relaxed">
-            {vault.ready
-              ? "Program configuration is present. Deposits can use the Solana vault flow."
-              : `Setup needed: ${vault.missing.join(", ")}`}
-          </p>
-        </footer>
+        <p className="mt-7 text-center text-[11px] text-fg-muted">
+          Basis Vault uses devnet mock USDC, separate from Bulk test USDC.
+        </p>
       </div>
     </main>
   );
@@ -108,7 +101,7 @@ function BasisCard({ ready }: { readonly ready: boolean }) {
             {top !== null ? `+${top.toFixed(1)}%` : "—"}
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            {ready ? "ready" : "setup"}
+            {ready ? "live" : "unavailable"}
           </div>
         </div>
       </div>

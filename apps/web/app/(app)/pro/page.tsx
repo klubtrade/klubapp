@@ -133,14 +133,14 @@ export default function ProPage() {
           livePrices={livePrices}
         />
 
-        <div className="grid min-h-0 flex-1 grid-cols-[210px_minmax(0,1fr)_320px] gap-2 p-2 xl:grid-cols-[220px_minmax(0,1fr)_330px] min-[1750px]:grid-cols-[240px_minmax(0,1fr)_350px]">
+        <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_320px] gap-2 p-2 xl:grid-cols-[260px_minmax(0,1fr)_330px] min-[1750px]:grid-cols-[280px_minmax(0,1fr)_350px]">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}
             livePrices={livePrices}
           />
 
-          <div className="grid min-w-0 grid-rows-[minmax(0,1fr)_minmax(150px,0.38fr)] gap-2">
+          <div className="grid min-w-0 grid-rows-[minmax(360px,1.2fr)_minmax(180px,0.55fr)] gap-2">
             <PanelChart
               symbol={symbol}
               interval={interval}

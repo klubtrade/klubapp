@@ -8,6 +8,7 @@ import { useRecentTrades } from "@/hooks/use-recent-trades";
 import type { LivePrice } from "@/hooks/use-tickers";
 import { MARKETS } from "@/lib/markets";
 
+import { MarketNewsTicker } from "./market-news";
 import { baseLabelFor, formatPrice, PanelHead } from "./utils";
 
 const CandleChart = dynamic(() => import("@/components/candle-chart"), {
@@ -38,7 +39,7 @@ export function PanelWatchlist({
   return (
     <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>Watchlist</PanelHead>
-      <div className="flex-1 overflow-auto">
+      <div className="grid min-h-0 flex-1 auto-rows-fr overflow-y-auto">
         {MARKETS.map((m) => {
           const live = livePrices[m.symbol];
           const displayMark = live?.mark ?? null;
@@ -55,7 +56,7 @@ export function PanelWatchlist({
               key={m.symbol}
               type="button"
               onClick={() => onSelect(m.symbol)}
-              className={`flex w-full items-baseline justify-between border-b border-border-subtle px-3 py-2 text-left font-mono text-[12px] transition-colors ${
+              className={`flex min-h-[52px] w-full items-center justify-between gap-2 border-b border-border-subtle px-4 py-3 text-left font-mono text-[13px] transition-colors ${
                 active ? "bg-accent/10" : "hover:bg-bg-elevated"
               }`}
             >
@@ -66,11 +67,11 @@ export function PanelWatchlist({
               >
                 {m.label}
               </span>
-              <span className="flex items-baseline gap-2">
-                <span className="text-fg-secondary">
+              <span className="flex min-w-0 items-baseline justify-end gap-2">
+                <span className="truncate text-[13px] text-fg-secondary">
                   {displayMark === null ? "—" : `$${formatPrice(displayMark)}`}
                 </span>
-                <span className={chgTone}>
+                <span className={`shrink-0 text-[12px] ${chgTone}`}>
                   {chg === undefined
                     ? "—"
                     : `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%`}
@@ -136,18 +137,14 @@ export function PanelChart({
           </div>
         </div>
       </PanelHead>
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {state.status === "error" && candles.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-[12px] text-fg-muted">
             Couldn&rsquo;t load candles. Bulk&rsquo;s API may be slow —
             retrying.
           </div>
         ) : (
-          <CandleChart
-            key={`${symbol}-${interval}`}
-            candles={candles}
-            height={340}
-          />
+          <CandleChart key={`${symbol}-${interval}`} candles={candles} fill />
         )}
       </div>
       <div className="border-t border-border-subtle px-4 py-1.5 font-mono text-[11px] text-fg-muted">
@@ -156,6 +153,7 @@ export function PanelChart({
         {l === null ? "—" : `$${formatPrice(l)}`} · C{" "}
         {c === null ? "—" : `$${formatPrice(c)}`}
       </div>
+      <MarketNewsTicker />
     </section>
   );
 }

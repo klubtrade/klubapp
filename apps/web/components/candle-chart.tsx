@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import type { Candle } from '@klub/api-client';
-import { useEffect, useRef } from 'react';
+import type { Candle } from "@klub/api-client";
+import { useEffect, useRef } from "react";
 import {
   CandlestickSeries,
   ColorType,
@@ -9,7 +9,7 @@ import {
   type IChartApi,
   type ISeriesApi,
   type Time,
-} from 'lightweight-charts';
+} from "lightweight-charts";
 
 /**
  * <CandleChart /> — TradingView Lightweight Charts wrapper.
@@ -47,12 +47,18 @@ interface Props {
   /** Pixel height for the chart canvas. Width is always 100% of the
    *  container. Defaults to 320 (good for /trade column). */
   readonly height?: number;
+  /** Fill the parent's available height and resize the canvas with it. */
+  readonly fill?: boolean;
 }
 
-export default function CandleChart({ candles, height = 320 }: Props) {
+export default function CandleChart({
+  candles,
+  height = 320,
+  fill = false,
+}: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const fittedRef = useRef(false);
 
   // Chart creation — runs once on mount, tears down on unmount.
@@ -63,21 +69,23 @@ export default function CandleChart({ candles, height = 320 }: Props) {
     // getPropertyValue returns strings; trim() because CSS vars often
     // have leading whitespace.
     const css = getComputedStyle(document.documentElement);
-    const fg = css.getPropertyValue('--fg-muted').trim() || '#6A7185';
-    const grid = css.getPropertyValue('--border-subtle').trim() || '#1A1F2E';
-    const bg = css.getPropertyValue('--bg-surface').trim() || '#0F1320';
-    const long = css.getPropertyValue('--pnl-long').trim() || '#10b981';
-    const short = css.getPropertyValue('--pnl-short').trim() || '#ef4444';
+    const fg = css.getPropertyValue("--fg-muted").trim() || "#6A7185";
+    const grid = css.getPropertyValue("--border-subtle").trim() || "#1A1F2E";
+    const bg = css.getPropertyValue("--bg-surface").trim() || "#0F1320";
+    const long = css.getPropertyValue("--pnl-long").trim() || "#10b981";
+    const short = css.getPropertyValue("--pnl-short").trim() || "#ef4444";
 
+    const initialHeight = fill
+      ? Math.max(containerRef.current.clientHeight, 180)
+      : height;
     const chart = createChart(containerRef.current, {
       width: containerRef.current.clientWidth,
-      height,
+      height: initialHeight,
       layout: {
         background: { type: ColorType.Solid, color: bg },
         textColor: fg,
         fontSize: 11,
-        fontFamily:
-          'var(--font-jetbrains-mono), ui-monospace, monospace',
+        fontFamily: "var(--font-jetbrains-mono), ui-monospace, monospace",
       },
       grid: {
         vertLines: { color: grid, style: 1 },
@@ -121,7 +129,7 @@ export default function CandleChart({ candles, height = 320 }: Props) {
       if (!entry) return;
       chart.applyOptions({
         width: entry.contentRect.width,
-        height,
+        height: fill ? Math.max(entry.contentRect.height, 180) : height,
       });
     });
     ro.observe(containerRef.current);
@@ -132,7 +140,7 @@ export default function CandleChart({ candles, height = 320 }: Props) {
       chartRef.current = null;
       seriesRef.current = null;
     };
-  }, [height]);
+  }, [fill, height]);
 
   // Data updates — runs whenever candles change. Calls `setData()` on
   // the existing series rather than recreating the chart.
@@ -161,5 +169,10 @@ export default function CandleChart({ candles, height = 320 }: Props) {
     }
   }, [candles]);
 
-  return <div ref={containerRef} style={{ width: '100%', height }} />;
+  return (
+    <div
+      ref={containerRef}
+      style={{ width: "100%", height: fill ? "100%" : height }}
+    />
+  );
 }
