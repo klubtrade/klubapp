@@ -14,10 +14,10 @@ import {
  *
  * Why proxy?
  *   - `BULK_HTTP_URL` is a server-only env var (no `NEXT_PUBLIC_`).
- *   - Consistency with `/api/bulk/place-order` — one transport path.
+ *   - Consistency with `/api/bulk/place-order` - one transport path.
  *   - Lets us add server-side caching later without client changes.
  *
- * The /account endpoint is read-only and requires no signature — it
+ * The /account endpoint is read-only and requires no signature - it
  * just needs a valid pubkey. We use the `fullAccount` query type per
  * `docs/bulk-integration-notes.md §4`.
  */

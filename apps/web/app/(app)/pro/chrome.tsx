@@ -94,12 +94,12 @@ export function ProMarketStrip({
               </span>
               <span className={`text-[11px] ${tone}`}>
                 {change === undefined
-                  ? "—"
+                  ? "-"
                   : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
               </span>
             </div>
             <div className="mt-1 truncate font-mono text-[13px] text-fg-secondary">
-              {mark === null ? "—" : `$${formatPrice(mark)}`}
+              {mark === null ? "-" : `$${formatPrice(mark)}`}
             </div>
           </button>
         );
@@ -152,9 +152,9 @@ export function ProStatusBar({
           </span>
         )}
         <span>{connected ? "Wallet connected" : "Wallet disconnected"}</span>
-        <span>Equity {equity !== null ? `$${formatUsd(equity)}` : "—"}</span>
-        <span>Used {used !== null ? `$${formatUsd(used)}` : "—"}</span>
-        <span>Free {free !== null ? `$${formatUsd(free)}` : "—"}</span>
+        <span>Equity {equity !== null ? `$${formatUsd(equity)}` : "-"}</span>
+        <span>Used {used !== null ? `$${formatUsd(used)}` : "-"}</span>
+        <span>Free {free !== null ? `$${formatUsd(free)}` : "-"}</span>
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <button type="button" onClick={onOpenPalette} className="text-accent">

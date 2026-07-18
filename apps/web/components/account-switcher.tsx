@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useActiveAccount } from '@/hooks/use-active-account';
 
 /**
- * <AccountSwitcher /> — pill button + dropdown for switching between
+ * <AccountSwitcher /> - pill button + dropdown for switching between
  * the master account and any pots the user has created.
  *
  * Sized for inline use in page headers. The active account name is
@@ -46,7 +46,7 @@ export function AccountSwitcher() {
     );
   }
 
-  // Static label when only the master account exists — no need to show
+  // Static label when only the master account exists - no need to show
   // a switcher with one item.
   if (accounts.length <= 1) {
     return (

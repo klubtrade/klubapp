@@ -17,7 +17,7 @@ import {
  *
  * Why proxy?
  *   - `BULK_HTTP_URL` is configured server-only (no `NEXT_PUBLIC_`
- *     prefix) — the architect's intent is to keep the REST URL off
+ *     prefix) - the architect's intent is to keep the REST URL off
  *     the client bundle.
  *   - It insulates us from any CORS surprises.
  *   - It gives us a single place to add request logging, retry, or
@@ -30,7 +30,7 @@ import {
  *   - We do NOT inspect, store, or log the signature payload by
  *     default. (Add structured logging in a later milestone.)
  *
- * Ref: docs/bulk-integration-notes.md §4 — Trading endpoints.
+ * Ref: docs/bulk-integration-notes.md §4 - Trading endpoints.
  */
 
 export const runtime = "nodejs";
@@ -39,7 +39,7 @@ const BULK_HTTP_URL =
   process.env["BULK_HTTP_URL"] ?? "https://exchange-api.bulk.trade/api/v1";
 
 // The Bulk endpoint path for placing an order. Verified against
-// https://docs.bulk.trade/api-reference/signing — "All transactions
+// https://docs.bulk.trade/api-reference/signing - "All transactions
 // submitted to POST /order require Ed25519 signatures." The path is
 // kept in a constant so it's easy to change if Bulk renames the
 // endpoint again.

@@ -20,7 +20,7 @@ export interface SignedTransaction {
  *
  * `publicKeyBase58` is the account pubkey. Both the trading account and
  * the signer are the same for Phantom / Backpack users trading directly
- * (Agent Wallet flows are a Day 5 concern — they'll override `account`
+ * (Agent Wallet flows are a Day 5 concern - they'll override `account`
  * while keeping `signMessage` on the main wallet).
  */
 export interface BulkWalletSigner {

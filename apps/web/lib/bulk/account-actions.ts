@@ -107,7 +107,7 @@ export async function submitAgentWalletAuth(
 
 /**
  * Input for `submitFaucetClaim`. Optional `account` lets an authorized
- * agent wallet claim on behalf of the main account (silent flow — no
+ * agent wallet claim on behalf of the main account (silent flow - no
  * wallet popup).
  *
  * There's deliberately NO amount field. Bulk's faucet is a fixed drip
@@ -119,7 +119,7 @@ export interface SubmitFaucetClaimInput {
   /**
    * Override for the transaction's `account` field. When signing with
    * an agent wallet, the agent is the SIGNER but funds go to the main
-   * account — pass it here.
+   * account - pass it here.
    */
   readonly account?: string;
 }
@@ -127,7 +127,7 @@ export interface SubmitFaucetClaimInput {
 /**
  * Claim the testnet faucet drip.
  *
- * Identical shape to `submitAgentWalletAuth` — prepare/finalize via
+ * Identical shape to `submitAgentWalletAuth` - prepare/finalize via
  * bulk-keychain-wasm, then POST to /order through our proxy. The
  * action has no payload; the signer's wallet identity is the only
  * parameter that matters server-side.
@@ -257,7 +257,7 @@ export async function submitCreateSubAccount(
   const nonce = Date.now();
 
   // The wasm signature is `prepareCreateSubAccount(name, options)`. We
-  // pass the optional margin-seed fields inside the options bag — older
+  // pass the optional margin-seed fields inside the options bag - older
   // wasm builds will ignore them silently; v0.1.15 reads them.
   const opts: Record<string, unknown> = {
     account,
@@ -316,7 +316,7 @@ export async function submitCreateSubAccount(
 
 export interface SubmitTransferInput {
   readonly kind: "internal" | "external";
-  /** Source pubkey — usually the connected wallet or one of its sub-accounts. */
+  /** Source pubkey - usually the connected wallet or one of its sub-accounts. */
   readonly from: string;
   /** Destination pubkey. For external transfers, must be a Solana address. */
   readonly to: string;

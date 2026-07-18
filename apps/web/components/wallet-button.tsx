@@ -102,7 +102,7 @@ function ConnectedShell({
   const balance = accountState.data?.equityUsd ?? null;
   const accountUnavailable = accountState.data?.unavailable === true;
   const balanceLabel = accountUnavailable
-    ? "Bulk —"
+    ? "Bulk -"
     : formatBalancePill(balance, accountState.status);
 
   function handleCopy() {
@@ -183,7 +183,7 @@ function ConnectedShell({
               {balance !== null
                 ? `$${formatUsd(balance)}`
                 : accountUnavailable || accountState.status === "error"
-                  ? "—"
+                  ? "-"
                   : "…"}
             </div>
             {accountState.data && (
@@ -195,7 +195,7 @@ function ConnectedShell({
                   <div className="font-mono text-fg-secondary">
                     {accountState.data.freeMarginUsd !== null
                       ? `$${formatUsd(accountState.data.freeMarginUsd)}`
-                      : "—"}
+                      : "-"}
                   </div>
                 </div>
                 <div>
@@ -215,7 +215,7 @@ function ConnectedShell({
                       ? `${accountState.data.unrealizedPnlUsd >= 0 ? "+" : ""}$${formatUsd(
                           Math.abs(accountState.data.unrealizedPnlUsd),
                         )}`
-                      : "—"}
+                      : "-"}
                   </div>
                 </div>
               </div>
@@ -269,7 +269,7 @@ function shorten(addr: string): string {
 
 function formatBalancePill(balance: number | null, status: string): string {
   if (balance === null) {
-    return status === "loading" ? "…" : status === "error" ? "balance —" : "";
+    return status === "loading" ? "…" : status === "error" ? "balance -" : "";
   }
   if (balance >= 1000) {
     return `$${(balance / 1000).toFixed(balance >= 10_000 ? 0 : 1)}k`;
@@ -311,7 +311,7 @@ function FaucetRow({
           Testnet faucet
         </div>
         <div className="mt-0.5 text-[11px] text-fg-secondary">
-          Claimed ✓ — balance updating…
+          Claimed ✓ - balance updating…
         </div>
       </div>
     );

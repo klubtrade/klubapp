@@ -69,11 +69,11 @@ export function PanelWatchlist({
               </span>
               <span className="flex items-baseline gap-2">
                 <span className="text-fg-secondary">
-                  {displayMark === null ? "—" : `$${formatPrice(displayMark)}`}
+                  {displayMark === null ? "-" : `$${formatPrice(displayMark)}`}
                 </span>
                 <span className={chgTone}>
                   {chg === undefined
-                    ? "—"
+                    ? "-"
                     : `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%`}
                 </span>
               </span>
@@ -86,7 +86,7 @@ export function PanelWatchlist({
 }
 
 // =============================================================================
-// Chart — real candles via lightweight-charts v5
+// Chart - real candles via lightweight-charts v5
 // =============================================================================
 
 export function PanelChart({
@@ -140,7 +140,7 @@ export function PanelChart({
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {state.status === "error" && candles.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-[12px] text-fg-muted">
-            Couldn&rsquo;t load candles. Bulk&rsquo;s API may be slow —
+            Couldn&rsquo;t load candles. Bulk&rsquo;s API may be slow -
             retrying.
           </div>
         ) : (
@@ -149,17 +149,17 @@ export function PanelChart({
       </div>
       <MarketNewsTicker />
       <div className="shrink-0 border-t border-border-subtle px-4 py-1.5 font-mono text-[11px] text-fg-muted">
-        O {o === null ? "—" : `$${formatPrice(o)}`} · H{" "}
-        {h === null ? "—" : `$${formatPrice(h)}`} · L{" "}
-        {l === null ? "—" : `$${formatPrice(l)}`} · C{" "}
-        {c === null ? "—" : `$${formatPrice(c)}`}
+        O {o === null ? "-" : `$${formatPrice(o)}`} · H{" "}
+        {h === null ? "-" : `$${formatPrice(h)}`} · L{" "}
+        {l === null ? "-" : `$${formatPrice(l)}`} · C{" "}
+        {c === null ? "-" : `$${formatPrice(c)}`}
       </div>
     </section>
   );
 }
 
 // =============================================================================
-// Order book — real L2 from /l2Book
+// Order book - real L2 from /l2Book
 // =============================================================================
 
 export function PanelOrderbook({
@@ -202,7 +202,7 @@ export function PanelOrderbook({
           )}
         </div>
         <div className="border-y border-border-subtle px-3 py-1.5 text-center font-mono text-[13px] text-accent">
-          {mark > 0 ? `$${formatPrice(mark)}` : "—"}
+          {mark > 0 ? `$${formatPrice(mark)}` : "-"}
         </div>
         <div className="flex-1 overflow-auto">
           {ladder.bids.length === 0 ? (
@@ -272,9 +272,9 @@ function BookSkeleton({ side }: { readonly side: "ask" | "bid" }) {
     <div className="flex flex-col gap-px px-3 py-1 font-mono text-[11px]">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="grid grid-cols-3 py-0.5">
-          <span className={tone}>—</span>
-          <span className="text-right text-fg-muted/40">—</span>
-          <span className="text-right text-fg-muted/40">—</span>
+          <span className={tone}>-</span>
+          <span className="text-right text-fg-muted/40">-</span>
+          <span className="text-right text-fg-muted/40">-</span>
         </div>
       ))}
     </div>
@@ -312,7 +312,7 @@ function BookRow({
 }
 
 // =============================================================================
-// Tape — recent trades from WS
+// Tape - recent trades from WS
 // =============================================================================
 
 export function PanelTape({ symbol }: { readonly symbol: string }) {

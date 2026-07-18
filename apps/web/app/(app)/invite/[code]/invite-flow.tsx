@@ -3,11 +3,11 @@
 import { useState } from 'react';
 
 /**
- * Invite redemption — minimalist.
+ * Invite redemption - minimalist.
  *
  * One email field, one submit button. Success state is a single line
  * + next-step link. Handle + risk profile are collected in
- * /onboarding, not here — we keep this screen about one decision only.
+ * /onboarding, not here - we keep this screen about one decision only.
  */
 
 type Status = 'idle' | 'submitting' | 'ok' | 'err';

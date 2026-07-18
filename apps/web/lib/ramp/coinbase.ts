@@ -6,7 +6,7 @@
  * the user's destination address and desired USDC amount; the user
  * completes KYC + card flow inside the widget; USDC lands in their
  * Solana wallet; a separate step moves it onto Bulk via their deposit
- * flow (Phase 3 — blocked on the Bulk bridge question).
+ * flow (Phase 3 - blocked on the Bulk bridge question).
  *
  * Docs: https://docs.cloud.coinbase.com/pay-sdk/docs/welcome
  */

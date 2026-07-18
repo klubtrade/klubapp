@@ -33,7 +33,7 @@ export type {
 } from "./account-actions";
 
 // -------------------------------------------------------------------------
-// Types — mirror the bulk-keychain-wasm README "External Wallet" section
+// Types - mirror the bulk-keychain-wasm README "External Wallet" section
 // -------------------------------------------------------------------------
 
 export type TimeInForce = "GTC" | "IOC" | "ALO";
@@ -104,14 +104,14 @@ export interface AgentWalletCreationAction {
  * Request the testnet faucet drip (~1,000 mockUSDC per call on Bulk's
  * testnet, gated by a server-side 72h reset window per user).
  *
- * Wire format (verified against live rejection on Apr 21 2026 — the
+ * Wire format (verified against live rejection on Apr 21 2026 - the
  * server's serde error "missing field `u` at line 1 column 24"
  * confirmed the outer `faucet` key but told us the object needs `u`):
  *
  *   { faucet: { u: user_pubkey_base58 } }
  *
  * `u` = user/recipient pubkey (base58 string). Matches Bulk's
- * single-letter naming convention for pubkey fields — the
+ * single-letter naming convention for pubkey fields - the
  * agentWalletCreation action uses `a` for the agent pubkey.
  *
  * (If a future release changes `u` to expect a number rather than a
@@ -126,7 +126,7 @@ export interface FaucetClaimAction {
 
 /**
  * Create a sub-account on the user's master account. Bulk v1.0.14
- * action — `prepareCreateSubAccount` in `bulk-keychain-wasm` v0.1.15+.
+ * action - `prepareCreateSubAccount` in `bulk-keychain-wasm` v0.1.15+.
  *
  * Wire format (compact JSON the server reconstructs canonical bytes
  * from): `{createSubAccount: {n: name}}` for the no-margin case. With
@@ -141,7 +141,7 @@ export interface CreateSubAccountAction {
 }
 
 /**
- * Transfer margin between accounts. Bulk v1.0.14 action — internal
+ * Transfer margin between accounts. Bulk v1.0.14 action - internal
  * (master ↔ sub-account) or external (any network address).
  *
  * Wire format: `{transfer: {k: kind, f: from, t: to, ms: marginSymbol, ma: amount}}`.
@@ -183,7 +183,7 @@ export type SignableAction =
  * aren't natively JSON-serializable.
  */
 // -------------------------------------------------------------------------
-// Input to submitOrder — normalized from the UI
+// Input to submitOrder - normalized from the UI
 // -------------------------------------------------------------------------
 
 export interface SubmitOrderInput {
@@ -204,13 +204,13 @@ export interface SubmitOrderInput {
    * Optional override for the transaction's `account` field. By
    * default we use `signer.publicKeyBase58` (self-trading). When
    * signing with an agent wallet, the agent is the SIGNER but the
-   * main user pubkey remains the ACCOUNT — pass it here.
+   * main user pubkey remains the ACCOUNT - pass it here.
    */
   readonly account?: string;
 }
 
 /**
- * Input for `submitCancel`. Both fields are mandatory — Bulk needs
+ * Input for `submitCancel`. Both fields are mandatory - Bulk needs
  * the symbol AND the orderId to locate the resting order in its book.
  * We don't let the caller omit either.
  */
@@ -218,7 +218,7 @@ export interface SubmitCancelInput {
   readonly symbol: string;
   readonly orderId: string;
   readonly signer: BulkWalletSigner;
-  /** Same as SubmitOrderInput.account — override for agent signing. */
+  /** Same as SubmitOrderInput.account - override for agent signing. */
   readonly account?: string;
 }
 
@@ -295,7 +295,7 @@ function buildTriggerOrder(i: SubmitOrderInput): TriggerOrder {
 export async function submitOrder(
   input: SubmitOrderInput,
 ): Promise<SubmitOrderResult> {
-  // Basic input validation — fail fast before asking for a signature.
+  // Basic input validation - fail fast before asking for a signature.
   if (!Number.isFinite(input.size) || input.size <= 0) {
     throw new Error("Order size must be a positive number");
   }
@@ -306,7 +306,7 @@ export async function submitOrder(
   // Load the WASM module. `bulk-keychain-wasm` is wasm-pack generated;
   // in `--target web` mode the default export is an init() that must
   // resolve before named exports are usable. In `--target bundler` mode
-  // the default export is a no-op — calling it is harmless. Either way,
+  // the default export is a no-op - calling it is harmless. Either way,
   // we `await init()` once and cache the module.
   const keychain = await loadKeychain();
 
@@ -364,7 +364,7 @@ export async function submitOrder(
     }
   } catch (err) {
     // Phantom / Backpack throw a generic Error with code 4001 when
-    // the user rejects. We don't over-parse — any sign failure is
+    // the user rejects. We don't over-parse - any sign failure is
     // treated as a rejection from the user's POV.
     return {
       ok: false,
@@ -406,7 +406,7 @@ export async function submitOrder(
  *   - the wire action is `{cx: {c, oid}}` (discriminant 3)
  *
  * The library's `prepareOrder()` accepts both orders and cancels
- * natively — see the "Order Types / Cancel Order" section of the
+ * natively - see the "Order Types / Cancel Order" section of the
  * bulk-keychain README. We do NOT need a separate `prepareCancel()`.
  *
  * Result shape matches `submitOrder` so the UI can route either
@@ -431,7 +431,7 @@ export async function submitCancel(
     orderId: input.orderId,
   };
 
-  // Same nonce + prepareOrder path as submitOrder — the library
+  // Same nonce + prepareOrder path as submitOrder - the library
   // internally branches on `type: 'cancel'` vs `type: 'order'`.
   const nonce = Date.now();
   const account = input.account ?? input.signer.publicKeyBase58;
@@ -488,7 +488,7 @@ export async function submitCancel(
  *
  * Uses the library's `prepareAgentWallet(agentPubkey, delete, options)`
  * helper documented in the bulk-keychain README. Signed by the
- * MAIN account's wallet — which means a Solflare popup appears once
+ * MAIN account's wallet - which means a Solflare popup appears once
  * per authorization/revocation, not per-trade.
  *
  * Returns the same tagged result union as submitOrder so the UI

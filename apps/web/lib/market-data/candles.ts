@@ -8,13 +8,17 @@ export interface ChartCandle {
   readonly close: number;
 }
 
-/** Display-only guard for isolated corrupt Bulk wicks that break autoscale. */
+/**
+ * Normalize venue candles for the chart and contain isolated testnet wick
+ * corruption. Bodies are never altered; only a wick that is many normal
+ * ranges away from its body is clipped for display.
+ */
 export function prepareChartCandles(
   candles: readonly Candle[],
 ): readonly ChartCandle[] {
   const normalized = candles
     .map((candle) => ({
-      time: candle.t / 1000,
+      time: toChartUnixSeconds(Number(candle.t)),
       open: Number(candle.o),
       high: Number(candle.h),
       low: Number(candle.l),
@@ -24,22 +28,32 @@ export function prepareChartCandles(
       return (
         Object.values(candle).every(Number.isFinite) &&
         candle.open > 0 &&
-        candle.close > 0
+        candle.close > 0 &&
+        candle.high > 0 &&
+        candle.low > 0
       );
     })
     .sort((a, b) => a.time - b.time);
 
-  if (normalized.length < 3) return normalized;
+  const deduplicated = [
+    ...new Map(normalized.map((row) => [row.time, row])).values(),
+  ];
+  if (deduplicated.length < 3) return deduplicated.map(enforceOhlcBounds);
 
-  const typicalClose = median(normalized.map((candle) => candle.close));
-  const typicalBody = median(
-    normalized.map((candle) =>
-      Math.max(Math.abs(candle.open - candle.close), typicalClose * 0.0001),
+  const bounded = deduplicated.map(enforceOhlcBounds);
+  const typicalClose = median(bounded.map((candle) => candle.close));
+  const typicalRange = median(
+    bounded.map((candle) =>
+      Math.max(
+        candle.high - candle.low,
+        Math.abs(candle.open - candle.close),
+        typicalClose * 0.0001,
+      ),
     ),
   );
-  const maxWick = Math.max(typicalClose * 0.02, typicalBody * 12);
+  const maxWick = Math.max(typicalClose * 0.001, typicalRange * 3);
 
-  return normalized.map((candle) => {
+  return bounded.map((candle) => {
     const bodyHigh = Math.max(candle.open, candle.close);
     const bodyLow = Math.min(candle.open, candle.close);
     return {
@@ -51,6 +65,20 @@ export function prepareChartCandles(
       ),
     };
   });
+}
+
+function enforceOhlcBounds(candle: ChartCandle): ChartCandle {
+  return {
+    ...candle,
+    high: Math.max(candle.high, candle.open, candle.close),
+    low: Math.min(candle.low, candle.open, candle.close),
+  };
+}
+
+export function toChartUnixSeconds(timestamp: number): number {
+  if (timestamp >= 1_000_000_000_000) return Math.floor(timestamp / 1000);
+  if (timestamp >= 1_000_000_000) return Math.floor(timestamp);
+  return Math.floor(timestamp / 1000);
 }
 
 function median(values: readonly number[]): number {

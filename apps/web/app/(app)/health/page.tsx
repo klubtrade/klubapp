@@ -47,7 +47,7 @@ export default function HealthPage() {
 
   // Auto-refresh the account snapshot every 10 seconds so health
   // reflects newly opened/closed positions without a manual reload.
-  // `useBulkAccount` doesn't poll aggressively on its own — callers
+  // `useBulkAccount` doesn't poll aggressively on its own - callers
   // like /trade invoke `refresh()` after explicit actions, but
   // /health only receives the snapshot passively, so it stales out
   // when the user trades from another page (or tab).
@@ -64,7 +64,7 @@ export default function HealthPage() {
   // Subscribe to tickers for every supported market so we have
   // live mark prices for PnL calc on each position. `useTickers`
   // internally uses frontendContext which delivers all markets in
-  // one subscription — cheap.
+  // one subscription - cheap.
   const allSymbols = useMemo<readonly MarketSymbol[]>(
     () => MARKETS.map((m) => m.symbol),
     [],
@@ -158,7 +158,7 @@ export default function HealthPage() {
   })();
 
   // REST snapshot of per-market mm/im fractions, refreshed every 30s.
-  // This is what actually powers the health math today — the stream
+  // This is what actually powers the health math today - the stream
   // is monitored-but-unused until we see it publish reliably.
   const { params: restParams } = useRiskSurfacesRest();
 
@@ -246,7 +246,7 @@ export default function HealthPage() {
         ) : positions.length === 0 ? (
           <EmptyState
             title="No positions yet"
-            body="Your health score tracks liquidation risk, leverage, concentration, and funding burn across your open positions. Open a trade to get started — or run a hypothetical through the calculator first."
+            body="Your health score tracks liquidation risk, leverage, concentration, and funding burn across your open positions. Open a trade to get started - or run a hypothetical through the calculator first."
             ctaHref="/trade"
             ctaLabel="Open a trade"
             secondaryHref="/calculator"
@@ -274,7 +274,7 @@ export default function HealthPage() {
   );
 }
 
-// Rendering subcomponents — kept local so this page stays self-contained.
+// Rendering subcomponents - kept local so this page stays self-contained.
 // If any of these gets reused on another page, extract to /components.
 
 function HealthReadout({

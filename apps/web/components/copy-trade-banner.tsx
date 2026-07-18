@@ -7,7 +7,7 @@ import { useBulkOrder } from '@/hooks/use-bulk-order';
 import type { MirrorSignal } from '@/lib/copy-trade/engine';
 
 /**
- * CopyTradeBanner — surfaces queued mirror signals as a floating
+ * CopyTradeBanner - surfaces queued mirror signals as a floating
  * bottom-right card with [Mirror] and [Skip] actions.
  *
  * Shows ONE card at a time (the oldest pending signal); subsequent
@@ -16,7 +16,7 @@ import type { MirrorSignal } from '@/lib/copy-trade/engine';
  * avalanche if a leader opens several trades at once.
  *
  * [Mirror] places a market order on the follower's account via the
- * standard `useBulkOrder` flow — the same path /trade and
+ * standard `useBulkOrder` flow - the same path /trade and
  * /trade use. Success or failure is surfaced inline on the card
  * rather than in a global toast so the user has context about which
  * mirror it refers to.
@@ -85,7 +85,7 @@ function MirrorCard({
       // = positive; acquiring short OR unwinding long = negative.
       const signedDelta =
         orderSide === 'long' ? signal.mirrorSizeBase : -signal.mirrorSizeBase;
-      // For close/decrease we're unwinding — apply the opposite
+      // For close/decrease we're unwinding - apply the opposite
       // sign of what we'd apply for an acquisition, which happens
       // to be exactly the same formula (unwinding a long = sell =
       // negative delta). The branching here exists because of how

@@ -36,13 +36,13 @@ export type BulkOrderState =
   | { readonly status: 'error'; readonly result: Extract<SubmitOrderResult, { ok: false }> };
 
 /**
- * Input shape for `submit()` — everything in `SubmitOrderInput` EXCEPT
+ * Input shape for `submit()` - everything in `SubmitOrderInput` EXCEPT
  * the signer and account, which the hook injects from wallet-adapter
  * and the current agent record respectively.
  */
 /**
  * Caller-supplied input. `signer` is injected by the hook from
- * wallet-adapter / agent. `account` is optional — when supplied (e.g.
+ * wallet-adapter / agent. `account` is optional - when supplied (e.g.
  * the user is trading from a sub-account / pot), it's the trading
  * account; the master pubkey remains the signer. When omitted, the
  * hook defaults `account` to the master pubkey (self-trading from
@@ -63,7 +63,7 @@ export function useBulkOrder(): {
   const { agent, agentSigner } = useAgentWallet();
   // The trading account defaults to whatever the user has selected in
   // the AccountSwitcher (master or a pot). Per-call `req.account` still
-  // overrides — useful for actions like Close-position that explicitly
+  // overrides - useful for actions like Close-position that explicitly
   // target a specific account.
   const { pubkey: activePubkey } = useActiveAccount();
   const [state, setState] = useState<BulkOrderState>({ status: 'idle' });
@@ -88,13 +88,13 @@ export function useBulkOrder(): {
       setState({ status: 'submitting' });
 
       // Prefer the agent signer when authorized. Double-check the
-      // agent belongs to the currently connected wallet — defensive,
+      // agent belongs to the currently connected wallet - defensive,
       // should always be true since useAgentWallet keys on pubkey.
       const canUseAgent =
         agent !== null && agentSigner !== null && agent.account === mainPubkey;
 
       // The trading account, in priority order:
-      //   1. Caller-supplied `req.account` (explicit target — e.g.
+      //   1. Caller-supplied `req.account` (explicit target - e.g.
       //      Close-position aimed at a specific account)
       //   2. Active account from the AccountSwitcher (master or pot)
       //   3. The wallet's master pubkey

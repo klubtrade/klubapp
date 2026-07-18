@@ -1,5 +1,5 @@
 /**
- * Markets — single source of truth for the set of markets we trade on
+ * Markets - single source of truth for the set of markets we trade on
  * Bulk Exchange.
  *
  * Why a shared module:
@@ -20,7 +20,7 @@
  *   - Add tick-size + lot-size for each market so inputs can
  *     auto-snap to valid increments. Currently we stringify prices
  *     to dodge the serde "integer vs float" issue, but don't enforce
- *     tick compliance — Bulk will reject orders that violate ticks
+ *     tick compliance - Bulk will reject orders that violate ticks
  *     with a different error message and we should surface that.
  */
 
@@ -36,7 +36,7 @@ import { useTradingWallet } from '@/lib/trading-wallet';
 // -------------------------------------------------------------------------
 
 /**
- * The full set of markets we render UIs for. Order matters — this is
+ * The full set of markets we render UIs for. Order matters - this is
  * also the order that appears in dropdowns and lists (BTC first for
  * priority, alts after).
  *
@@ -78,7 +78,7 @@ export type MarketSymbol = (typeof MARKETS)[number]['symbol'];
 /** All symbols, in canonical order. */
 export const SYMBOLS: readonly MarketSymbol[] = MARKETS.map((m) => m.symbol) as readonly MarketSymbol[];
 
-/** Seed prices as a record keyed by symbol — ergonomic for lookups. */
+/** Seed prices as a record keyed by symbol - ergonomic for lookups. */
 export const SEED_PRICES: Record<MarketSymbol, number> = MARKETS.reduce(
   (acc, m) => {
     acc[m.symbol as MarketSymbol] = m.seedPrice;
@@ -97,19 +97,19 @@ export function findMarket(symbol: string): Market | undefined {
 // -------------------------------------------------------------------------
 
 /**
- * <useMarkets /> — returns the canonical markets list with leverage
+ * <useMarkets /> - returns the canonical markets list with leverage
  * caps overridden by the user's current `leverageSettings` from Bulk
  * when connected.
  *
  * Why overlay rather than replace: when disconnected (or on first
  * paint before /account returns), the hardcoded defaults still let
  * the UI render meaningful leverage sliders. Once /account arrives,
- * any per-user overrides — including cases where Bulk has adjusted
- * a symbol's cap globally — flow through transparently.
+ * any per-user overrides - including cases where Bulk has adjusted
+ * a symbol's cap globally - flow through transparently.
  *
  * The hook doesn't fetch on its own; it subscribes to whatever the
  * page's existing `useBulkAccount` call provides. Safe to call
- * multiple times — React caches the hook result via useMemo below.
+ * multiple times - React caches the hook result via useMemo below.
  */
 export function useMarkets(): readonly Market[] {
   const wallet = useTradingWallet();

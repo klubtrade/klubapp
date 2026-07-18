@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server';
  *
  * Consumers (`buildHealthInput`) do a nearest-knot lookup using each
  * position's notional + implicit leverage to get a position-specific
- * mmFraction. This replaces the Day-2 conservative "2% floor" — the
+ * mmFraction. This replaces the Day-2 conservative "2% floor" - the
  * numbers going into /health math are now position-aware.
  *
  * Response shape:

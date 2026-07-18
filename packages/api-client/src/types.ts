@@ -111,6 +111,8 @@ export interface Ticker {
   readonly oraclePrice: number;
   readonly openInterest: number;
   readonly fundingRate: number;
+  /** Venue-provided annualized funding as a fraction, when available. */
+  readonly fundingRateAnnualized?: number;
   readonly regime: number;
   readonly regimeDt: number;
   readonly regimeVol: number;

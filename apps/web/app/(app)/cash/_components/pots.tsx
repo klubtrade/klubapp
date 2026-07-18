@@ -4,7 +4,7 @@ import { useBulkFaucet } from "@/hooks/use-bulk-faucet";
 import type { SubmitOrderResult } from "@/lib/bulk/orders";
 
 // =============================================================================
-// Pot row — card style
+// Pot row - card style
 // =============================================================================
 
 export function PotRow({

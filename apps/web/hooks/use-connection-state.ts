@@ -6,7 +6,7 @@ import { marketData } from '@/lib/market-data/client';
 import type { ConnectionState } from '@klub/api-client';
 
 /**
- * useConnectionState — render Live / Demo / Reconnecting indicators.
+ * useConnectionState - render Live / Demo / Reconnecting indicators.
  *
  *   const { state, isLive, isDemo } = useConnectionState();
  *

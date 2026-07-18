@@ -7,7 +7,7 @@ import { resolveHandle } from '@/lib/handles';
 import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
- * /invite — share your invite link.
+ * /invite - share your invite link.
  *
  * KLUB is open access. Once a user is onboarded, they get a personal
  * link that points new visitors at the onboarding flow with a
@@ -51,7 +51,7 @@ export default function InvitePage() {
         }
       })
       .catch(() => {
-        // Network error — keep cache.
+        // Network error - keep cache.
       })
       .finally(() => {
         setLoadingHandle(false);
@@ -121,13 +121,13 @@ export default function InvitePage() {
           <section className="mt-8 space-y-3">
             <ShareCard
               label="Your profile"
-              url={profileUrl ?? '—'}
+              url={profileUrl ?? '-'}
               onCopy={() => profileUrl && copy(profileUrl, 'Profile link')}
               accent
             />
             <ShareCard
               label="Pay-by-handle"
-              url={payUrl ?? '—'}
+              url={payUrl ?? '-'}
               onCopy={() => payUrl && copy(payUrl, 'Pay link')}
               hint="Anyone with this link can send you USDC."
             />
@@ -135,7 +135,7 @@ export default function InvitePage() {
               label="Just KLUB"
               url={homeUrl}
               onCopy={() => copy(homeUrl, 'Link')}
-              hint="Plain landing — no handle attribution."
+              hint="Plain landing - no handle attribution."
             />
           </section>
         )}

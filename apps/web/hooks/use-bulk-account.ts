@@ -48,7 +48,7 @@ export interface BulkAccountSnapshot {
   /** Parsed resting orders. Empty array if none or if parse failed. */
   readonly openOrders: readonly BulkOpenOrder[];
   /**
-   * Account kind — `MasterEOA` for the user's primary wallet, or
+   * Account kind - `MasterEOA` for the user's primary wallet, or
    * `SubAccount` if they're querying a sub-account directly. v1.0.14+.
    * `null` for older Bulk responses.
    */
@@ -185,9 +185,9 @@ export function useBulkAccount(pubkey: string | null): {
 
 function normalizeAccount(raw: unknown): BulkAccountSnapshot {
   // Unwrap the envelope. Supports three shapes, most-specific first:
-  //   1. `{fullAccount: {...}}` — observed actual response
-  //   2. `[{...}]` — documented pattern for some endpoints
-  //   3. `{...}` — fallback if Bulk ever flattens
+  //   1. `{fullAccount: {...}}` - observed actual response
+  //   2. `[{...}]` - documented pattern for some endpoints
+  //   3. `{...}` - fallback if Bulk ever flattens
   // Two-stage unwrap, in order:
   //   Stage 1: if response is an array, take first element
   //            (Bulk's /account has been observed returning both
@@ -311,34 +311,34 @@ function parsePositions(raw: unknown): readonly BulkPosition[] {
     const symbol = typeof r["symbol"] === "string" ? r["symbol"] : null;
     if (!symbol) continue;
 
-    // Size — per verified response field is `size`; fallbacks for
+    // Size - per verified response field is `size`; fallbacks for
     // future Bulk renames.
     const sizeBase =
       readNumber(r["size"]) ??
       readNumber(r["sz"]) ??
       readNumber(r["sizeBase"]) ??
       0;
-    // Entry price — verified as `price`; some exchanges use
+    // Entry price - verified as `price`; some exchanges use
     // avgEntryPrice or entry.
     const entryPrice =
       readNumber(r["price"]) ??
       readNumber(r["entryPrice"]) ??
       readNumber(r["avgEntry"]) ??
       0;
-    // Mark/fair — verified as `fairPrice`.
+    // Mark/fair - verified as `fairPrice`.
     const fairPrice =
       readNumber(r["fairPrice"]) ??
       readNumber(r["markPrice"]) ??
       readNumber(r["mark"]) ??
       entryPrice;
-    // Notional — verified field name; recompute if missing.
+    // Notional - verified field name; recompute if missing.
     const notionalUsd =
       readNumber(r["notional"]) ??
       (Number.isFinite(sizeBase) && Number.isFinite(entryPrice)
         ? sizeBase * entryPrice
         : 0);
     // Unrealized pnl is not shown as a single field in the item
-    // we've seen — it's probably computed from sizeBase×(fairPrice−entryPrice).
+    // we've seen - it's probably computed from sizeBase×(fairPrice−entryPrice).
     // Still probe first, in case Bulk adds it.
     const probed =
       readNumber(r["unrealizedPnl"]) ??
@@ -383,7 +383,7 @@ function parseOpenOrders(raw: unknown): readonly BulkOpenOrder[] {
 
     const sizeBase = readNumber(r["size"]) ?? readNumber(r["sz"]) ?? 0;
     const price = readNumber(r["price"]) ?? readNumber(r["px"]) ?? 0;
-    // is_buy / side — signed size is a common encoding, so fall back
+    // is_buy / side - signed size is a common encoding, so fall back
     // to sign check.
     const isBuyRaw = r["isBuy"] ?? r["b"] ?? r["buy"];
     const isBuy = typeof isBuyRaw === "boolean" ? isBuyRaw : sizeBase >= 0;

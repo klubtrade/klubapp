@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 /**
- * Viewport. Critical for mobile rendering — without `width=device-width`
+ * Viewport. Critical for mobile rendering - without `width=device-width`
  * iOS Safari renders at 980px and scales down, so every page looks like
  * a tiny desktop site. `maximumScale: 1` prevents the iOS double-tap
  * zoom-on-input bug for our trading inputs (no, you don't want the

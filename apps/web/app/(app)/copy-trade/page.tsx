@@ -262,7 +262,7 @@ export default function CopyTradePage() {
 
 function isPlausiblePubkey(s: string): boolean {
   // Solana base58 pubkeys are typically 32-44 chars. Reject obvious
-  // junk without trying to fully validate — Bulk will reject invalid
+  // junk without trying to fully validate - Bulk will reject invalid
   // keys when we actually try to subscribe.
   if (s.length < 32 || s.length > 48) return false;
   return /^[1-9A-HJ-NP-Za-km-z]+$/.test(s);

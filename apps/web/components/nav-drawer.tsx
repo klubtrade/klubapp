@@ -20,7 +20,7 @@ import {
  * grouped using the same route model as the desktop sidebar.
  *
  * Same component, same interaction, web and mobile. No separate
- * bottom nav, no dropdown, no breadcrumbs — one place for navigation.
+ * bottom nav, no dropdown, no breadcrumbs - one place for navigation.
  * Information is hidden until the user asks for it.
  *
  * Behavior:
@@ -80,10 +80,10 @@ export function NavDrawer() {
 
   return (
     <>
-      {/* Hamburger + KLUB wordmark — mobile only. On md+ DesktopNav
+      {/* Hamburger + KLUB wordmark - mobile only. On md+ DesktopNav
           renders a pinned top bar with brand and primary routes
           inline, so the hamburger is redundant and the drawer is
-          unreachable (which is intentional — desktop should not need
+          unreachable (which is intentional - desktop should not need
           a sliding panel for nav). */}
       <div className="fixed left-4 top-4 z-30 flex items-center gap-3 md:hidden">
         <button
@@ -125,7 +125,7 @@ export function NavDrawer() {
       </div>
 
       {/* Backdrop */}
-      {/* Backdrop. Pure opacity fade — no blur. backdrop-blur on a
+      {/* Backdrop. Pure opacity fade - no blur. backdrop-blur on a
           full-viewport overlay forces a per-frame resample of the
           entire page behind it, which combined with the drawer's
           transform animation ground the menu open to ~10fps on
@@ -210,7 +210,7 @@ export function NavDrawer() {
           ))}
         </nav>
 
-        {/* Wallet footer — pinned to bottom */}
+        {/* Wallet footer - pinned to bottom */}
         <div className="border-t border-border-subtle px-6 py-5">
           <WalletButton variant="secondary" size="md" />
         </div>

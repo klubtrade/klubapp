@@ -1,15 +1,19 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import Link from "next/link";
+import { useMemo, useState } from "react";
 
-import { useCopyTrade } from '@/components/copy-trade-provider';
-import { useToast } from '@/components/toast';
-import { MOCK_LEADERS, type MockLeader, type TraderStyle } from '@/lib/mock-data/leaders';
-import { useUserPrefs } from '@/lib/user-prefs';
+import { useCopyTrade } from "@/components/copy-trade-provider";
+import { useToast } from "@/components/toast";
+import {
+  MOCK_LEADERS,
+  type MockLeader,
+  type TraderStyle,
+} from "@/lib/mock-data/leaders";
+import { useUserPrefs } from "@/lib/user-prefs";
 
 /**
- * /copy — leader discovery and active-copy management.
+ * /copy - leader discovery and active-copy management.
  *
  * Visible by default:
  *   - Small label ("Leaders")
@@ -22,41 +26,44 @@ import { useUserPrefs } from '@/lib/user-prefs';
  * Every row taps through to the leader profile.
  */
 
-type SortBy = 'pnl30d' | 'winRate' | 'drawdown' | 'followers';
+type SortBy = "pnl30d" | "winRate" | "drawdown" | "followers";
 
-const STYLES: readonly { readonly id: TraderStyle | 'all'; readonly label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'trend', label: 'Trend' },
-  { id: 'swing', label: 'Swing' },
-  { id: 'scalper', label: 'Scalp' },
-  { id: 'basis', label: 'Basis' },
+const STYLES: readonly {
+  readonly id: TraderStyle | "all";
+  readonly label: string;
+}[] = [
+  { id: "all", label: "All" },
+  { id: "trend", label: "Trend" },
+  { id: "swing", label: "Swing" },
+  { id: "scalper", label: "Scalp" },
+  { id: "basis", label: "Basis" },
 ];
 
 const SORT_LABELS: Record<SortBy, string> = {
-  pnl30d: 'PnL · 30d',
-  winRate: 'Win rate',
-  drawdown: 'Drawdown',
-  followers: 'Followers',
+  pnl30d: "PnL · 30d",
+  winRate: "Win rate",
+  drawdown: "Drawdown",
+  followers: "Followers",
 };
 
 export default function FollowPage() {
-  const [styleFilter, setStyleFilter] = useState<TraderStyle | 'all'>('all');
-  const [sortBy, setSortBy] = useState<SortBy>('pnl30d');
+  const [styleFilter, setStyleFilter] = useState<TraderStyle | "all">("all");
+  const [sortBy, setSortBy] = useState<SortBy>("pnl30d");
   const { follows, unfollow } = useCopyTrade();
 
   const filtered = useMemo(() => {
     const list = MOCK_LEADERS.filter(
-      (l) => styleFilter === 'all' || l.style === styleFilter,
+      (l) => styleFilter === "all" || l.style === styleFilter,
     );
     return [...list].sort((a, b) => {
       switch (sortBy) {
-        case 'pnl30d':
+        case "pnl30d":
           return b.pnl30dUsd - a.pnl30dUsd;
-        case 'winRate':
+        case "winRate":
           return b.winRate - a.winRate;
-        case 'drawdown':
+        case "drawdown":
           return a.maxDrawdownPct - b.maxDrawdownPct;
-        case 'followers':
+        case "followers":
           return b.followers - a.followers;
       }
     });
@@ -72,16 +79,16 @@ export default function FollowPage() {
 
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
-      <div className="mx-auto w-full max-w-xl">
-        {/* Hero — title + subtitle, plus a "Copying N" pill on the right
+      <div className="mx-auto w-full max-w-4xl">
+        {/* Hero - title + subtitle, plus a "Copying N" pill on the right
             when relevant. Same typography rhythm as /cash. */}
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
-              Leaders
+              Copy trading
             </h1>
             <p className="mt-1 text-[13px] text-fg-muted">
-              Copy the winners. Sleep through the liquidations.
+              Review simulated leaders and set strict allocation limits.
             </p>
           </div>
           {follows.length > 0 && (
@@ -95,13 +102,12 @@ export default function FollowPage() {
         </header>
 
         <div className="mt-6 rounded-klub border border-accent/25 bg-accent/5 px-4 py-3 text-[11px] leading-relaxed text-fg-secondary">
-          <span className="font-medium text-accent">Preview data.</span>{' '}
-          Leader performance and copy settings are local demo data. Automatic
-          orders remain disabled until the secure agent-key provider and leader
-          indexer are configured.
+          <span className="font-medium text-accent">Preview data.</span>{" "}
+          Profiles and performance below are simulated. Automatic execution is
+          disabled.
         </div>
 
-        {/* Filter row — quick chips inline, sort as a select. The "All"
+        {/* Filter row - quick chips inline, sort as a select. The "All"
             chip stays first so the default state is one tap from any
             other filter. */}
         <div className="mt-6 flex items-center gap-3">
@@ -115,8 +121,8 @@ export default function FollowPage() {
                 }}
                 className={`rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors ${
                   styleFilter === s.id
-                    ? 'border-accent bg-accent/15 text-accent'
-                    : 'border-border-subtle bg-bg-surface text-fg-secondary hover:border-border hover:text-fg-primary'
+                    ? "border-accent bg-accent/15 text-accent"
+                    : "border-border-subtle bg-bg-surface text-fg-secondary hover:border-border hover:text-fg-primary"
                 }`}
               >
                 {s.label}
@@ -147,11 +153,11 @@ export default function FollowPage() {
           </div>
         </div>
 
-        {/* Leader cards — Revolut-style list, each row a tappable card
+        {/* Leader cards - Revolut-style list, each row a tappable card
             with circular avatar + handle + meta + 30d PnL on the right.
             Card padding makes the touch target feel deliberate; hover
             lifts the surface tone. */}
-        <ul className="mt-6 space-y-2">
+        <ul className="mt-6 grid gap-3 md:grid-cols-2">
           {filtered.map((l) => (
             <li key={l.handle}>
               <div className="flex items-center gap-3 rounded-klub-lg border border-border-subtle bg-bg-surface p-3 transition-colors hover:bg-bg-elevated">
@@ -181,9 +187,9 @@ export default function FollowPage() {
                   </div>
                   <div className="text-right">
                     <div
-                      className={`font-mono text-[14px] font-semibold ${l.pnl30dUsd >= 0 ? 'text-pnl-long' : 'text-pnl-short'}`}
+                      className={`font-mono text-[14px] font-semibold ${l.pnl30dUsd >= 0 ? "text-pnl-long" : "text-pnl-short"}`}
                     >
-                      {l.pnl30dUsd >= 0 ? '+' : '−'}$
+                      {l.pnl30dUsd >= 0 ? "+" : "−"}$
                       {Math.abs(l.pnl30dUsd).toLocaleString()}
                     </div>
                     <div className="mt-0.5 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
@@ -211,7 +217,10 @@ export default function FollowPage() {
           </div>
         )}
 
-        <section id="following" className="mt-12 scroll-mt-24 border-t border-border-subtle pt-8">
+        <section
+          id="following"
+          className="mt-12 scroll-mt-24 border-t border-border-subtle pt-8"
+        >
           <div className="flex items-baseline justify-between">
             <div>
               <h2 className="text-[18px] font-semibold tracking-tight text-fg-primary">
@@ -222,7 +231,7 @@ export default function FollowPage() {
               </p>
             </div>
             <span className="text-[10px] uppercase tracking-[0.12em] text-fg-muted">
-              {follows.length} {follows.length === 1 ? 'leader' : 'leaders'}
+              {follows.length} {follows.length === 1 ? "leader" : "leaders"}
             </span>
           </div>
 
@@ -250,8 +259,10 @@ export default function FollowPage() {
                       {follow.label ?? shortenPubkey(follow.leaderPubkey)}
                     </div>
                     <div className="mt-0.5 font-mono text-[10px] text-fg-muted">
-                      {follow.allocationPct}% per trade ·{' '}
-                      {follow.baselineSymbols.length === 0 ? 'syncing' : 'tracking'}
+                      {follow.allocationPct}% per trade ·{" "}
+                      {follow.baselineSymbols.length === 0
+                        ? "syncing"
+                        : "tracking"}
                     </div>
                   </div>
                   <button
@@ -268,7 +279,6 @@ export default function FollowPage() {
             </ul>
           )}
         </section>
-
       </div>
     </main>
   );
@@ -280,11 +290,11 @@ function shortenPubkey(value: string): string {
 }
 
 /**
- * RowCopyAction — inline Copy button on a leaderboard row.
+ * RowCopyAction - inline Copy button on a leaderboard row.
  *
  * One-tap: copies with the user's default allocation from prefs.
  * If the user is already copying this leader, renders an inert
- * "Copying" badge instead — to adjust allocation or unfollow, they
+ * "Copying" badge instead - to adjust allocation or unfollow, they
  * tap through to the profile page.
  */
 function RowCopyAction({
@@ -315,7 +325,10 @@ function RowCopyAction({
       label: leader.handle,
       allocationPct: prefs.defaultCopyAllocPct,
     });
-    toast.success(`Copying @${leader.handle}`, `${prefs.defaultCopyAllocPct}% per trade.`);
+    toast.success(
+      `Copying @${leader.handle}`,
+      `${prefs.defaultCopyAllocPct}% per trade.`,
+    );
   }
 
   return (

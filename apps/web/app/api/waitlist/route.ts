@@ -10,7 +10,7 @@ const WaitlistSchema = z.object({
 });
 
 /**
- * POST /api/waitlist — capture a waitlist signup.
+ * POST /api/waitlist - capture a waitlist signup.
  *
  * Captures signups durably in Railway Postgres when DATABASE_URL is
  * configured. Resend audience sync remains optional.

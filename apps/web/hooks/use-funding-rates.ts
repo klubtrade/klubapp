@@ -1,11 +1,16 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-import { useTickers, type LivePrice } from './use-tickers';
+import {
+  normalizeFunding,
+  type NormalizedFunding,
+} from "@/lib/market-data/funding";
+
+import { useTickers } from "./use-tickers";
 
 /**
- * useFundingRates — derived selector on top of `useTickers`.
+ * useFundingRates - derived selector on top of `useTickers`.
  *
  * Bulk doesn't have a separate "funding" WebSocket stream; the funding
  * rate is a field on the frontendContext / ticker stream. This hook
@@ -29,26 +34,7 @@ import { useTickers, type LivePrice } from './use-tickers';
  * 24 × 365 factor.
  */
 
-export interface LiveFunding {
-  readonly symbol: string;
-  /** Hourly funding rate as a percent (e.g., 0.00024 means 0.00024%/h). */
-  readonly hourlyPct: number;
-  /** 8-hour funding rate as a percent. */
-  readonly eightHourPct: number;
-  /** Annualized funding rate as a percent (hourly × 24 × 365). */
-  readonly annualPct: number;
-  /**
-   * @deprecated Use `hourlyPct`. Kept for back-compat; identical value.
-   * Previously documented as "per-interval fraction"; that doc was wrong.
-   */
-  readonly rate: number;
-  /**
-   * @deprecated Use `annualPct`. Kept for back-compat; identical value.
-   * Previously computed with the wrong 3 × 365 × 100 factor.
-   */
-  readonly annualizedPct: number;
-  readonly updatedAt: number;
-}
+export type LiveFunding = NormalizedFunding;
 
 export function useFundingRates(
   symbols: readonly string[],
@@ -59,23 +45,8 @@ export function useFundingRates(
     const out: Record<string, LiveFunding | undefined> = {};
     for (const [symbol, price] of Object.entries(prices)) {
       if (!price) continue;
-      out[symbol] = toFunding(price);
+      out[symbol] = normalizeFunding(price);
     }
     return out;
   }, [prices]);
-}
-
-function toFunding(p: LivePrice): LiveFunding {
-  const hourlyPct = p.fundingRate * 100;
-  const eightHourPct = hourlyPct * 8;
-  const annualPct = hourlyPct * 24 * 365;
-  return {
-    symbol: p.symbol,
-    hourlyPct,
-    eightHourPct,
-    annualPct,
-    rate: hourlyPct,
-    annualizedPct: annualPct,
-    updatedAt: p.updatedAt,
-  };
 }

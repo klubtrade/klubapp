@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 /**
- * /practice — minimalist paper-trading journal.
+ * /practice - minimalist paper-trading journal.
  *
  * Visible by default:
  *   - List of open paper trades (or empty-state line)
@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
  * Behind "Show history":
  *   - Closed trades list
  *
- * No stats dashboard by default — win rate, average, etc. behind
+ * No stats dashboard by default - win rate, average, etc. behind
  * "Show stats" when the user asks.
  */
 

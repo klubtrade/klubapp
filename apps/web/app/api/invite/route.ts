@@ -5,8 +5,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 /**
- * GET  /api/invite?code=XYZ  — validate a code
- * POST /api/invite           — redeem a code for an account
+ * GET  /api/invite?code=XYZ  - validate a code
+ * POST /api/invite           - redeem a code for an account
  *
  * Phase 3.5: backed by Postgres via @klub/db. Codes live in the
  * `invites` table with `max_redemptions` (null = infinite, e.g.
@@ -35,7 +35,7 @@ function getDb() {
 }
 
 // ---------------------------------------------------------------------------
-// GET — validate
+// GET - validate
 // ---------------------------------------------------------------------------
 
 export async function GET(request: Request) {
@@ -75,7 +75,7 @@ export async function GET(request: Request) {
 }
 
 // ---------------------------------------------------------------------------
-// POST — redeem
+// POST - redeem
 // ---------------------------------------------------------------------------
 
 const RedeemBody = z.object({
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, label: entry.label });
   }
 
-  // DB path — transactional: check code is live, insert user if new,
+  // DB path - transactional: check code is live, insert user if new,
   // insert redemption, increment invite counter, mark waitlist entry
   // as promoted if one exists for this email.
   try {
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Sync to Resend audience (fire and forget — the waitlist-resend
+    // Sync to Resend audience (fire and forget - the waitlist-resend
     // worker also sweeps, so dropping this is non-fatal).
     // TODO: publish a `resend.sync` job here once the email package lands.
 

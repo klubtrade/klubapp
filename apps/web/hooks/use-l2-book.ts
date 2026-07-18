@@ -6,10 +6,10 @@ import { useEffect, useRef, useState } from 'react';
 import { marketData } from '@/lib/market-data/client';
 
 /**
- * useL2Book — subscribe to Bulk's WebSocket `l2Snapshot` stream.
+ * useL2Book - subscribe to Bulk's WebSocket `l2Snapshot` stream.
  *
  * Bulk re-broadcasts a full snapshot every ~100ms while subscribed,
- * so each emit is the authoritative book — no client-side delta
+ * so each emit is the authoritative book - no client-side delta
  * merging needed. The previous incarnation polled REST `/l2Book`
  * which Bulk has since removed (HTTP 404 on every call); this
  * version uses the same WS plumbing the watchlist and ticker
@@ -17,7 +17,7 @@ import { marketData } from '@/lib/market-data/client';
  *
  * The hook keeps the same return shape (`{state, refresh}`) so
  * /pro's PanelOrderbook didn't have to change. `refresh` is a
- * no-op in WS mode — there's nothing to re-fetch when we already
+ * no-op in WS mode - there's nothing to re-fetch when we already
  * have a live stream.
  *
  * Symbol changes reset the buffer; the previous symbol's book is
@@ -25,7 +25,7 @@ import { marketData } from '@/lib/market-data/client';
  */
 
 const DEFAULT_DEPTH = 25;
-// How long to wait before declaring "no data" — covers Bulk being
+// How long to wait before declaring "no data" - covers Bulk being
 // silent on a market with no makers, or the WS connection still in
 // reconnect.
 const STALE_TIMEOUT_MS = 5_000;
@@ -63,7 +63,7 @@ export function useL2Book(
           ? {
               status: 'error',
               book: null,
-              error: `No L2 snapshot received in ${STALE_TIMEOUT_MS / 1000}s — Bulk may not be streaming this market.`,
+              error: `No L2 snapshot received in ${STALE_TIMEOUT_MS / 1000}s - Bulk may not be streaming this market.`,
             }
           : s,
       );
@@ -95,7 +95,7 @@ export function useL2Book(
     };
   }, [symbol, depth]);
 
-  // Refresh is a no-op in WS mode — the stream is the source of truth.
+  // Refresh is a no-op in WS mode - the stream is the source of truth.
   // Kept on the return shape to match the previous polling-based API.
   function refresh() {
     // intentionally empty

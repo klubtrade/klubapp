@@ -6,11 +6,11 @@ import { useEffect, useState } from 'react';
 import { marketData } from '@/lib/market-data/client';
 
 /**
- * useRiskSurface — subscribe to Bulk's `risk:{symbol}` WebSocket
+ * useRiskSurface - subscribe to Bulk's `risk:{symbol}` WebSocket
  * stream for a single market.
  *
  * Bulk publishes the risk surface event-driven (not at a fixed
- * interval) — it updates when the underlying regime or lambda grid
+ * interval) - it updates when the underlying regime or lambda grid
  * changes. A quiet market can go minutes without an update. Our
  * consumer must be robust to "haven't received anything yet" as a
  * valid steady state.
@@ -59,7 +59,7 @@ export function useRiskSurface(symbol: string | null): RiskStream | null {
 }
 
 /**
- * useRiskSurfaces — convenience wrapper for subscribing to many
+ * useRiskSurfaces - convenience wrapper for subscribing to many
  * symbols at once. Returns a map keyed by symbol; values are null
  * until the respective symbol emits its first frame.
  *
@@ -70,7 +70,7 @@ export function useRiskSurface(symbol: string | null): RiskStream | null {
  *
  * NOTE: we intentionally do NOT return "surface for every symbol
  * merged into one object" on every update. React's setState with
- * object identity matters — we replace the whole map on each
+ * object identity matters - we replace the whole map on each
  * update so consumers can useMemo over it cleanly.
  */
 export function useRiskSurfaces(

@@ -60,7 +60,7 @@ function writeFollows(followerPubkey: string, follows: readonly Follow[]): void 
   try {
     s.setItem(storageKey(followerPubkey), JSON.stringify(follows));
   } catch {
-    /* quota exceeded or disabled — silently drop */
+    /* quota exceeded or disabled - silently drop */
   }
 }
 
@@ -145,7 +145,7 @@ export function setLastKnownPositions(
 /**
  * Day 5: patch the follower's tracked mirror size for a symbol after
  * an order fires successfully. For opens + increases, `delta` is
- * positive (signed by side — e.g. +0.01 for a long, −0.01 for a
+ * positive (signed by side - e.g. +0.01 for a long, −0.01 for a
  * short). For closes + decreases it's the opposite sign, bringing
  * the tracked size toward zero. Callers pass the signed delta rather
  * than the new absolute size because they already know the sign

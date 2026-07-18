@@ -1,14 +1,14 @@
 // apps/web/lib/ramp/index.ts
 /**
- * Ramp layer — pluggable fiat on/off ramp.
+ * Ramp layer - pluggable fiat on/off ramp.
  *
  * The landing / deposit UI talks to a `RampDriver`; it never knows
  * whether it's hitting Coinbase Onramp, Transak, or (eventually)
  * the Ika + Encrypt experimental driver.
  *
- * Driver A: `coinbase`   — production. Widget-based card → USDC → Bulk.
- * Driver B: `transak`    — fallback production. Covers coverage gaps.
- * Driver C: `ika-encrypt`— experimental, flagged off on mainnet until
+ * Driver A: `coinbase`   - production. Widget-based card → USDC → Bulk.
+ * Driver B: `transak`    - fallback production. Covers coverage gaps.
+ * Driver C: `ika-encrypt`- experimental, flagged off on mainnet until
  *                          both Ika and Encrypt reach Alpha 1.
  */
 
@@ -64,9 +64,9 @@ const REGISTRY: readonly RampDriver[] = [coinbaseDriver, ikaExperimentalDriver];
 /**
  * Pick the best available driver. Strategy:
  *   1. If the experimental driver is enabled by env flag AND on testnet,
- *      use it — that's the whole point.
+ *      use it - that's the whole point.
  *   2. Otherwise: first production driver that's available.
- *   3. If none available, returns null — UI should surface "ramp coming soon".
+ *   3. If none available, returns null - UI should surface "ramp coming soon".
  */
 export function pickDriver(params: {
   readonly network: 'mainnet' | 'testnet';

@@ -3,7 +3,7 @@
 import { useBulkAccount, type BulkPosition } from '@/hooks/use-bulk-account';
 
 /**
- * usePositions — typed access to the user's open positions on Bulk.
+ * usePositions - typed access to the user's open positions on Bulk.
  *
  * Thin wrapper over `useBulkAccount` so the `/trade` and `/home`
  * positions tables don't have to reach into `state.data?.positions`.

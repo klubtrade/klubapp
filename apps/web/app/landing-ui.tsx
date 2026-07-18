@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { useWalletGate } from "@/hooks/use-wallet-gate";
 import { useUserPrefs } from "@/lib/user-prefs";
 
-// Shared fly-in variant — used by every section block + nested children
+// Shared fly-in variant - used by every section block + nested children
 export const fadeUp = {
   hidden: { opacity: 0, y: 28 },
   visible: (i = 0) => ({

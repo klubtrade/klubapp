@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
  * strip with the title + a drag handle, then the content area below.
  *
  * The `.pro-drag-handle` class is what react-grid-layout targets as the
- * grab area — so the body of a panel (orderbook rows, watchlist clicks,
+ * grab area - so the body of a panel (orderbook rows, watchlist clicks,
  * form inputs) stays interactive while the header initiates drags.
  */
 export function PanelFrame({

@@ -6,7 +6,7 @@ import {
 } from '@/hooks/use-bulk-account';
 
 /**
- * useSubAccounts — typed access to the user's Bulk sub-accounts.
+ * useSubAccounts - typed access to the user's Bulk sub-accounts.
  *
  * Bulk v1.0.14 (28 Apr 2026) added native sub-accounts as a first-class
  * primitive: a master account can hold N named children (`{pubkey, name}`).

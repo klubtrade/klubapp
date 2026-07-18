@@ -1,7 +1,7 @@
 // apps/web/lib/copy-trade/engine.ts
 
 /**
- * Copy-trade engine — pure logic.
+ * Copy-trade engine - pure logic.
  *
  * Day 4 (v1): detected new positions opening only.
  * Day 5 (v2): detects OPEN / CLOSE / INCREASE / DECREASE.
@@ -13,7 +13,7 @@
  *     follower's mirror given the leader's trade + follower's equity
  *
  * The worker scaffold in `apps/worker/src/workers/copy-trade-worker.ts`
- * has a similar `computeMirroredSize` — the implementations match by
+ * has a similar `computeMirroredSize` - the implementations match by
  * design, because a future milestone will migrate the client-side
  * engine to the worker and we don't want two different sizing
  * formulas floating around. If you change one, change both.
@@ -35,7 +35,7 @@ export interface Follow {
   readonly createdAt: number;
   /**
    * Pre-existing leader exposure at the time of follow. These
-   * positions are NOT mirrored — we only act on changes that happen
+   * positions are NOT mirrored - we only act on changes that happen
    * after baseline is set.
    */
   readonly baselineSymbols: readonly string[];
@@ -127,7 +127,7 @@ export interface MirrorSignal {
  * those positions still fire once the follow is active.
  *
  * Day 5 NOTE: we do NOT emit INCREASE/DECREASE signals for symbols
- * the follower never mirrored (baseline-only positions) — there's
+ * the follower never mirrored (baseline-only positions) - there's
  * nothing to adjust. Only OPEN+CLOSE fire on baseline symbols.
  */
 export function detectSignals(
@@ -238,7 +238,7 @@ export function detectSignals(
       // adjustment derived from follower's current mirror size.
       const followerCurrent = mirrorPositions[pos.symbol] ?? 0;
       // If follower has no mirror position (baseline-only or never
-      // accepted the open signal), we skip — nothing to adjust.
+      // accepted the open signal), we skip - nothing to adjust.
       if (followerCurrent === 0) continue;
 
       const leaderDeltaAbs = Math.abs(Math.abs(newSize) - Math.abs(prior));
@@ -300,7 +300,7 @@ export function detectSignals(
 }
 
 /**
- * Back-compat shim — Day 4 callers used `detectNewTrades`. Kept as
+ * Back-compat shim - Day 4 callers used `detectNewTrades`. Kept as
  * a thin wrapper so callers that haven't migrated still work, but
  * it now delegates to `detectSignals` and filters to opens only.
  * New code should call `detectSignals` directly.
@@ -330,7 +330,7 @@ export interface MirrorSizing {
  * single mirror and buys as much base as that dollar amount covers at
  * the leader's entry price. We do NOT scale by the leader's position
  * size (since that would require knowing their equity, which is
- * private) — the allocation is purely the follower's.
+ * private) - the allocation is purely the follower's.
  *
  * Mirrors the `computeMirroredSize` logic in
  * `apps/worker/src/workers/copy-trade-worker.ts`. Keep in sync.

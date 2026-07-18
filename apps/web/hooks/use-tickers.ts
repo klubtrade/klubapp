@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import type { Ticker } from '@klub/api-client';
-import { useEffect, useState } from 'react';
+import type { Ticker } from "@klub/api-client";
+import { useEffect, useState } from "react";
 
-import { marketData } from '@/lib/market-data/client';
+import { marketData } from "@/lib/market-data/client";
 
 /**
- * useTickers — subscribe to mark-price + funding updates for a set of
+ * useTickers - subscribe to mark-price + funding updates for a set of
  * symbols. Returns a map keyed by symbol.
  *
  *   const prices = useTickers(['BTC-USD', 'ETH-USD']);
@@ -19,7 +19,7 @@ import { marketData } from '@/lib/market-data/client';
  *
  * If you need tighter-than-2s resolution on the ACTIVE market (e.g.
  * the Pro terminal's header tape), use `useActiveMarketTicker(symbol)`
- * below — that uses the per-symbol `ticker` stream (200ms).
+ * below - that uses the per-symbol `ticker` stream (200ms).
  */
 
 export interface LivePrice {
@@ -30,11 +30,13 @@ export interface LivePrice {
   readonly last: number;
   /** Per-interval funding rate as a fraction. */
   readonly fundingRate: number;
+  /** Venue-provided annualized funding as a fraction, if REST supplied it. */
+  readonly fundingRateAnnualized?: number;
   /**
    * 24h percent change in PERCENT units (e.g. -1.36 = -1.36%, not the
    * fractional 0.0136 the original comment claimed). Matches what Bulk
    * sends on the wire under `priceChangePercent`. Display directly with
-   * `.toFixed(2)` — do NOT multiply by 100.
+   * `.toFixed(2)` - do NOT multiply by 100.
    */
   readonly change24hPct: number;
   /** 24h volume in quote currency (USD). */
@@ -47,7 +49,9 @@ export interface LivePrice {
 export function useTickers(
   symbols: readonly string[],
 ): Record<string, LivePrice | undefined> {
-  const [prices, setPrices] = useState<Record<string, LivePrice | undefined>>({});
+  const [prices, setPrices] = useState<Record<string, LivePrice | undefined>>(
+    {},
+  );
 
   useEffect(() => {
     if (symbols.length === 0) return;
@@ -57,10 +61,13 @@ export function useTickers(
 
     async function fetchSnapshot(): Promise<void> {
       try {
-        const res = await fetch('/api/bulk/tickers', { cache: 'no-store' });
+        const res = await fetch("/api/bulk/tickers", { cache: "no-store" });
         if (!res.ok) return;
         const body = (await res.json()) as {
-          tickers?: readonly (Ticker & { readonly s?: string; readonly symbol?: string })[];
+          tickers?: readonly (Ticker & {
+            readonly s?: string;
+            readonly symbol?: string;
+          })[];
         };
         if (cancelled) return;
         setPrices((prev) => {
@@ -105,6 +112,7 @@ export function useTickers(
             mark: row.lastPrice, // frontendContext gives lastPrice; close enough for dashboards
             last: row.lastPrice,
             fundingRate: row.funding,
+            fundingRateAnnualized: row.funding * 24 * 365,
             change24hPct: row.priceChangePercent,
             volume24h: row.volume,
             openInterest: row.oi,
@@ -123,17 +131,24 @@ export function useTickers(
       unsub();
     };
     // Joined string = stable dep for readonly array inputs
-  }, [symbols.join(',')]);
+  }, [symbols.join(",")]);
 
   return prices;
 }
 
-function tickerToLivePrice(symbol: string, row: Ticker, now: number): LivePrice {
+function tickerToLivePrice(
+  symbol: string,
+  row: Ticker,
+  now: number,
+): LivePrice {
   return {
     symbol,
     mark: Number.isFinite(row.markPrice) ? row.markPrice : row.lastPrice,
     last: row.lastPrice,
     fundingRate: row.fundingRate,
+    ...(row.fundingRateAnnualized !== undefined
+      ? { fundingRateAnnualized: row.fundingRateAnnualized }
+      : {}),
     change24hPct: row.priceChangePercent,
     volume24h: row.quoteVolume,
     openInterest: row.openInterest,
@@ -142,13 +157,13 @@ function tickerToLivePrice(symbol: string, row: Ticker, now: number): LivePrice 
 }
 
 /**
- * useActiveMarketTicker — subscribe to the full per-symbol ticker
+ * useActiveMarketTicker - subscribe to the full per-symbol ticker
  * stream at 200ms resolution. Returns the entire Ticker (not just
  * mark price). Use this on the Pro terminal's active-symbol header
  * and on the expert Trade page.
  *
  * Counts against Bulk's 100-sub limit. Only use for the symbol the
- * user is actively looking at — not for a whole watchlist.
+ * user is actively looking at - not for a whole watchlist.
  */
 export function useActiveMarketTicker(symbol: string | null): {
   readonly markPrice: number | null;

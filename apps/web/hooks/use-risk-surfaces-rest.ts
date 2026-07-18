@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { normalizeBulkErrorMessage } from '@/lib/bulk/error-messages';
 
 /**
- * useRiskSurfacesRest — fetch Bulk's risk-surface grid per market
+ * useRiskSurfacesRest - fetch Bulk's risk-surface grid per market
  * on mount, refresh every 30s, return a map keyed by symbol.
  *
  * Day 3 change: each entry is now the FULL lambda grid (leverage

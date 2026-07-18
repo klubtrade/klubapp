@@ -9,10 +9,10 @@ import type { MockLeader } from '@/lib/mock-data/leaders';
 import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
- * LeaderDetails — client UI for the leader profile page.
+ * LeaderDetails - client UI for the leader profile page.
  *
  * Renders:
- *   - Primary CTA: "Copy this trader" — opens config modal, wires up
+ *   - Primary CTA: "Copy this trader" - opens config modal, wires up
  *     the follow via the shared `useCopyTrade` provider so the
  *     leader shows up on /copy-trade and signals flow to the banner.
  *   - Three disclosure toggles: About · Stats · Recent trades
@@ -23,7 +23,7 @@ import { useTradingWallet } from '@/lib/trading-wallet';
  * two disconnected islands. This version consolidates: one follow
  * state, one engine, one signals queue. The config modal still
  * collects `maxAllocPct`, `stopOverridePct`, and `copyAllSymbols`,
- * but only `maxAllocPct` is plumbed into the engine today — the
+ * but only `maxAllocPct` is plumbed into the engine today - the
  * other two fields are hidden until the engine supports them (TODO
  * next session).
  */

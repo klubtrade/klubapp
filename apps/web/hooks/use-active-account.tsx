@@ -14,12 +14,12 @@ import { useSubAccounts } from '@/hooks/use-sub-accounts';
 import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
- * Active account context — which on-chain account is the user
+ * Active account context - which on-chain account is the user
  * currently "in"?
  *
  * The wallet's master EOA is the default. Switching to a sub-account
  * ("pot") changes the context the entire app trades / queries / sends
- * from. The signer remains the wallet (or its agent) — only the
+ * from. The signer remains the wallet (or its agent) - only the
  * `account` field on Bulk transactions changes.
  *
  * Persistence: the choice is held in `localStorage` keyed by master
@@ -33,7 +33,7 @@ import { useTradingWallet } from '@/lib/trading-wallet';
 interface ActiveAccountValue {
   /** The pubkey we should use as `account` on signed transactions. */
   readonly pubkey: string | null;
-  /** Display name — 'Master' or the pot name. */
+  /** Display name - 'Master' or the pot name. */
   readonly name: string;
   /** True if the active account IS the master EOA. */
   readonly isMaster: boolean;
@@ -77,7 +77,7 @@ export function ActiveAccountProvider({ children }: { readonly children: ReactNo
   // wallet swap, etc).
   useEffect(() => {
     if (override && !subAccounts.some((s) => s.pubkey === override)) {
-      // Don't clear immediately on first load — sub-accounts is empty
+      // Don't clear immediately on first load - sub-accounts is empty
       // until the first /account fetch resolves. Only clear when we
       // have a non-empty list that doesn't include the override.
       if (subAccounts.length > 0) setOverride(null);

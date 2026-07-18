@@ -14,13 +14,13 @@ export default function EarnPage() {
 
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
-      <div className="mx-auto w-full max-w-md">
+      <div className="mx-auto w-full max-w-2xl">
         <header>
           <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[36px]">
             Earn
           </h1>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Deposit USDC. Earn basis carry.
+            Testnet strategies with clear terms.
           </p>
         </header>
 
@@ -98,10 +98,10 @@ function BasisCard({ ready }: { readonly ready: boolean }) {
         </div>
         <div className="text-right">
           <div className="font-mono text-[20px] font-semibold leading-none text-accent">
-            {top !== null ? `+${top.toFixed(1)}%` : "—"}
+            {top !== null ? `+${top.toFixed(1)}%` : "-"}
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            {ready ? "live" : "unavailable"}
+            {ready ? "current spread" : "unavailable"}
           </div>
         </div>
       </div>
@@ -111,13 +111,18 @@ function BasisCard({ ready }: { readonly ready: boolean }) {
 
 function FundingCard() {
   // Show the highest currently positive funding rate as the headline
-  // metric — that's the "earn this much by going short" preview.
+  // metric - that's the "earn this much by going short" preview.
   const symbols = MARKETS.map((m) => m.symbol) as MarketSymbol[];
   const rates = useFundingRates(symbols);
   let topPct: number | null = null;
   for (const sym of symbols) {
-    const annualPct = rates[sym]?.annualPct;
-    if (typeof annualPct === "number" && Number.isFinite(annualPct)) {
+    const row = rates[sym];
+    const annualPct = row?.annualPct;
+    if (
+      row?.unstable !== true &&
+      typeof annualPct === "number" &&
+      Number.isFinite(annualPct)
+    ) {
       if (topPct === null || annualPct > topPct) topPct = annualPct;
     }
   }
@@ -149,10 +154,10 @@ function FundingCard() {
           >
             {topPct !== null
               ? `${topPct >= 0 ? "+" : ""}${topPct.toFixed(1)}%`
-              : "—"}
+              : "-"}
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            top annual
+            current ann.
           </div>
         </div>
       </div>
@@ -165,7 +170,9 @@ function topBasisCarry(
   rates: ReturnType<typeof useFundingRates>,
 ): number | null {
   const annuals = symbols
-    .map((symbol) => rates[symbol]?.annualPct)
+    .map((symbol) =>
+      rates[symbol]?.unstable === true ? undefined : rates[symbol]?.annualPct,
+    )
     .filter(
       (value): value is number =>
         typeof value === "number" && Number.isFinite(value),
@@ -185,23 +192,23 @@ function YieldCard() {
           <div>
             <div className="flex items-center gap-2">
               <div className="text-[15px] font-semibold text-fg-secondary">
-                Yield
+                Managed yield
               </div>
               <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-fg-muted">
                 Soon
               </span>
             </div>
             <div className="mt-0.5 text-[11px] text-fg-muted">
-              Auto-routed yield on idle USDC
+              Not available yet
             </div>
           </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-[20px] font-semibold leading-none text-fg-muted">
-            —
+            -
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            Q2
+            Soon
           </div>
         </div>
       </div>

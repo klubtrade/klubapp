@@ -4,14 +4,14 @@ import nacl from "tweetnacl";
 import type { BulkWalletSigner } from "./types";
 
 // -------------------------------------------------------------------------
-// Local signature verification — catches mobile-wallet message drift
+// Local signature verification - catches mobile-wallet message drift
 // -------------------------------------------------------------------------
 
 /**
  * Verify the wallet's signature against `prepared.messageBytes` before
  * we ship it to Bulk. If the wallet wrapped, hashed, or otherwise
  * mangled the message before signing, the signature won't verify
- * against our raw canonical bytes — Bulk will return "unauthorized
+ * against our raw canonical bytes - Bulk will return "unauthorized
  * signer" with no breadcrumb and the user sees an inscrutable failure.
  *
  * Mobile Solflare is the canonical case (April 2026): when triggered
@@ -35,17 +35,17 @@ export function verifyLocalSignature(
 
 export const MOBILE_SOLFLARE_HINT =
   "Your wallet signed a different message than KLUB prepared. " +
-  "This is a known issue with mobile Solflare via deep-link — " +
+  "This is a known issue with mobile Solflare via deep-link - " +
   "open this page in Solflare's in-app browser, or use desktop.";
 
 /**
  * Log a compact debug summary right after signing. Lets us compare
  * desktop vs mobile when "unauthorized signer" surfaces despite the
- * local verifyLocalSignature passing — same line on both viewports
+ * local verifyLocalSignature passing - same line on both viewports
  * tells us if the signer pubkey, signature length, signature bytes,
  * or message bytes drift between platforms.
  *
- * Always logs (not gated by a flag) — the cost is one line per
+ * Always logs (not gated by a flag) - the cost is one line per
  * submit, the value is a fast diagnosis next time something breaks
  * on a wallet we can't test ourselves.
  */
@@ -72,7 +72,7 @@ export function logSignatureDebug(
       localVerifyPasses,
     });
   } catch {
-    // diagnostic — never throw
+    // diagnostic - never throw
   }
 }
 
@@ -125,7 +125,7 @@ export async function loadKeychain(): Promise<KeychainModule> {
         await mod.default();
       } catch (err) {
         // If init fails (e.g. bundler already initialized), some
-        // wasm-bindgen versions throw. Swallow — the named exports
+        // wasm-bindgen versions throw. Swallow - the named exports
         // may still work.
         // eslint-disable-next-line no-console
         console.debug("bulk-keychain-wasm init returned an error:", err);
@@ -142,7 +142,7 @@ export async function loadKeychain(): Promise<KeychainModule> {
 
 /**
  * Mobile wallets that round-trip via deep-link (Solflare on iOS is the
- * canonical case) sometimes never resolve the signMessage promise — the
+ * canonical case) sometimes never resolve the signMessage promise - the
  * user signs in the wallet app but the response never makes it back to
  * the browser tab. The promise hangs indefinitely, the UI sits in
  * "Signing…" forever, and the user thinks the app is broken.
@@ -162,7 +162,7 @@ export async function signWithTimeout(
       setTimeout(() => {
         reject(
           new Error(
-            `Wallet did not respond in ${SIGN_TIMEOUT_MS / 1000}s. If you're on mobile, return to this tab after signing in your wallet app — or try again from a desktop browser.`,
+            `Wallet did not respond in ${SIGN_TIMEOUT_MS / 1000}s. If you're on mobile, return to this tab after signing in your wallet app - or try again from a desktop browser.`,
           ),
         );
       }, SIGN_TIMEOUT_MS);

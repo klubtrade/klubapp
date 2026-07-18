@@ -4,7 +4,7 @@ export interface NavigationItem {
   readonly href: string;
   readonly label: string;
   readonly description?: string;
-  readonly badge?: "Advanced" | "Lab";
+  readonly badge?: "Advanced" | "Testnet" | "Soon";
   readonly aliases?: readonly string[];
   readonly icon?: NavigationIcon;
 }
@@ -59,7 +59,7 @@ export const MORE_NAVIGATION: readonly NavigationGroup[] = [
     ],
   },
   {
-    label: "Advanced",
+    label: "Trading",
     items: [
       {
         href: "/pro",
@@ -70,25 +70,24 @@ export const MORE_NAVIGATION: readonly NavigationGroup[] = [
     ],
   },
   {
-    label: "Explore",
+    label: "Earn & strategies",
     items: [
       {
         href: "/earn",
         label: "Earn",
         description: "Yield products",
-        badge: "Lab",
+        badge: "Testnet",
       },
       {
         href: "/basis",
         label: "Basis",
         description: "Delta-neutral strategies",
-        badge: "Lab",
+        badge: "Testnet",
       },
       {
         href: "/desk",
         label: "Funding desk",
         description: "Funding opportunities",
-        badge: "Lab",
       },
     ],
   },

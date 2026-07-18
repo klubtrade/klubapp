@@ -24,9 +24,9 @@ import { useTradingWallet } from '@/lib/trading-wallet';
  *     this to sign orders locally without a wallet popup).
  *
  * Not responsible for:
- *   - Deciding whether to use agent or wallet signer — that's the
+ *   - Deciding whether to use agent or wallet signer - that's the
  *     order-submission hooks' call (useBulkOrder / useBulkCancel).
- *   - UI prompts — caller renders whatever copy suits its page.
+ *   - UI prompts - caller renders whatever copy suits its page.
  */
 
 export interface UseAgentWalletResult {
@@ -108,7 +108,7 @@ export function useAgentWallet(): UseAgentWalletResult {
     // emit this for the same-origin tabs.
     function onStorage(e: StorageEvent) {
       if (e.key !== key && e.key !== null) return;
-      // e.key === null means localStorage.clear() — always re-read.
+      // e.key === null means localStorage.clear() - always re-read.
       const next = loadStoredAgent(mainPubkey!);
       if (next?.secretKeyBase64 && !creationEnabled) {
         const safeMetadata = stripStoredAgentSecret(next);
@@ -165,7 +165,7 @@ export function useAgentWallet(): UseAgentWalletResult {
     setPending(true);
     try {
       // Generate the keypair BEFORE asking the user to sign. If the
-      // wallet popup is dismissed, we simply discard the keypair —
+      // wallet popup is dismissed, we simply discard the keypair -
       // nothing hits Bulk, nothing persists.
       const kp = generateAgentKeypair();
 

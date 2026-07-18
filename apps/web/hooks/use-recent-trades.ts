@@ -6,7 +6,7 @@ import type { TradeUpdate } from '@klub/api-client';
 import { marketData } from '@/lib/market-data/client';
 
 /**
- * useRecentTrades — subscribe to Bulk's public trades stream for one
+ * useRecentTrades - subscribe to Bulk's public trades stream for one
  * symbol.
  *
  * Maintains a rolling buffer of the last N trades (most recent first)
@@ -17,7 +17,7 @@ import { marketData } from '@/lib/market-data/client';
  * shared WebSocket, so multiple components observing the same symbol
  * share the underlying network subscription.
  *
- * Symbol changes reset the buffer — a tape of BTC trades becomes
+ * Symbol changes reset the buffer - a tape of BTC trades becomes
  * meaningless the moment the user switches to ETH.
  */
 export function useRecentTrades(
@@ -40,7 +40,7 @@ export function useRecentTrades(
       if (batch.length === 0) return;
       // Bulk sends batches; newest can be first or last depending on
       // the exchange's internal ordering. We sort by time descending
-      // once per batch — cheaper than per-trade sorted insert.
+      // once per batch - cheaper than per-trade sorted insert.
       const normalized = batch.map(normalize);
       setTrades((prev) => {
         const merged = [...normalized, ...prev];

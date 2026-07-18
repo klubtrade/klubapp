@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 /**
- * / — KLUB landing page.
+ * / - KLUB landing page.
  *
  * Minimal landing surface for the retail gateway to Bulk Exchange.
  * The only primary CTA opens Privy; successful first-time connections
@@ -40,7 +40,7 @@ export default function LandingPage() {
 }
 
 // =============================================================================
-// Nav — landing-only: logo + single "Enter the app" CTA
+// Nav - landing-only: logo + single "Enter the app" CTA
 // =============================================================================
 
 function LandingNav() {
@@ -79,7 +79,7 @@ function LandingNav() {
 }
 
 // =============================================================================
-// Hero — parallax glow, staggered reveal
+// Hero - parallax glow, staggered reveal
 // =============================================================================
 
 function Hero() {

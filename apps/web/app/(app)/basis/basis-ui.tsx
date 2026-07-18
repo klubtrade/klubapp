@@ -1,21 +1,15 @@
 import type { ReactNode } from "react";
 
-import type { LiveFunding } from "@/hooks/use-funding-rates";
-import type { LivePrice } from "@/hooks/use-tickers";
 import { formatUsdc, type BasisVaultSnapshot } from "@/lib/basis-vault/client";
 import {
   formatBasisVaultFee,
   type BasisVaultConfig,
 } from "@/lib/basis-vault/config";
+export {
+  buildBasisOpportunities,
+  type BasisOpportunity,
+} from "@/lib/basis-vault/opportunities";
 import { MARKETS, type MarketSymbol } from "@/lib/markets";
-
-export interface BasisOpportunity {
-  readonly longSymbol: MarketSymbol;
-  readonly shortSymbol: MarketSymbol;
-  readonly longAnnualPct: number;
-  readonly shortAnnualPct: number;
-  readonly netAnnualPct: number;
-}
 
 export function VaultReadinessCard({
   connected,
@@ -76,7 +70,7 @@ export function VaultReadinessCard({
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           <VaultMetric
             label="Wallet"
-            value={walletAddress ? shorten(walletAddress) : "—"}
+            value={walletAddress ? shorten(walletAddress) : "-"}
           />
           <VaultMetric
             label="Vault mock USDC"
@@ -166,44 +160,6 @@ export function depositButtonLabel({
   return "Deposit";
 }
 
-export function buildBasisOpportunities(
-  symbols: readonly MarketSymbol[],
-  funding: Readonly<Record<string, LiveFunding | undefined>>,
-  tickers: Readonly<Record<string, LivePrice | undefined>>,
-): readonly BasisOpportunity[] {
-  const rows = symbols
-    .map((symbol) => ({
-      symbol,
-      annualPct: funding[symbol]?.annualPct,
-      mark: tickers[symbol]?.mark,
-    }))
-    .filter(
-      (row): row is { symbol: MarketSymbol; annualPct: number; mark: number } =>
-        typeof row.annualPct === "number" &&
-        Number.isFinite(row.annualPct) &&
-        typeof row.mark === "number" &&
-        Number.isFinite(row.mark) &&
-        row.mark > 0,
-    );
-
-  const out: BasisOpportunity[] = [];
-  for (const long of rows) {
-    for (const short of rows) {
-      if (long.symbol === short.symbol) continue;
-      const netAnnualPct = short.annualPct - long.annualPct;
-      if (netAnnualPct <= 0) continue;
-      out.push({
-        longSymbol: long.symbol,
-        shortSymbol: short.symbol,
-        longAnnualPct: long.annualPct,
-        shortAnnualPct: short.annualPct,
-        netAnnualPct,
-      });
-    }
-  }
-  return out.sort((a, b) => b.netAnnualPct - a.netAnnualPct);
-}
-
 export function LegCard({
   label,
   symbol,
@@ -222,8 +178,8 @@ export function LegCard({
         {labelFor(symbol)}
       </div>
       <div className="mt-2 font-mono text-[12px] text-fg-muted">
-        funding {annualPct >= 0 ? "+" : ""}
-        {annualPct.toFixed(1)}% annual
+        current {annualPct >= 0 ? "+" : ""}
+        {annualPct.toFixed(1)}% ann.
       </div>
     </div>
   );
@@ -254,7 +210,7 @@ export function labelFor(symbol: string): string {
 }
 
 export function formatPrice(value: number | undefined): string {
-  if (!Number.isFinite(value)) return "—";
+  if (!Number.isFinite(value)) return "-";
   const price = value as number;
   if (price < 1) return `$${price.toFixed(4)}`;
   if (price < 100) return `$${price.toFixed(2)}`;

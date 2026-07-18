@@ -7,7 +7,7 @@ import { findLeader } from '@/lib/mock-data/leaders';
 import { LeaderDetails } from './copy-config';
 
 /**
- * /copy/[handle] — leader profile.
+ * /copy/[handle] - leader profile.
  *
  * Visible by default:
  *   - Small avatar + @handle
@@ -70,7 +70,7 @@ export default function LeaderProfile({
           </div>
         </div>
 
-        {/* Follow button + disclosures — client component */}
+        {/* Follow button + disclosures - client component */}
         <LeaderDetails leader={leader} />
       </section>
     </main>

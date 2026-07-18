@@ -20,7 +20,7 @@ import {
  *
  *   - Server-side `ADMIN_PUBKEYS` env (comma-separated base58) defines
  *     who is allowed to call this endpoint. If the env is empty or
- *     missing, the route is fail-closed — no requests are accepted.
+ *     missing, the route is fail-closed - no requests are accepted.
  *   - Caller must include `x-admin-pubkey` header: their base58 pubkey,
  *     which must appear in the allowlist.
  *   - Caller must include `x-admin-signature` header: an Ed25519
@@ -29,7 +29,7 @@ import {
  *     the supplied pubkey before doing anything else.
  *
  * The signed message is intentionally minimal: it binds an admin to a
- * specific (application, decision) pair. Replay is acceptable here —
+ * specific (application, decision) pair. Replay is acceptable here -
  * approving the same application twice is a no-op.
  */
 

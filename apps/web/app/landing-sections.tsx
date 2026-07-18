@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { EnterAppButton, Kicker, fadeUp, viewport } from "./landing-ui";
 
 // =============================================================================
-// Problem — three stat cards with hover lift
+// Problem - three stat cards with hover lift
 // =============================================================================
 
 export function Problem() {
@@ -70,7 +70,7 @@ export function Problem() {
 }
 
 // =============================================================================
-// Features — 3x3 grid with staggered fly-ins
+// Features - 3x3 grid with staggered fly-ins
 // =============================================================================
 
 export function Features() {

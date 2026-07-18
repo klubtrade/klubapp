@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useToast } from '@/components/toast';
 
 /**
- * /funding/add — fiat on-ramp.
+ * /funding/add - fiat on-ramp.
  *
  * Visible by default:
  *   - Amount field with preset buttons
@@ -63,7 +63,7 @@ export default function RampPage() {
           </p>
         </header>
 
-        {/* Amount — Revolut-style giant editable number, centered. */}
+        {/* Amount - Revolut-style giant editable number, centered. */}
         <div className="mt-10 text-center">
           <div className="flex items-center justify-center">
             <span className="font-mono text-[48px] font-semibold text-fg-muted md:text-[60px]">
@@ -162,7 +162,7 @@ export default function RampPage() {
               <span className="font-mono text-accent">${youReceive.toFixed(2)} USDC</span>
             </div>
             <div className="pt-2 text-[11px] text-fg-muted">
-              Settles in {method === 'bank' ? '1–3 business days' : '2–5 minutes'}. KLUB never
+              Settles in {method === 'bank' ? '1-3 business days' : '2-5 minutes'}. KLUB never
               sees your card or bank details.
             </div>
           </div>

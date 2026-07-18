@@ -9,7 +9,7 @@ import { useTradingWallet } from '@/lib/trading-wallet';
  *   - `connected`: true once hydrated AND a wallet is attached
  *   - `pubkey`: base58 address string, or null
  *   - `promptConnect()`: opens the wallet selection modal
- *   - `mounted`: guard for SSR — components should render a skeleton
+ *   - `mounted`: guard for SSR - components should render a skeleton
  *                or disabled state until this is true
  *
  * Every user-action surface in the app that ships to Bulk (place order,

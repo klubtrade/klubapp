@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * User preferences — server-backed when connected, local fallback otherwise.
+ * User preferences - server-backed when connected, local fallback otherwise.
  *
  * Risk profile, onboarding status, UI choices (e.g. expert vs simple
  * trade mode), default copy-trade allocation. localStorage remains a fast

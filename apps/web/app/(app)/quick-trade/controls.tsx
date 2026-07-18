@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 // ---------------------------------------------------------------------------
 
 /**
- * <CollapseRow /> — a tappable row that reveals its content inline
+ * <CollapseRow /> - a tappable row that reveals its content inline
  * below. Used for Math + My trades on /trade so they sit one
  * tap away from the trade panel without forcing a scroll.
  */
@@ -111,8 +111,62 @@ export function SafetyPreview({
   );
 }
 
+export function TradeMath({
+  targetPct,
+  stopPct,
+  targetUsd,
+  lossUsd,
+  liqMovePct,
+  notional,
+  leverage,
+}: {
+  readonly targetPct: number;
+  readonly stopPct: number;
+  readonly targetUsd: number;
+  readonly lossUsd: number;
+  readonly liqMovePct: number;
+  readonly notional: number;
+  readonly leverage: number;
+}) {
+  const rows = [
+    [
+      "Target",
+      `+${targetPct.toFixed(1)}%`,
+      `+$${Math.abs(targetUsd).toFixed(0)}`,
+      "text-pnl-long",
+    ],
+    [
+      "Stop",
+      `−${stopPct.toFixed(1)}%`,
+      `−$${lossUsd.toFixed(0)}`,
+      "text-pnl-short",
+    ],
+    [
+      "Liquidation",
+      "",
+      `${liqMovePct.toFixed(1)}% adverse`,
+      "text-alert-orange",
+    ],
+    ["Notional", "", `$${notional.toFixed(0)}`, "text-fg-primary"],
+    ["Leverage", "", `${leverage}×`, "text-accent"],
+  ] as const;
+  return (
+    <div className="space-y-3 text-[13px] leading-relaxed">
+      {rows.map(([label, detail, value, tone]) => (
+        <div key={label} className="flex items-baseline justify-between">
+          <span className="text-fg-muted">
+            {label}
+            {detail ? ` (${detail})` : ""}
+          </span>
+          <span className={`font-mono ${tone}`}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
- * <PercentField /> — labeled percent input for take-profit / stop-loss.
+ * <PercentField /> - labeled percent input for take-profit / stop-loss.
  * Tone tints the value column green (long-side gain) or red (loss).
  * Suffix shows the live dollar P/L derived from the percent so the
  * user sees what each notch actually means in cash.
@@ -168,7 +222,7 @@ export function PercentField({
 // ---------------------------------------------------------------------------
 
 /**
- * <MarketPicker /> — compact dropdown for selecting the market.
+ * <MarketPicker /> - compact dropdown for selecting the market.
  *
  * Closed state: a single button showing the current market's ticker
  * label + live price, plus a chevron indicating it's expandable.
@@ -179,7 +233,7 @@ export function PercentField({
  *
  * Dismisses on outside click, Escape key, or selection. The panel is
  * positioned absolute so it overlays whatever's below without
- * reflowing the form — important because the Amount slider sits
+ * reflowing the form - important because the Amount slider sits
  * immediately below this picker and we don't want it jumping on open.
  *
  * Scrolls internally (`max-h-64 overflow-y-auto`) so it works for

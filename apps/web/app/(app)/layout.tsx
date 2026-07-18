@@ -1,14 +1,14 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import { AccountSwitcher } from '@/components/account-switcher';
-import { CopyTradeBanner } from '@/components/copy-trade-banner';
-import { CopyTradeProvider } from '@/components/copy-trade-provider';
-import { NavDrawer } from '@/components/nav-drawer';
-import { OnboardingGuard } from '@/components/onboarding-guard';
-import { Sidebar } from '@/components/sidebar';
-import { ToastProvider } from '@/components/toast';
-import { WalletButton } from '@/components/wallet-button';
-import { ActiveAccountProvider } from '@/hooks/use-active-account';
+import { AccountSwitcher } from "@/components/account-switcher";
+import { CopyTradeBanner } from "@/components/copy-trade-banner";
+import { CopyTradeProvider } from "@/components/copy-trade-provider";
+import { NavDrawer } from "@/components/nav-drawer";
+import { OnboardingGuard } from "@/components/onboarding-guard";
+import { Sidebar } from "@/components/sidebar";
+import { ToastProvider } from "@/components/toast";
+import { WalletButton } from "@/components/wallet-button";
+import { ActiveAccountProvider } from "@/hooks/use-active-account";
 
 /**
  * Layout for the (app) route group.
@@ -24,7 +24,7 @@ import { ActiveAccountProvider } from '@/hooks/use-active-account';
  *   - Top-right strip (every viewport): AccountSwitcher +
  *     WalletButton, fixed-positioned. Sits to the right of the
  *     sidebar on desktop, paired with the hamburger on mobile.
- *   - CopyTradeBanner — floating bottom-right mirror-signal prompt.
+ *   - CopyTradeBanner - floating bottom-right mirror-signal prompt.
  *
  * Global context providers:
  *   - ToastProvider, ActiveAccountProvider, CopyTradeProvider
@@ -32,8 +32,8 @@ import { ActiveAccountProvider } from '@/hooks/use-active-account';
 
 export const metadata: Metadata = {
   title: {
-    template: '%s · KLUB',
-    default: 'KLUB',
+    template: "%s · KLUB",
+    default: "KLUB",
   },
 };
 
@@ -48,6 +48,10 @@ export default function AppLayout({
         <CopyTradeProvider>
           <OnboardingGuard />
           <Sidebar />
+          <div
+            aria-hidden="true"
+            className="fixed inset-x-0 top-0 z-20 h-16 border-b border-border-subtle bg-bg-base/95 backdrop-blur-xl md:hidden"
+          />
           <NavDrawer />
           <div className="pointer-events-none fixed right-4 top-4 z-30 flex items-center gap-2 md:right-6 md:top-6">
             <div className="pointer-events-auto">
@@ -57,7 +61,7 @@ export default function AppLayout({
               <WalletButton variant="secondary" size="sm" />
             </div>
           </div>
-          <div className="md:pl-20">{children}</div>
+          <div className="isolate md:pl-20">{children}</div>
           <CopyTradeBanner />
         </CopyTradeProvider>
       </ActiveAccountProvider>

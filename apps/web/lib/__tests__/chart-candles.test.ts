@@ -39,7 +39,50 @@ describe("prepareChartCandles", () => {
       close: 64_034,
       low: 63_966,
     });
-    expect(result[0]?.high).toBeLessThan(66_000);
+    expect(result[0]?.high).toBeLessThan(64_500);
+  });
+
+  it("accepts seconds or milliseconds and deduplicates timestamps", () => {
+    const result = prepareChartCandles([
+      {
+        t: 1_784_000_000_000,
+        o: "100",
+        h: "102",
+        l: "99",
+        c: "101",
+        v: "1",
+        n: 1,
+      },
+      {
+        t: 1_784_000_000,
+        o: "101",
+        h: "103",
+        l: "100",
+        c: "102",
+        v: "2",
+        n: 2,
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      time: 1_784_000_000,
+      open: 101,
+      close: 102,
+    });
+  });
+
+  it("repairs invalid OHLC bounds without changing the candle body", () => {
+    const [result] = prepareChartCandles([
+      { t: 1_000, o: "100", h: "99", l: "102", c: "101", v: "1", n: 1 },
+    ]);
+
+    expect(result).toMatchObject({
+      open: 100,
+      high: 101,
+      low: 100,
+      close: 101,
+    });
   });
 
   it("keeps normal candles unchanged and sorts them", () => {

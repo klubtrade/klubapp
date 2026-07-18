@@ -4,13 +4,13 @@ import { calculate, type CalcInput, type CalcOutput, type Side } from '@klub/cal
 import { useMemo, useState } from 'react';
 
 /**
- * /calculator — pre-trade math, minimalist.
+ * /calculator - pre-trade math, minimalist.
  *
  * Single column. Direction toggle, four numeric inputs, plain-English
  * result. Warning surfaces inline when stop is past liquidation.
  *
  * Field-name notes: `@klub/calc`'s `CalcOutput` type uses
- * `requiredMargin`, `liquidationPrice`, and `rewardToRisk` — this page
+ * `requiredMargin`, `liquidationPrice`, and `rewardToRisk` - this page
  * previously referenced `initialMargin`, `liqPrice`, and `rrRatio`
  * respectively, which are undefined on the real output shape.
  * Calling `.toFixed(...)` on undefined was the runtime crash. Fixed.
@@ -45,7 +45,7 @@ export default function CalculatorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [side, leverage, entryPrice, size, targetPrice, stopPrice]);
 
-  // `stopBeyondLiq` — true when the chosen stop is worse than
+  // `stopBeyondLiq` - true when the chosen stop is worse than
   // liquidation, meaning the exchange liquidates before your stop
   // triggers. A common leverage-addled beginner mistake; we flag it
   // loudly with the red callout below.
@@ -63,7 +63,7 @@ export default function CalculatorPage() {
             The Math
           </h1>
           <p className="mt-1 text-[13px] text-fg-muted">
-            Pre-trade sanity check — leverage, target, stop, liquidation.
+            Pre-trade sanity check - leverage, target, stop, liquidation.
           </p>
         </header>
 

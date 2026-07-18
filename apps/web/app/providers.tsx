@@ -1,15 +1,17 @@
-'use client';
+"use client";
 
-import { PrivyProvider } from '@privy-io/react-auth';
-import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
+import { PrivyProvider } from "@privy-io/react-auth";
+import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
+import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
 
-import { PrivyTradingWalletProvider } from '@/lib/trading-wallet';
+import { PrivyTradingWalletProvider } from "@/lib/trading-wallet";
 import {
   DEFAULT_PRIVY_APP_ID,
   getPrivyLogoUrl,
   PRIVY_LOGIN_METHODS,
   PRIVY_SOLANA_WALLETS,
-} from '@/lib/privy-config';
+} from "@/lib/privy-config";
+import { getSolanaRpcEndpoints, SOLANA_DEVNET_CHAIN } from "@/lib/solana-rpc";
 
 /**
  * App-wide providers.
@@ -19,33 +21,50 @@ import {
  * Backpack, and WalletConnect users enter through the same Privy modal.
  * No parallel wallet-adapter provider or connection state exists.
  */
-export function Providers({ children }: { readonly children: React.ReactNode }) {
+export function Providers({
+  children,
+}: {
+  readonly children: React.ReactNode;
+}) {
   const privyAppId =
-    process.env['NEXT_PUBLIC_PRIVY_APP_ID'] ?? DEFAULT_PRIVY_APP_ID;
+    process.env["NEXT_PUBLIC_PRIVY_APP_ID"] ?? DEFAULT_PRIVY_APP_ID;
   const siteUrl =
-    process.env['NEXT_PUBLIC_SITE_URL'] ?? 'https://klubapp-web.vercel.app';
+    process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://klubtrade.vercel.app";
+  const solanaRpc = getSolanaRpcEndpoints({
+    NEXT_PUBLIC_SOLANA_RPC_URL: process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+    NEXT_PUBLIC_SOLANA_WS_URL: process.env.NEXT_PUBLIC_SOLANA_WS_URL,
+  });
 
   return (
     <PrivyProvider
       appId={privyAppId}
       config={{
         appearance: {
-          theme: 'dark',
-          accentColor: '#E8B647',
+          theme: "dark",
+          accentColor: "#E8B647",
           logo: getPrivyLogoUrl(siteUrl),
           showWalletLoginFirst: false,
-          walletChainType: 'solana-only',
+          walletChainType: "solana-only",
           walletList: [...PRIVY_SOLANA_WALLETS],
         },
         loginMethods: [...PRIVY_LOGIN_METHODS],
         embeddedWallets: {
           solana: {
-            createOnLogin: 'users-without-wallets',
+            createOnLogin: "users-without-wallets",
           },
         },
         externalWallets: {
           solana: {
             connectors: toSolanaWalletConnectors({ shouldAutoConnect: false }),
+          },
+        },
+        solana: {
+          rpcs: {
+            [SOLANA_DEVNET_CHAIN]: {
+              rpc: createSolanaRpc(solanaRpc.httpUrl),
+              rpcSubscriptions: createSolanaRpcSubscriptions(solanaRpc.wsUrl),
+              blockExplorerUrl: "https://explorer.solana.com/?cluster=devnet",
+            },
           },
         },
       }}

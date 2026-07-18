@@ -22,7 +22,7 @@ import {
  *
  * Auth: signature must be a valid Ed25519 signature over the canonical
  * message `claim:${handle}` produced by the supplied pubkey. This proves
- * the caller controls the pubkey they're claiming the handle for —
+ * the caller controls the pubkey they're claiming the handle for -
  * without it, anyone could claim a handle for any address.
  *
  * Idempotency: if the pubkey already owns the handle, return 200 (no

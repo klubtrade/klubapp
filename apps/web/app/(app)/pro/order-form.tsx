@@ -24,7 +24,7 @@ export function PanelOrderForm({
   const [size, setSize] = useState(0.01);
   const [lev, setLev] = useState(5);
   const [reduceOnly, setReduceOnly] = useState(false);
-  // TP/SL price targets. Optional — when 0/undefined the order ships
+  // TP/SL price targets. Optional - when 0/undefined the order ships
   // without bracket legs. UI shows them as preview today; auto-
   // execution as reduce-only follow-up orders is wired separately
   // (the user can also Close manually from the Positions panel).
@@ -79,7 +79,7 @@ export function PanelOrderForm({
     const r = await submit(req);
     onResult(r);
 
-    // Bracket legs — fire native TP + SL conditionals after the main fills.
+    // Bracket legs - fire native TP + SL conditionals after the main fills.
     // Failures don't unwind the main; user gets a separate result for
     // each leg via the same modal pipe.
     if (!r.ok) return;
@@ -232,7 +232,7 @@ export function PanelOrderForm({
           </div>
         )}
 
-        {/* Optional bracket — TP / SL prices. Display only for now;
+        {/* Optional bracket - TP / SL prices. Display only for now;
             auto-execution as reduce-only follow-up orders is a
             separate slice. The user can Close manually from the
             Positions panel until then. */}
@@ -263,7 +263,7 @@ export function PanelOrderForm({
           Reduce only
         </label>
 
-        {/* Notional / margin readout — promoted above the submit so
+        {/* Notional / margin readout - promoted above the submit so
             the user sees the live numbers WHILE adjusting size and
             leverage. Notional is what the position controls; margin
             is what the user actually puts up; these update on every

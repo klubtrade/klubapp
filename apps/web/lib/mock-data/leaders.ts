@@ -6,7 +6,7 @@
  * they'll expose an aggregated leaderboard to integrators or we build
  * our own against the account WS stream.
  *
- * All PnL numbers are NET of fees and funding — this is the entire
+ * All PnL numbers are NET of fees and funding - this is the entire
  * point of the leaderboard. Anything else is dishonest.
  */
 
@@ -167,7 +167,7 @@ export const MOCK_LEADERS: readonly MockLeader[] = [
     followers: 1_248,
     aum: 164_000,
     favoriteMarkets: ['SOL-USD', 'JTO-USD', 'WIF-USD'],
-    bio: 'High conviction, higher volatility. I size down for the klub — do not copy at 100%. Cap allocations at 30% or less.',
+    bio: 'High conviction, higher volatility. I size down for the klub - do not copy at 100%. Cap allocations at 30% or less.',
     recentTrades: [
       {
         ts: NOW - 3_600_000 * 4,
@@ -208,7 +208,7 @@ export const MOCK_LEADERS: readonly MockLeader[] = [
     followers: 892,
     aum: 126_000,
     favoriteMarkets: ['BTC-USD', 'ETH-USD'],
-    bio: 'Scalper. 400+ trades/month. Tight stops, thin R:R, high hit rate. Fees matter — follow only if your taker tier is T1 or better.',
+    bio: 'Scalper. 400+ trades/month. Tight stops, thin R:R, high hit rate. Fees matter - follow only if your taker tier is T1 or better.',
     recentTrades: [
       {
         ts: NOW - 3_600_000 * 1,

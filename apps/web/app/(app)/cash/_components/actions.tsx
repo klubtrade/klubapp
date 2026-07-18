@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 // =============================================================================
-// Action buttons — Revolut/Venmo-style icon circles
+// Action buttons - Revolut/Venmo-style icon circles
 // =============================================================================
 
 /**

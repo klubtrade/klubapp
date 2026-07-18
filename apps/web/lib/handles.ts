@@ -101,7 +101,7 @@ export async function claimHandle(
     return {
       ok: false,
       reason: "invalid",
-      message: "Handle must be 3–30 lowercase letters / digits / underscore.",
+      message: "Handle must be 3-30 lowercase letters / digits / underscore.",
     };
   }
 

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { InviteFlow } from './invite-flow';
 
 /**
- * /invite/[code] — server component. Validates the code at request
+ * /invite/[code] - server component. Validates the code at request
  * time and hands off to the client-side flow. Invalid codes 404.
  */
 export default async function InvitePage({

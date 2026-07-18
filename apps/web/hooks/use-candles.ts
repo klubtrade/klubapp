@@ -9,13 +9,13 @@ import {
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * useCandles — fetch + poll OHLCV candles from Bulk's `/klines`.
+ * useCandles - fetch + poll OHLCV candles from Bulk's `/klines`.
  *
  * Polling cadence is interval-aware: 1m candles refresh every 5s
  * (Bulk's tick is sub-second, but flooding our backend at 1Hz
  * for a chart UI is wasteful), 1d candles every 60s. Real-time
  * tick-by-tick updates would use Bulk's WebSocket `candle` stream
- * — that's a follow-up. For the first chart pass, REST polling
+ * - that's a follow-up. For the first chart pass, REST polling
  * is the simplest path that reliably renders correct data.
  *
  * The hook returns:
@@ -26,7 +26,7 @@ import { useEffect, useRef, useState } from 'react';
  *
  * Candles come back in Bulk's compact `{t,o,h,l,c,v,n}` shape with
  * `o/h/l/c/v` as DecimalString. Conversion to numbers happens at
- * the chart layer where it's needed — keeping this hook pure
+ * the chart layer where it's needed - keeping this hook pure
  * means /pro and other surfaces can consume the same data.
  */
 

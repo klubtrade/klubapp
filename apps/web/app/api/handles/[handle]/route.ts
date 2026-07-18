@@ -17,7 +17,7 @@ import {
  *   - Any future profile route (`/u/[handle]`).
  *
  * Lowercases the input before lookup. Returns 404 if the handle isn't
- * claimed or has been revoked. No auth required — handle → pubkey is
+ * claimed or has been revoked. No auth required - handle → pubkey is
  * public mapping.
  */
 

@@ -5,7 +5,7 @@ import { MORE_NAVIGATION } from "@/lib/navigation";
 export default function MorePage() {
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-4xl">
         <header>
           <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-accent">
             Product hub
@@ -14,8 +14,7 @@ export default function MorePage() {
             More from KLUB
           </h1>
           <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-fg-muted">
-            Core trading stays focused. Advanced tools, research previews, and
-            utilities live here with their maturity shown up front.
+            Trading, strategies, and tools in one place.
           </p>
         </header>
 
@@ -25,30 +24,36 @@ export default function MorePage() {
               <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
                 {group.label}
               </h2>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface">
                 {group.items.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="rounded-klub-lg border border-border-subtle bg-bg-surface p-4 transition-colors hover:border-border hover:bg-bg-elevated"
+                    className="flex items-center gap-4 border-b border-border-subtle p-4 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-5"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[14px] font-semibold text-fg-primary">
-                          {item.label}
+                    <HubIcon href={item.href} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[14px] font-semibold text-fg-primary">
+                            {item.label}
+                          </div>
+                          {item.description && (
+                            <p className="mt-1 text-[11px] leading-relaxed text-fg-muted">
+                              {item.description}
+                            </p>
+                          )}
                         </div>
-                        {item.description && (
-                          <p className="mt-1 text-[11px] leading-relaxed text-fg-muted">
-                            {item.description}
-                          </p>
+                        {item.badge && (
+                          <span className="rounded-full border border-border-subtle px-2 py-1 text-[9px] uppercase tracking-[0.08em] text-fg-muted">
+                            {item.badge}
+                          </span>
                         )}
                       </div>
-                      {item.badge && (
-                        <span className="rounded-full border border-border-subtle px-2 py-1 text-[9px] uppercase tracking-[0.08em] text-fg-muted">
-                          {item.badge}
-                        </span>
-                      )}
                     </div>
+                    <span aria-hidden className="text-[20px] text-fg-muted">
+                      ›
+                    </span>
                   </Link>
                 ))}
               </div>
@@ -57,5 +62,29 @@ export default function MorePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function HubIcon({ href }: { readonly href: string }) {
+  const label =
+    href === "/funding"
+      ? "$"
+      : href === "/pro"
+        ? "↗"
+        : href === "/earn"
+          ? "%"
+          : href === "/basis"
+            ? "≈"
+            : href === "/desk"
+              ? "ƒ"
+              : href === "/practice"
+                ? "P"
+                : href === "/calculator"
+                  ? "="
+                  : "+";
+  return (
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-klub border border-accent/15 bg-accent/10 font-mono text-[17px] text-accent">
+      {label}
+    </span>
   );
 }

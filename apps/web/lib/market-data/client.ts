@@ -20,7 +20,7 @@ import type { Ticker } from '@klub/api-client';
  *   - shared instance so multiple hooks don't open multiple sockets
  *
  * Dashboard pages (/home, /desk, /pro watchlist) use `onFrontendContext()`
- * — ONE subscription for all markets, updated every 2s. Per-symbol
+ * - ONE subscription for all markets, updated every 2s. Per-symbol
  * `onTicker()` is for the active market on a trade page where 200ms
  * resolution matters.
  *
@@ -65,12 +65,12 @@ class MarketDataClient {
   }
 
   // -------------------------------------------------------------------
-  // Public subscribe API — one method per stream type
+  // Public subscribe API - one method per stream type
   // -------------------------------------------------------------------
 
   /**
    * Subscribe to the aggregated market context (all markets at once,
-   * every 2s). Prefer this over per-symbol tickers for dashboards —
+   * every 2s). Prefer this over per-symbol tickers for dashboards -
    * one subscription instead of N.
    */
   onFrontendContext(handler: Listener<readonly FrontendContextRow[]>): () => void {
@@ -89,7 +89,7 @@ class MarketDataClient {
   /**
    * Per-symbol ticker stream (200ms resolution). Use on active trade
    * pages where you need tight pricing. Counts against the 100-sub
-   * limit — batch via `onFrontendContext` on dashboards.
+   * limit - batch via `onFrontendContext` on dashboards.
    */
   onTicker(symbol: string, handler: Listener<Ticker>): () => void {
     if (!this.wsUrl) {
@@ -173,7 +173,7 @@ class MarketDataClient {
 
   /**
    * Per-symbol risk surface stream. Published event-driven when
-   * Bulk's underlying regime / lambda grid changes — NOT a
+   * Bulk's underlying regime / lambda grid changes - NOT a
    * continuous feed. Expect long gaps between updates on quiet
    * markets and a flurry during volatility transitions.
    *
@@ -183,7 +183,7 @@ class MarketDataClient {
    *
    * Note: we don't simulate risk surfaces in demo mode (no WS URL).
    * The consuming hook should gracefully fall back to the existing
-   * naive maintenance-margin placeholder when no data has arrived —
+   * naive maintenance-margin placeholder when no data has arrived -
    * same honest-empty-state pattern as other streams.
    */
   onRisk(symbol: string, handler: Listener<RiskStream>): () => void {
@@ -264,7 +264,7 @@ class MarketDataClient {
   }
 
   // -------------------------------------------------------------------
-  // Demo-mode simulator — emits payloads matching the REAL Bulk shape
+  // Demo-mode simulator - emits payloads matching the REAL Bulk shape
   // -------------------------------------------------------------------
 
   private ensureDemoMode(): void {
@@ -402,6 +402,6 @@ class MarketDataClient {
 }
 
 /**
- * Shared singleton — import this, don't `new` anything.
+ * Shared singleton - import this, don't `new` anything.
  */
 export const marketData = new MarketDataClient();

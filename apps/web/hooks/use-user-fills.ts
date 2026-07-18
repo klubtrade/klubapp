@@ -8,7 +8,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * useUserFills — poll the user's recent fills from Bulk.
+ * useUserFills - poll the user's recent fills from Bulk.
  *
  * Mirrors the polling pattern of `useBulkAccount`: a 10s interval,
  * cancellable on unmount, idempotent (won't fan out duplicate
@@ -17,18 +17,18 @@ import { useEffect, useRef, useState } from 'react';
  * into the hook so the same fetch can serve multiple panels (per-
  * symbol "recent trades" on /trade, full "activity" on /home, etc).
  *
- * The endpoint is unsigned — fills are public on-chain history. So
+ * The endpoint is unsigned - fills are public on-chain history. So
  * no signer plumbing here; just a plain GET-equivalent against
  * Bulk's `/account` POST API with `{ type: 'fills', user }`.
  *
  * Returns a small state machine:
- *   - 'idle'      — no pubkey yet (wallet not connected)
- *   - 'loading'   — first fetch in flight
- *   - 'ok'        — fills array available; may also be polling another fetch
- *   - 'error'     — last fetch failed; we expose the error and keep showing
+ *   - 'idle'      - no pubkey yet (wallet not connected)
+ *   - 'loading'   - first fetch in flight
+ *   - 'ok'        - fills array available; may also be polling another fetch
+ *   - 'error'     - last fetch failed; we expose the error and keep showing
  *                   the last good fills if we had any (graceful degradation)
  *
- * Bulk currently returns up to 5000 fills with no pagination — fine
+ * Bulk currently returns up to 5000 fills with no pagination - fine
  * for retail-volume accounts but a future TODO for the heaviest
  * leaders.
  */

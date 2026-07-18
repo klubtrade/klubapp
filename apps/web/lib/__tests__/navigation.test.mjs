@@ -56,10 +56,10 @@ describe("navigation", () => {
     expect(canonicalizePathname("/portfolio")).toBeNull();
   });
 
-  it("labels advanced and research products explicitly", () => {
+  it("labels advanced and testnet products explicitly", () => {
     const items = MORE_NAVIGATION.flatMap((group) => group.items);
     expect(items.find(({ href }) => href === "/pro")?.badge).toBe("Advanced");
-    expect(items.find(({ href }) => href === "/basis")?.badge).toBe("Lab");
+    expect(items.find(({ href }) => href === "/basis")?.badge).toBe("Testnet");
     expect(
       items.find(({ href }) => href === "/funding")?.label,
     ).toBe("Cash");

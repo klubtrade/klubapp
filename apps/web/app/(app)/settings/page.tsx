@@ -20,7 +20,7 @@ import {
 import { useTradingWallet } from '@/lib/trading-wallet';
 
 /**
- * /settings — minimalist.
+ * /settings - minimalist.
  *
  * A quiet list. Each row is one setting. No section descriptions,
  * no "Danger zone" framing, no introductions.
@@ -156,7 +156,7 @@ export default function SettingsPage() {
                 Liquidation warnings
               </div>
               <div className="mt-0.5 text-[11px] text-fg-muted">
-                {prefs.alertsEnabled ? 'On — pings at 25% / 10% / 3%' : 'Off'}
+                {prefs.alertsEnabled ? 'On - pings at 25% / 10% / 3%' : 'Off'}
               </div>
             </div>
             <span
@@ -236,7 +236,7 @@ function HandleCard() {
     }
     const handle = normalizeHandle(draft);
     if (!isValidHandle(handle)) {
-      toast.error('Handle must be 3–30 lowercase letters, digits, or _');
+      toast.error('Handle must be 3-30 lowercase letters, digits, or _');
       return;
     }
     setSubmitting(true);

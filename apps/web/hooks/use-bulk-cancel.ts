@@ -12,7 +12,7 @@ import { useTradingWallet } from '@/lib/trading-wallet';
  *
  * Mirrors `useBulkOrder` but for cancel actions. Same wallet-adapter
  * integration, same agent-wallet fast path, same state-machine shape,
- * same result type — so a UI that already handles the
+ * same result type - so a UI that already handles the
  * `SubmitOrderResult` tagged union (e.g. via the shared ResultModal)
  * gets the cancel case for free.
  */
@@ -24,7 +24,7 @@ export type BulkCancelState =
   | { readonly status: 'error'; readonly result: Extract<SubmitOrderResult, { ok: false }> };
 
 export type BulkCancelRequest = Omit<SubmitCancelInput, 'signer' | 'account'> & {
-  /** Optional account override — pot pubkey when cancelling from a sub-account. */
+  /** Optional account override - pot pubkey when cancelling from a sub-account. */
   readonly account?: string;
 };
 

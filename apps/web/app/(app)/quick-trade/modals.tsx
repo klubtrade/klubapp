@@ -129,7 +129,7 @@ export function ConfirmModal({
 /**
  * Result modal after a Quick Trade submission.
  *
- * Retail tone — shorter copy than /trade's expert modal. Shows the
+ * Retail tone - shorter copy than /trade's expert modal. Shows the
  * same fundamental info (submitted vs rejected, reason, order id)
  * but uses plain language rather than Bulk-native error categories.
  */
@@ -284,7 +284,7 @@ function humanizeReason(
 // ---------------------------------------------------------------------------
 
 /**
- * <TradeCard /> — one open position rendered in retail tone.
+ * <TradeCard /> - one open position rendered in retail tone.
  *
  * Layout, top-to-bottom:
  *   Row 1: [Long/Short chip] Market        ProfitLoss
@@ -294,10 +294,10 @@ function humanizeReason(
  * The "Close" button opens an inline confirm, then submits an
  * offsetting market order via the shared `useBulkOrder` hook. After
  * success we call `onAfterClose` so the parent can refresh /account
- * — the card disappears once the position is gone from the next
+ * - the card disappears once the position is gone from the next
  * snapshot.
  *
  * We deliberately don't show liquidation price, notional, or margin
- * used here — those live on the expert /trade page. Retail view
+ * used here - those live on the expert /trade page. Retail view
  * answers one question: "am I up or down and how much?"
  */

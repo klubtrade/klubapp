@@ -14,7 +14,7 @@ import {
 import { prepareChartCandles } from "@/lib/market-data/candles";
 
 /**
- * <CandleChart /> — TradingView Lightweight Charts wrapper.
+ * <CandleChart /> - TradingView Lightweight Charts wrapper.
  *
  * Design decisions:
  *   - **Canvas-only.** lightweight-charts is HTML5 canvas under the
@@ -23,7 +23,7 @@ import { prepareChartCandles } from "@/lib/market-data/candles";
  *     by callers (see /trade) so it never tries to render at build
  *     time.
  *   - **No React state.** The chart instance lives in refs; we never
- *     unmount and recreate on data changes — instead we call
+ *     unmount and recreate on data changes - instead we call
  *     `setData()` on the existing series. This gives us 60fps updates
  *     even for symbols with hundreds of candles.
  *   - **Colors from KLUB tokens.** Up/down body colors track our
@@ -31,15 +31,15 @@ import { prepareChartCandles } from "@/lib/market-data/candles";
  *     and `--fg-muted`. If the brand palette changes, the chart
  *     follows automatically.
  *   - **Time as UNIX seconds.** lightweight-charts wants seconds, not
- *     ms — Bulk gives us ms (`Candle.t`), so we divide by 1000 once
+ *     ms - Bulk gives us ms (`Candle.t`), so we divide by 1000 once
  *     at the conversion boundary.
  *   - **Auto-fit on first data load.** Subsequent updates preserve
- *     the user's zoom/pan — we only fit on initial load (and on
+ *     the user's zoom/pan - we only fit on initial load (and on
  *     symbol change, which mounts a fresh chart anyway because the
  *     `key` prop changes upstream).
  *
  * The component takes `candles: readonly Candle[]` and renders. Empty
- * arrays render an empty chart frame (no skeleton noise — the parent
+ * arrays render an empty chart frame (no skeleton noise - the parent
  * shows a spinner while loading). Resize handling is via
  * ResizeObserver on the container.
  */
@@ -63,7 +63,7 @@ export default function CandleChart({
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const fittedRef = useRef(false);
 
-  // Chart creation — runs once on mount, tears down on unmount.
+  // Chart creation - runs once on mount, tears down on unmount.
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -95,11 +95,17 @@ export default function CandleChart({
       },
       rightPriceScale: {
         borderColor: grid,
+        autoScale: true,
+        scaleMargins: { top: 0.08, bottom: 0.08 },
       },
       timeScale: {
         borderColor: grid,
         timeVisible: true,
         secondsVisible: false,
+        barSpacing: 8,
+        minBarSpacing: 3,
+        rightOffset: 4,
+        fixLeftEdge: true,
       },
       crosshair: {
         // Mode 0 = magnet snaps to candles, 1 = free crosshair.
@@ -122,10 +128,12 @@ export default function CandleChart({
       borderDownColor: short,
       wickUpColor: long,
       wickDownColor: short,
+      priceLineVisible: true,
+      lastValueVisible: true,
     });
     seriesRef.current = series;
 
-    // Resize observer — keep canvas width in sync with the parent.
+    // Resize observer - keep canvas width in sync with the parent.
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
@@ -144,7 +152,7 @@ export default function CandleChart({
     };
   }, [fill, height]);
 
-  // Data updates — runs whenever candles change. Calls `setData()` on
+  // Data updates - runs whenever candles change. Calls `setData()` on
   // the existing series rather than recreating the chart.
   useEffect(() => {
     const series = seriesRef.current;
@@ -159,7 +167,7 @@ export default function CandleChart({
     series.setData(data);
 
     // Auto-fit on first non-empty data load. Subsequent updates
-    // preserve the user's zoom — that's what they expect once
+    // preserve the user's zoom - that's what they expect once
     // they've panned/zoomed somewhere.
     if (!fittedRef.current && data.length > 0) {
       chart.timeScale().fitContent();

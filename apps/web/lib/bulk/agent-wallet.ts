@@ -1,5 +1,5 @@
 /**
- * Agent wallet — ed25519 keypair that trades on behalf of the user
+ * Agent wallet - ed25519 keypair that trades on behalf of the user
  * without a wallet popup for every order.
  *
  * Lifecycle:
@@ -78,7 +78,7 @@ export function loadStoredAgent(account: string): StoredAgentWallet | null {
  * error to the user.
  *
  * Dispatches a same-tab CustomEvent after writing. Browsers only
- * fire native `storage` events in OTHER tabs — to keep components
+ * fire native `storage` events in OTHER tabs - to keep components
  * within the current tab in sync, we broadcast via a custom event
  * that `useAgentWallet` listens for.
  */
@@ -87,12 +87,12 @@ export function saveStoredAgent(agent: StoredAgentWallet): void {
   try {
     window.dispatchEvent(new CustomEvent('klub:agentWalletChanged'));
   } catch {
-    // swallow — custom events aren't critical, only a sync hint
+    // swallow - custom events aren't critical, only a sync hint
   }
 }
 
 /**
- * Remove the stored agent. Does not revoke on Bulk — the caller must
+ * Remove the stored agent. Does not revoke on Bulk - the caller must
  * separately submit a revocation `agentWalletCreation` action if they
  * want Bulk's server-side record cleared. This function only clears
  * the browser's cached key.
@@ -150,7 +150,7 @@ export function generateAgentKeypair(): GeneratedAgentKeypair {
 }
 
 // -------------------------------------------------------------------------
-// Signer factory — adapts a stored agent into the BulkWalletSigner
+// Signer factory - adapts a stored agent into the BulkWalletSigner
 // shape that submitOrder / submitCancel expect.
 // -------------------------------------------------------------------------
 
@@ -158,7 +158,7 @@ export function generateAgentKeypair(): GeneratedAgentKeypair {
  * Adapt a stored agent into the signer shape used by `submitOrder` /
  * `submitCancel`. The resulting signer's `signMessage` is SYNC under
  * the hood but wrapped in a resolved Promise to satisfy the async
- * contract — no wallet popup, no user interaction.
+ * contract - no wallet popup, no user interaction.
  *
  * `publicKeyBase58` here is the AGENT's pubkey. Callers must set
  * `account` to the user's main pubkey separately; they are distinct
@@ -178,7 +178,7 @@ export function agentSignerFromStored(stored: StoredAgentWallet): {
     publicKeyBase58: stored.agentPublicKeyBase58,
     signMessage: async (bytes: Uint8Array) => {
       // nacl.sign.detached returns a 64-byte Uint8Array signature.
-      // Synchronous — wrapped in Promise.resolve only to match the
+      // Synchronous - wrapped in Promise.resolve only to match the
       // BulkWalletSigner interface, not because anything awaits.
       return nacl.sign.detached(bytes, secretKey);
     },
@@ -192,7 +192,7 @@ export function stripStoredAgentSecret(stored: StoredAgentWallet): StoredAgentWa
 }
 
 // -------------------------------------------------------------------------
-// Base64 helpers — browser has atob/btoa but only on ASCII; for
+// Base64 helpers - browser has atob/btoa but only on ASCII; for
 // binary we round-trip via a byte array. Keep the encoding local so
 // we don't take another dep.
 // -------------------------------------------------------------------------

@@ -16,6 +16,8 @@ import {
   useState,
 } from "react";
 
+import { SOLANA_DEVNET_CHAIN } from "./solana-rpc";
+
 export interface TradingWalletSession {
   readonly ready: boolean;
   readonly connected: boolean;
@@ -143,7 +145,7 @@ export function PrivyTradingWalletProvider({
             const result = await signAndSendTransaction({
               transaction,
               wallet: privyWallet,
-              chain: "solana:devnet",
+              chain: SOLANA_DEVNET_CHAIN,
               options: { optimisticBroadcast: true },
             });
             return result.signature;

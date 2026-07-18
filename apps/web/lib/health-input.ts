@@ -17,7 +17,7 @@ import { marketData } from '@/lib/market-data/client';
  * the health score from the same inputs and end up with the same
  * number. Previously /home was computing a proxy score
  * (100 × (1 − marginUsed/totalBalance)) while /health ran the
- * canonical `healthScore()` — two different formulas displayed on
+ * canonical `healthScore()` - two different formulas displayed on
  * two screens, which confused users comparing them.
  *
  * Any page showing a health score should route through
@@ -114,7 +114,7 @@ function toHealthPositionInput(
 
   // Implicit leverage approximation: notional / equity. Treats each
   // position as if it used the full account equity, which is
-  // conservative — it biases the grid lookup toward higher leverage
+  // conservative - it biases the grid lookup toward higher leverage
   // knots, which return higher mmFractions, which gives a safer
   // (lower) health reading. Bulk's actual portfolio-margin math is
   // more nuanced but Bulk doesn't surface per-position margin

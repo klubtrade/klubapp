@@ -1,5 +1,5 @@
 /**
- * Empty state — reusable "nothing here yet" surface.
+ * Empty state - reusable "nothing here yet" surface.
  *
  * Used on every page that has a "no data" branch: no open positions,
  * no followed leaders, no practice trades logged, no alert history.

@@ -1,26 +1,29 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useMemo } from 'react';
+import Link from "next/link";
+import { useMemo } from "react";
 
-import { useConnectionState } from '@/hooks/use-connection-state';
-import { useFundingRates } from '@/hooks/use-funding-rates';
-import { useTickers } from '@/hooks/use-tickers';
-import { MARKETS, type MarketSymbol } from '@/lib/markets';
+import { useConnectionState } from "@/hooks/use-connection-state";
+import { useFundingRates } from "@/hooks/use-funding-rates";
+import { useTickers } from "@/hooks/use-tickers";
+import { MARKETS, type MarketSymbol } from "@/lib/markets";
 
 /**
- * /desk — minimalist funding monitor.
+ * /desk - minimalist funding monitor.
  *
  * Columns show 1h, 8h, and annualized funding. Positive means longs
  * pay shorts; negative means shorts pay longs.
  *
  * Data source: Bulk testnet frontendContext stream. Only symbols with
  * active markets on testnet render real data. We DO NOT fall back to
- * seed values — if the feed has no data, we show "—" honestly.
+ * seed values - if the feed has no data, we show "-" honestly.
  */
 
 export default function DeskPage() {
-  const symbols = useMemo<readonly MarketSymbol[]>(() => MARKETS.map((m) => m.symbol), []);
+  const symbols = useMemo<readonly MarketSymbol[]>(
+    () => MARKETS.map((m) => m.symbol),
+    [],
+  );
   const funding = useFundingRates(symbols);
   const tickers = useTickers(symbols);
   const { isLive, isDemo, isReconnecting } = useConnectionState();
@@ -34,7 +37,7 @@ export default function DeskPage() {
               Funding desk
             </h1>
             <p className="mt-1 text-[13px] text-fg-muted">
-              Per-hour funding from Bulk. Positive = longs pay shorts.
+              Live Bulk funding. Positive = longs pay shorts.
             </p>
           </div>
           {isReconnecting ? (
@@ -57,17 +60,17 @@ export default function DeskPage() {
           ) : null}
         </header>
 
-        <div className="mt-10">
-          {/* Header row — four columns: market, 1h, 8h, annual.
+        <div className="mt-10 overflow-x-auto">
+          {/* Header row - four columns: market, 1h, 8h, annual.
               `grid-cols-[1fr_auto_auto_auto]` with uniform gap lets
               the market label take remaining space while funding
               columns right-align in fixed-width columns. */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border-subtle px-1 pb-2 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+          <div className="grid min-w-[580px] grid-cols-[1fr_auto_auto_auto_auto] gap-4 border-b border-border-subtle px-1 pb-2 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
             <span>Market</span>
             <span className="text-right">Earn side</span>
             <span className="text-right">1h</span>
             <span className="text-right">8h</span>
-            <span className="text-right">Annual</span>
+            <span className="text-right">Current ann.</span>
           </div>
 
           <ul className="divide-y divide-border-subtle">
@@ -76,48 +79,57 @@ export default function DeskPage() {
               const fundingRow = funding[sym];
               const mark = tickers[sym]?.mark;
               const hasFunding =
-                fundingRow !== undefined && Number.isFinite(fundingRow.hourlyPct);
+                fundingRow !== undefined &&
+                Number.isFinite(fundingRow.hourlyPct);
               const hasMark = mark !== undefined;
               const hourly = fundingRow?.hourlyPct ?? 0;
               const eightH = fundingRow?.eightHourPct ?? 0;
               const annual = fundingRow?.annualPct ?? 0;
-              const tone = hourly >= 0 ? 'text-pnl-long' : 'text-pnl-short';
+              const unstable = fundingRow?.unstable === true;
+              const tone = hourly >= 0 ? "text-pnl-long" : "text-pnl-short";
 
               return (
                 <li key={sym}>
                   <Link
                     href="/trade"
-                    className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-1 py-3.5 transition-colors hover:bg-bg-surface"
+                    className="grid min-w-[580px] grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-1 py-3.5 transition-colors hover:bg-bg-surface"
                   >
                     <div className="min-w-0">
-                      <div className="text-[14px] text-fg-primary">{m.label}</div>
+                      <div className="text-[14px] text-fg-primary">
+                        {m.label}
+                      </div>
                       <div className="mt-0.5 font-mono text-[11px] text-fg-muted">
-                        {hasMark ? `$${formatPrice(mark)}` : '—'}
+                        {hasMark ? `$${formatPrice(mark)}` : "-"}
+                        {unstable ? (
+                          <span className="ml-2 text-alert-orange">
+                            Unstable
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="text-right text-[11px] text-fg-muted">
-                      {hasFunding ? (hourly >= 0 ? 'Shorts' : 'Longs') : '—'}
+                      {hasFunding ? (hourly >= 0 ? "Shorts" : "Longs") : "-"}
                     </div>
                     <div
                       className={`text-right font-mono text-[12px] ${
-                        hasFunding ? tone : 'text-fg-muted'
+                        hasFunding ? tone : "text-fg-muted"
                       }`}
                     >
-                      {hasFunding ? formatPct(hourly, 5) : '—'}
+                      {hasFunding ? formatPct(hourly, 5) : "-"}
                     </div>
                     <div
                       className={`text-right font-mono text-[12px] ${
-                        hasFunding ? tone : 'text-fg-muted'
+                        hasFunding ? tone : "text-fg-muted"
                       }`}
                     >
-                      {hasFunding ? formatPct(eightH, 4) : '—'}
+                      {hasFunding ? formatPct(eightH, 4) : "-"}
                     </div>
                     <div
                       className={`text-right font-mono text-[12px] ${
-                        hasFunding ? tone : 'text-fg-muted'
+                        hasFunding ? tone : "text-fg-muted"
                       }`}
                     >
-                      {hasFunding ? formatPct(annual, 2) : '—'}
+                      {hasFunding ? formatPct(annual, 2) : "-"}
                     </div>
                   </Link>
                 </li>
@@ -136,7 +148,7 @@ export default function DeskPage() {
  * you can see subtle moves; 2 decimals is fine for annualized.
  */
 function formatPct(value: number, decimals: number): string {
-  const sign = value >= 0 ? '+' : '';
+  const sign = value >= 0 ? "+" : "";
   return `${sign}${value.toFixed(decimals)}%`;
 }
 

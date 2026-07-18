@@ -26,19 +26,19 @@ import {
 } from "./components";
 
 /**
- * /pro — KLUB Pro. Advanced trading terminal.
+ * /pro - KLUB Pro. Advanced trading terminal.
  *
  * This is intentionally not the default retail flow. /trade is the
  * primary path for most users; Pro is for people who want chart,
  * book, tape, positions, and order entry on one desktop screen.
  *
  * Six panels in a persistent 4-column grid:
- *   1. Watchlist  — canonical 10 markets, real mark + 24h chg
- *   2. Chart      — lightweight-charts v5 with timeframe selector
- *   3. Positions  — real positions from /api/bulk/account, Close button
- *   4. Order book — L2 ladder, REST polled at 1Hz
- *   5. Tape       — recent trades, WS-streamed
- *   6. Order form — real submit via useBulkOrder
+ *   1. Watchlist  - canonical 10 markets, real mark + 24h chg
+ *   2. Chart      - lightweight-charts v5 with timeframe selector
+ *   3. Positions  - real positions from /api/bulk/account, Close button
+ *   4. Order book - L2 ladder, REST polled at 1Hz
+ *   5. Tape       - recent trades, WS-streamed
+ *   6. Order form - real submit via useBulkOrder
  *
  * ⌘K palette opens a command list (symbol jumps + nav).
  *
@@ -93,7 +93,7 @@ export default function ProPage() {
 
   return (
     <>
-      {/* Small-screen gate — terminals don't work on phones */}
+      {/* Small-screen gate - terminals don't work on phones */}
       <div className="flex min-h-screen items-center justify-center px-6 lg:hidden">
         <div className="max-w-sm rounded-klub-lg border border-border-subtle bg-bg-surface p-8 text-center">
           <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-accent">
@@ -103,7 +103,7 @@ export default function ProPage() {
             Best on a real screen.
           </h1>
           <p className="mt-3 text-[14px] leading-relaxed text-fg-secondary">
-            Pro is advanced. On mobile, Simple Trade is better — clearer, safer,
+            Pro is advanced. On mobile, Simple Trade is better - clearer, safer,
             same markets.
           </p>
           <div className="mt-6 flex flex-col items-center gap-2">

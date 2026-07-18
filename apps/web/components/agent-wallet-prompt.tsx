@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAgentWallet } from '@/hooks/use-agent-wallet';
 
 /**
- * <AgentWalletPrompt /> — modal that explains the agent-wallet
+ * <AgentWalletPrompt /> - modal that explains the agent-wallet
  * tradeoff and guides a user through one-time authorization.
  *
  * When to mount:
@@ -31,7 +31,7 @@ export function AgentWalletPrompt({
   readonly onAuthorized?: () => void;
 }) {
   const { authorize, pending, lastResult } = useAgentWallet();
-  // Local state — we track outcome UI separately from the hook's
+  // Local state - we track outcome UI separately from the hook's
   // `lastResult` because the hook's result persists across multiple
   // prompt openings and we want a fresh slate each time.
   const [localResult, setLocalResult] = useState<typeof lastResult>(null);
@@ -58,7 +58,7 @@ export function AgentWalletPrompt({
     setLocalResult(result);
     if (result.ok) {
       // Slight delay so the user sees the success state before the
-      // modal closes — feels less abrupt than an instant dismiss.
+      // modal closes - feels less abrupt than an instant dismiss.
       setTimeout(() => {
         onAuthorized?.();
         onClose();
@@ -94,7 +94,7 @@ export function AgentWalletPrompt({
             </h2>
             <p className="mt-3 text-[13px] leading-relaxed text-fg-secondary">
               Approve once, and we&rsquo;ll handle signing for every trade after
-              that — no more wallets popups, orders land instantly.
+              that - no more wallets popups, orders land instantly.
             </p>
 
             <ul className="mt-5 space-y-3 text-[12px] leading-relaxed">

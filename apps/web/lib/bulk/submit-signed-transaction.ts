@@ -20,7 +20,7 @@ import type { SignedTransaction, SubmitOrderResult } from "./types";
  *
  * `wireActions` is the caller-supplied compact-format actions array.
  * We don't try to parse anything out of the keychain's returned
- * SignedTransaction — we rebuild the wire payload from the original
+ * SignedTransaction - we rebuild the wire payload from the original
  * order since the keychain's `signed.actions` is an opaque WASM value
  * that serializes as `{}` (empty object) when JSON-stringified.
  */
@@ -38,7 +38,7 @@ export async function submitSignedTransaction(
   // Normalize nonce for JSON transport. If the library returns a
   // BigInt (possible in some wasm builds), we must convert to string
   // because JSON.stringify throws on BigInt. For regular numbers we
-  // pass through unchanged — Bulk's docs show the envelope nonce as
+  // pass through unchanged - Bulk's docs show the envelope nonce as
   // a JSON number.
   const nonceForJson: string | number =
     typeof env.nonce === "bigint" ? env.nonce.toString() : env.nonce;
@@ -92,7 +92,7 @@ export async function submitSignedTransaction(
   // Failure can arrive as non-2xx OR as a 2xx with a rejection
   // payload (Bulk routinely returns 200 with { status: 'err',
   // response: 'Bad signature' } when the envelope-level signature
-  // doesn't verify — Solflare on mobile produces this against an
+  // doesn't verify - Solflare on mobile produces this against an
   // identical wire shape that desktop Solflare signs cleanly).
   // Treat both shapes as failure so the user sees the real reason
   // instead of a misleading "Submitted ✓" toast.
@@ -127,10 +127,10 @@ export async function submitSignedTransaction(
     return classifyError(status, raw);
   }
 
-  // Happy path — try to read an order id from a few plausible shapes
+  // Happy path - try to read an order id from a few plausible shapes
   // without over-asserting on Bulk's exact response schema (which has
   // changed between releases and isn't 100% documented). If none of
-  // the probes hit, we still report success with a null orderId — the
+  // the probes hit, we still report success with a null orderId - the
   // trade is accepted either way.
   const orderId = extractOrderId(raw);
 
@@ -173,7 +173,7 @@ function detectPayloadRejection(raw: unknown): string | null {
   // Per-action error inside a batch envelope (the 'status: error'
   // response Bulk returns for unauthorized signer puts the real
   // reason here under data.statuses[i].error). The error field
-  // arrives in two shapes — bare string or nested {message: string} —
+  // arrives in two shapes - bare string or nested {message: string} -
   // depending on the failure type. Probe both.
   const response = r["response"];
   if (response && typeof response === "object") {
@@ -270,7 +270,7 @@ function extractErrorMessage(raw: unknown): string | null {
     const v = r[key];
     if (typeof v === "string" && v.length > 0) return normalizeHumanError(v);
   }
-  // Nested result envelope — some Bulk endpoints wrap rejects in a
+  // Nested result envelope - some Bulk endpoints wrap rejects in a
   // `result` object.
   const result = r["result"];
   if (result && typeof result === "object") {

@@ -55,7 +55,6 @@ export default function BasisPage() {
     [funding, symbols, tickers],
   );
   const best = opportunities[0] ?? null;
-  const projected = best ? (amount * best.netAnnualPct) / 100 : 0;
   const loadSnapshot = useCallback(async () => {
     if (!wallet.publicKeyBase58 || !vault.ready) {
       setSnapshot(null);
@@ -207,13 +206,13 @@ export default function BasisPage() {
                     annualPct={best.shortAnnualPct}
                   />
                 </div>
-                <div className="mt-6 flex items-end justify-between gap-4">
+                <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
                   <div>
-                    <div className="font-mono text-[46px] font-semibold leading-none tracking-[-0.04em] text-pnl-long">
+                    <div className="break-all font-mono text-[36px] font-semibold leading-none tracking-[-0.04em] text-pnl-long sm:text-[46px]">
                       +{best.netAnnualPct.toFixed(1)}%
                     </div>
                     <div className="mt-1 text-[11px] uppercase tracking-[0.1em] text-fg-muted">
-                      net annualized carry
+                      current annualized spread
                     </div>
                   </div>
                   <div className="text-right text-[12px] text-fg-muted">
@@ -249,13 +248,13 @@ export default function BasisPage() {
 
             <div className="mt-5 rounded-klub border border-border-subtle bg-bg-base p-4">
               <div className="text-[11px] uppercase tracking-[0.1em] text-fg-muted">
-                Projected carry
+                Strategy estimate
               </div>
-              <div className="mt-2 font-mono text-[28px] font-semibold text-pnl-long">
-                {best ? `+$${projected.toFixed(0)}` : "—"}
+              <div className="mt-2 text-[16px] font-medium text-fg-primary">
+                Awaiting funding history
               </div>
               <div className="mt-1 text-[11px] text-fg-muted">
-                before slippage, fees, liquidation risk, and funding flips
+                Live hourly rates are not a promised vault APY.
               </div>
             </div>
 
@@ -326,7 +325,7 @@ export default function BasisPage() {
               Live opportunities
             </div>
             <div className="mt-0.5 text-[11px] text-fg-muted">
-              Ranked by short funding minus long funding.
+              Stable current rates only. Extreme testnet prints are excluded.
             </div>
           </div>
           <ul className="divide-y divide-border-subtle">
@@ -346,7 +345,7 @@ export default function BasisPage() {
                   </div>
                 </div>
                 <div className="text-right font-mono text-[13px] text-pnl-long">
-                  +{opp.netAnnualPct.toFixed(1)}%
+                  +{opp.netAnnualPct.toFixed(1)}% current
                 </div>
               </li>
             ))}

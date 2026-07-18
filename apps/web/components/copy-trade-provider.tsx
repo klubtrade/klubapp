@@ -30,7 +30,7 @@ import {
 import { useTradingWallet } from "@/lib/trading-wallet";
 
 /**
- * CopyTradeProvider — runs the live engine and exposes signals.
+ * CopyTradeProvider - runs the live engine and exposes signals.
  *
  * Mounted once at the (app) layout level so it persists across
  * navigation. Responsibilities:
@@ -40,14 +40,14 @@ import { useTradingWallet } from "@/lib/trading-wallet";
  *   2. For each active follow, mount a <LeaderWatcher/> that polls
  *      the leader's account (via `useBulkAccount`) and diffs against
  *      the follow's baseline to detect new trades.
- *   3. Maintain a queue of `pendingMirrors` — detected trades the
+ *   3. Maintain a queue of `pendingMirrors` - detected trades the
  *      user hasn't yet acted on. The banner reads from this queue.
  *   4. Expose `follow/unfollow` mutators so the /copy-trade page can
  *      manage the list without touching the store directly.
  *   5. Expose `dismissMirror` so the banner can remove a signal once
  *      the user has Mirrored or Skipped it.
  *
- * Design note — why a subcomponent per-follow:
+ * Design note - why a subcomponent per-follow:
  *   React's rules of hooks forbid calling `useBulkAccount` in a loop.
  *   We instead render one `<LeaderWatcher/>` per follow, each of
  *   which owns a single `useBulkAccount` subscription. Adding /
@@ -67,7 +67,7 @@ interface CopyTradeContextValue {
   /**
    * Called by the banner after a mirror order fires successfully,
    * so the engine remembers how much of each symbol the follower
-   * actually mirrored. Signed delta — positive for longs acquired,
+   * actually mirrored. Signed delta - positive for longs acquired,
    * negative for shorts acquired or longs unwound.
    */
   readonly notePositionChange: (
@@ -120,7 +120,7 @@ export function CopyTradeProvider({
   const emitSignals = useCallback((sigs: readonly MirrorSignal[]) => {
     if (sigs.length === 0) return;
     setPendingMirrors((prev) => {
-      // De-dupe by id — a watcher re-polling shouldn't add a second
+      // De-dupe by id - a watcher re-polling shouldn't add a second
       // banner card for the same symbol.
       const existing = new Set(prev.map((s) => s.id));
       const fresh = sigs.filter((s) => !existing.has(s.id));
@@ -136,7 +136,7 @@ export function CopyTradeProvider({
       readonly allocationPct: number;
     }) => {
       if (!followerPubkey) return;
-      // New follow starts with empty baseline — the watcher's first
+      // New follow starts with empty baseline - the watcher's first
       // non-empty snapshot will populate it. Until baseline is set,
       // the follow is in "learning" mode and emits no signals.
       const record: Follow = {
@@ -259,7 +259,7 @@ export function CopyTradeProvider({
     [followerPubkey],
   );
 
-  // Follower equity for sizing — the Watcher needs this per-tick so
+  // Follower equity for sizing - the Watcher needs this per-tick so
   // we fetch it here at the provider level and pass it down.
   const { state: selfAccount } = useBulkAccount(followerPubkey);
   const followerEquity = selfAccount.data?.equityUsd ?? 0;
@@ -387,7 +387,7 @@ async function persistServerFollow(input: {
  *     `follow.lastKnownPositions`, emit the resulting OPEN / CLOSE
  *     / INCREASE / DECREASE signals, then persist the new snapshot.
  *
- * We short-circuit if the follower's equity is 0 — there's nothing
+ * We short-circuit if the follower's equity is 0 - there's nothing
  * to allocate and sizing would come back zero for opens anyway
  * (close signals are still valid with zero equity, but if the user
  * has zero equity they also have nothing to close, so we skip).
@@ -427,7 +427,7 @@ function LeaderWatcher({
       }));
 
     // Skip if nothing meaningful changed in the leader's book since
-    // the last tick. Fingerprint is symbol+size — unchanged means no
+    // the last tick. Fingerprint is symbol+size - unchanged means no
     // diff to compute.
     const fingerprint = positions
       .map((p) => `${p.symbol}:${p.sizeBase}`)
@@ -437,7 +437,7 @@ function LeaderWatcher({
     lastFingerprintRef.current = fingerprint;
 
     // Baseline not yet set → set it from this snapshot and stop.
-    // Even an empty positions list counts as a valid baseline —
+    // Even an empty positions list counts as a valid baseline -
     // it just means the leader currently holds nothing.
     if (follow.baselineSymbols.length === 0) {
       onBaseline(

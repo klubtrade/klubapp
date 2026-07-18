@@ -52,7 +52,7 @@ export function CreatePotModal({
         <div className="flex items-center justify-between rounded-klub border border-border-subtle bg-bg-elevated px-3 py-2 text-[11px] text-fg-muted">
           <span>
             {usingAgent
-              ? "Signed by your agent — silent"
+              ? "Signed by your agent - silent"
               : "Wallet popup will ask to sign"}
           </span>
           <span className="font-mono">{name.trim().length}/32</span>
@@ -248,13 +248,13 @@ export function SendModal({
 
         <div className="rounded-klub border border-border-subtle bg-bg-elevated px-3 py-2 text-[11px] text-fg-muted">
           {trimmedTo.length === 0 ? (
-            <span>Routing: pending — enter a destination.</span>
+            <span>Routing: pending - enter a destination.</span>
           ) : isHandleInput ? (
             handleStatus.state === "resolving" ? (
               <span>Resolving {trimmedTo}…</span>
             ) : handleStatus.state === "invalid" ? (
               <span className="text-pnl-short">
-                Handle must be 3–30 lowercase letters / digits / _.
+                Handle must be 3-30 lowercase letters / digits / _.
               </span>
             ) : handleStatus.state === "not_found" ? (
               <span className="text-pnl-short">
@@ -453,7 +453,7 @@ export function ResultToast({
                 {result.ok
                   ? result.orderId
                     ? `· ${result.orderId.slice(0, 16)}…`
-                    : "· accepted by Bulk (no orderId — likely faucet/transfer/sub-account)"
+                    : "· accepted by Bulk (no orderId - likely faucet/transfer/sub-account)"
                   : `· ${result.message}`}
               </span>
             </div>
