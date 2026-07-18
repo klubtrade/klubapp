@@ -1,25 +1,35 @@
-import { base58Decode, verifyEd25519 } from '@klub/signing';
-import { createDbClient, userProfiles } from '@klub/db';
-import { eq } from 'drizzle-orm';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { base58Decode, verifyEd25519 } from "@klub/signing";
+import { createDbClient, userProfiles } from "@klub/db";
+import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import {
   cleanProfileUpdate,
   DEFAULT_PREFS,
   profileUpdateMessage,
   type ProfilePrefsUpdate,
-} from '@/lib/profile-contract';
+} from "@/lib/profile-contract";
+import {
+  requireLinkedSolanaWallet,
+  requirePrivyAuth,
+} from "@/lib/server/privy-auth";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 const PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,64}$/;
 
 const ProfileUpdate = z.object({
-  handle: z.string().min(3).max(30).regex(/^[a-z0-9_]+$/).nullable().optional(),
-  riskProfile: z.enum(['conservative', 'balanced', 'aggressive']).optional(),
+  handle: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-z0-9_]+$/)
+    .nullable()
+    .optional(),
+  riskProfile: z.enum(["conservative", "balanced", "aggressive"]).optional(),
   onboardingComplete: z.boolean().optional(),
-  preferredTradeMode: z.enum(['simple', 'expert']).optional(),
+  preferredTradeMode: z.enum(["simple", "expert"]).optional(),
   defaultCopyAllocPct: z.number().int().min(1).max(100).optional(),
   alertsEnabled: z.boolean().optional(),
 });
@@ -31,12 +41,15 @@ const PatchBody = z.object({
 });
 
 function getDb() {
-  const url = process.env['DATABASE_URL'];
+  const url = process.env["DATABASE_URL"];
   if (!url) return null;
   return createDbClient({ connectionString: url, maxConnections: 3 });
 }
 
-function serializeProfile(row: typeof userProfiles.$inferSelect | null, pubkey: string) {
+function serializeProfile(
+  row: typeof userProfiles.$inferSelect | null,
+  pubkey: string,
+) {
   return {
     pubkey,
     handle: row?.handle ?? null,
@@ -45,8 +58,10 @@ function serializeProfile(row: typeof userProfiles.$inferSelect | null, pubkey: 
       onboardingComplete: row?.onboardingComplete ?? false,
       onboardingWallet: row?.onboardingComplete ? pubkey : null,
       riskProfile: row?.riskProfile ?? DEFAULT_PREFS.riskProfile,
-      preferredTradeMode: row?.preferredTradeMode ?? DEFAULT_PREFS.preferredTradeMode,
-      defaultCopyAllocPct: row?.defaultCopyAllocPct ?? DEFAULT_PREFS.defaultCopyAllocPct,
+      preferredTradeMode:
+        row?.preferredTradeMode ?? DEFAULT_PREFS.preferredTradeMode,
+      defaultCopyAllocPct:
+        row?.defaultCopyAllocPct ?? DEFAULT_PREFS.defaultCopyAllocPct,
       alertsEnabled: row?.alertsEnabled ?? DEFAULT_PREFS.alertsEnabled,
     },
     persisted: Boolean(row),
@@ -55,16 +70,23 @@ function serializeProfile(row: typeof userProfiles.$inferSelect | null, pubkey: 
 }
 
 export async function GET(request: Request) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   const url = new URL(request.url);
-  const pubkey = url.searchParams.get('pubkey') ?? '';
+  const pubkey = url.searchParams.get("pubkey") ?? "";
 
   if (!PUBKEY_RE.test(pubkey)) {
-    return NextResponse.json({ error: 'invalid_pubkey' }, { status: 400 });
+    return NextResponse.json({ error: "invalid_pubkey" }, { status: 400 });
   }
+  const ownershipError = requireLinkedSolanaWallet(auth.principal, pubkey);
+  if (ownershipError) return ownershipError;
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json({ ...serializeProfile(null, pubkey), persisted: false }, { status: 200 });
+    return NextResponse.json(
+      { ...serializeProfile(null, pubkey), persisted: false },
+      { status: 200 },
+    );
   }
 
   try {
@@ -74,15 +96,17 @@ export async function GET(request: Request) {
       .where(eq(userProfiles.pubkey, pubkey))
       .limit(1);
 
-    return NextResponse.json(serializeProfile(row ?? null, pubkey), { status: 200 });
+    return NextResponse.json(serializeProfile(row ?? null, pubkey), {
+      status: 200,
+    });
   } catch (err) {
-    console.error('[profile/get] failed', err);
+    console.error("[profile/get] failed", err);
     return NextResponse.json(
       {
         ...serializeProfile(null, pubkey),
         persisted: false,
         degraded: true,
-        message: 'Profile sync is temporarily unavailable.',
+        message: "Profile sync is temporarily unavailable.",
       },
       { status: 200 },
     );
@@ -90,49 +114,54 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
   const parsed = PatchBody.safeParse(payload);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'invalid_payload', issues: parsed.error.issues },
+      { error: "invalid_payload", issues: parsed.error.issues },
       { status: 422 },
     );
   }
 
   const { pubkey, signature } = parsed.data;
+  const ownershipError = requireLinkedSolanaWallet(auth.principal, pubkey);
+  if (ownershipError) return ownershipError;
   const update = cleanProfileUpdate(parsed.data.update as ProfilePrefsUpdate);
 
   try {
     const sigOk = await verifyEd25519({
-      payload: new TextEncoder().encode(profileUpdateMessage({ pubkey, update })),
+      payload: new TextEncoder().encode(
+        profileUpdateMessage({ pubkey, update }),
+      ),
       signature: base58Decode(signature),
       publicKey: base58Decode(pubkey),
     });
     if (!sigOk) {
       return NextResponse.json(
-        { error: 'unauthorized', message: 'Invalid profile update signature' },
+        { error: "unauthorized", message: "Invalid profile update signature" },
         { status: 401 },
       );
     }
   } catch {
     return NextResponse.json(
-      { error: 'unauthorized', message: 'Malformed pubkey or signature' },
+      { error: "unauthorized", message: "Malformed pubkey or signature" },
       { status: 401 },
     );
   }
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json(
-      serializeProfileFromUpdate(pubkey, update),
-      { status: 200 },
-    );
+    return NextResponse.json(serializeProfileFromUpdate(pubkey, update), {
+      status: 200,
+    });
   }
 
   const now = new Date();
@@ -160,21 +189,27 @@ export async function PATCH(request: Request) {
       })
       .returning();
 
-    return NextResponse.json(serializeProfile(row ?? null, pubkey), { status: 200 });
+    return NextResponse.json(serializeProfile(row ?? null, pubkey), {
+      status: 200,
+    });
   } catch (err) {
-    console.error('[profile/patch] failed', err);
+    console.error("[profile/patch] failed", err);
     return NextResponse.json(
       {
         ...serializeProfileFromUpdate(pubkey, update),
         degraded: true,
-        message: 'Profile sync is temporarily unavailable. Local preferences remain active.',
+        message:
+          "Profile sync is temporarily unavailable. Local preferences remain active.",
       },
       { status: 200 },
     );
   }
 }
 
-function serializeProfileFromUpdate(pubkey: string, update: ProfilePrefsUpdate) {
+function serializeProfileFromUpdate(
+  pubkey: string,
+  update: ProfilePrefsUpdate,
+) {
   return {
     pubkey,
     handle: update.handle ?? null,

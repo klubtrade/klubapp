@@ -17,6 +17,8 @@ pub struct InitializeVault<'info> {
         token::mint = usdc_mint, token::authority = vault,
     )]
     pub vault_usdc: &'info mut Account<Token>,
+    #[account(mut)]
+    pub fee_recipient_usdc: &'info mut Account<Token>,
     #[account(mint::decimals = 6)]
     pub usdc_mint: &'info Account<Mint>,
     pub token_program: &'info Program<Token>,
@@ -28,32 +30,35 @@ impl<'info> InitializeVault<'info> {
     pub fn handler(
         &mut self,
         strategy_authority: Address,
-        management_fee_bps: u16,
         performance_fee_bps: u16,
         min_deposit_usdc: u64,
         bumps: &InitializeVaultBumps,
     ) -> Result<(), ProgramError> {
         require!(min_deposit_usdc > 0, ProgramError::InvalidArgument);
         require!(
-            management_fee_bps <= MAX_FEE_BPS,
+            performance_fee_bps <= MAX_PERFORMANCE_FEE_BPS,
             ProgramError::InvalidArgument
         );
-        require!(
-            performance_fee_bps <= MAX_FEE_BPS,
-            ProgramError::InvalidArgument
+        require_keys_eq!(
+            *self.fee_recipient_usdc.mint(),
+            *self.usdc_mint.address(),
+            ProgramError::InvalidAccountData
+        );
+        require_keys_eq!(
+            *self.fee_recipient_usdc.owner(),
+            *self.authority.address(),
+            ProgramError::InvalidAccountData
         );
 
         self.vault.set_inner(
             *self.authority.address(),
             *self.usdc_mint.address(),
             *self.vault_usdc.address(),
+            *self.fee_recipient_usdc.address(),
             strategy_authority,
-            management_fee_bps,
             performance_fee_bps,
             min_deposit_usdc,
             self.usdc_mint.decimals(),
-            0,
-            0,
             0,
             0,
             0,

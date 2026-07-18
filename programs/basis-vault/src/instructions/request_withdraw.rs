@@ -67,6 +67,11 @@ impl<'info> RequestWithdraw<'info> {
             ProgramError::InvalidAccountData
         );
         require_keys_eq!(
+            *self.fee_recipient_usdc.address(),
+            self.vault.fee_recipient_usdc,
+            ProgramError::InvalidAccountData
+        );
+        require_keys_eq!(
             *self.fee_recipient_usdc.mint(),
             self.vault.usdc_mint,
             ProgramError::InvalidAccountData

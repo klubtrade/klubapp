@@ -12,6 +12,7 @@
 import bs58 from "bs58";
 import { useEffect, useState } from "react";
 
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { useTradingWallet } from "@/lib/trading-wallet";
 import {
   DEFAULT_PREFS,
@@ -76,7 +77,9 @@ function mergeServerPrefs(
 }
 
 async function loadServerPrefs(pubkey: string): Promise<UserPrefs | null> {
-  const res = await fetch(`/api/profile?pubkey=${encodeURIComponent(pubkey)}`);
+  const res = await authenticatedFetch(
+    `/api/profile?pubkey=${encodeURIComponent(pubkey)}`,
+  );
   if (!res.ok) return null;
   const body = (await res.json()) as { prefs?: UserPrefs };
   return body.prefs ?? null;
@@ -105,7 +108,7 @@ export async function persistUserProfile(input: {
   }
 
   try {
-    const res = await fetch("/api/profile", {
+    const res = await authenticatedFetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

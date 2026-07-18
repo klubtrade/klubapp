@@ -1,14 +1,18 @@
 // apps/web/app/api/handles/claim/route.ts
-import { base58Decode, verifyEd25519 } from '@klub/signing';
-import { createDbClient, handles } from '@klub/db';
-import { and, eq, isNull } from 'drizzle-orm';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { base58Decode, verifyEd25519 } from "@klub/signing";
+import { createDbClient, handles } from "@klub/db";
+import { and, eq, isNull } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import {
   claimFallbackHandle,
   shouldUseHandleRegistryFallback,
-} from '@/lib/handle-registry-fallback';
+} from "@/lib/handle-registry-fallback";
+import {
+  requireLinkedSolanaWallet,
+  requirePrivyAuth,
+} from "@/lib/server/privy-auth";
 
 /**
  * POST /api/handles/claim
@@ -25,16 +29,20 @@ import {
  * change). If the handle is owned by someone else, return 409.
  */
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 const ClaimBody = z.object({
-  handle: z.string().min(3).max(30).regex(/^[a-z0-9_]+$/),
+  handle: z
+    .string()
+    .min(3)
+    .max(30)
+    .regex(/^[a-z0-9_]+$/),
   pubkey: z.string().min(32).max(64),
   signature: z.string().min(64).max(128),
 });
 
 function getDb() {
-  const url = process.env['DATABASE_URL'];
+  const url = process.env["DATABASE_URL"];
   if (!url) return null;
   return createDbClient({ connectionString: url, maxConnections: 3 });
 }
@@ -43,7 +51,7 @@ function claimWithFallback(handle: string, pubkey: string) {
   const result = claimFallbackHandle(handle, pubkey);
   if (!result.ok) {
     return NextResponse.json(
-      { error: 'handle_taken', message: 'Handle already claimed' },
+      { error: "handle_taken", message: "Handle already claimed" },
       { status: 409 },
     );
   }
@@ -61,22 +69,26 @@ function claimWithFallback(handle: string, pubkey: string) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
   const parsed = ClaimBody.safeParse(payload);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'invalid_payload', issues: parsed.error.issues },
+      { error: "invalid_payload", issues: parsed.error.issues },
       { status: 422 },
     );
   }
 
   const { handle, pubkey, signature } = parsed.data;
+  const ownershipError = requireLinkedSolanaWallet(auth.principal, pubkey);
+  if (ownershipError) return ownershipError;
 
   // Verify signature over `claim:${handle}` with the supplied pubkey.
   let pubkeyBytes: Uint8Array;
@@ -86,7 +98,7 @@ export async function POST(request: Request) {
     signatureBytes = base58Decode(signature);
   } catch {
     return NextResponse.json(
-      { error: 'unauthorized', message: 'Malformed pubkey or signature' },
+      { error: "unauthorized", message: "Malformed pubkey or signature" },
       { status: 401 },
     );
   }
@@ -98,7 +110,7 @@ export async function POST(request: Request) {
   });
   if (!sigOk) {
     return NextResponse.json(
-      { error: 'unauthorized', message: 'Invalid signature for handle claim' },
+      { error: "unauthorized", message: "Invalid signature for handle claim" },
       { status: 401 },
     );
   }
@@ -124,7 +136,7 @@ export async function POST(request: Request) {
           alreadyClaimed: true,
           message:
             existingForPubkey.handle === handle
-              ? 'Handle already claimed by this wallet'
+              ? "Handle already claimed by this wallet"
               : `This wallet already has @${existingForPubkey.handle}`,
         },
         { status: 200 },
@@ -146,7 +158,7 @@ export async function POST(request: Request) {
         );
       }
       return NextResponse.json(
-        { error: 'handle_taken', message: 'Handle already claimed' },
+        { error: "handle_taken", message: "Handle already claimed" },
         { status: 409 },
       );
     }
@@ -157,7 +169,7 @@ export async function POST(request: Request) {
       .returning();
 
     if (!inserted) {
-      return NextResponse.json({ error: 'internal' }, { status: 500 });
+      return NextResponse.json({ error: "internal" }, { status: 500 });
     }
 
     return NextResponse.json(
@@ -165,10 +177,10 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (err) {
-    console.error('[handles/claim] insert failed', err);
+    console.error("[handles/claim] insert failed", err);
     if (shouldUseHandleRegistryFallback(err)) {
       return claimWithFallback(handle, pubkey);
     }
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    return NextResponse.json({ error: "internal" }, { status: 500 });
   }
 }

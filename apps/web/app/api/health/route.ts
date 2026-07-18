@@ -1,4 +1,8 @@
-import { copyFollowSnapshots, createDbClient, workerHeartbeats } from "@klub/db";
+import {
+  copyFollowSnapshots,
+  createDbClient,
+  workerHeartbeats,
+} from "@klub/db";
 import { desc, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -62,7 +66,8 @@ export async function GET() {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Database check failed";
+    const message =
+      err instanceof Error ? err.message : "Database check failed";
     const workerSchemaMissing =
       message.includes("worker_heartbeats") ||
       message.includes("copy_follow_snapshots");
@@ -93,7 +98,7 @@ export async function GET() {
         database: {
           configured: true,
           ok: false,
-          error: message,
+          error: "database_unavailable",
         },
         worker: {
           configured: null,

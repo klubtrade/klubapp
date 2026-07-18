@@ -1,6 +1,10 @@
 # KLUB
 
-Members-only on-chain perps front-end, built on Bulk Exchange.
+The retail gateway to Bulk Haven.
+
+KLUB is a public **testnet beta** for simpler Bulk market discovery, trading,
+portfolio risk, and experimental basis products. Test balances have no monetary
+value. Automation and the Basis Vault are not audited or mainnet-ready.
 
 ## Quick start
 
@@ -10,50 +14,42 @@ pnpm dev
 # → http://localhost:3000
 ```
 
-Landing page is at `/`. Entering the app routes to `/trade`. In-app surfaces live at `/trade`, `/follow`, `/calculator`, `/health`, `/practice`, and `/invite/demo` for the invite flow.
+The landing page is `/`. Authenticated product surfaces include `/home`,
+`/trade`, `/pro`, `/portfolio`, `/earn`, and `/basis`.
 
 ## Structure
 
 ```
-apps/web/                 — Next.js 14 App Router app
-  app/
-    page.tsx              — / landing (minimalist, purple, Framer Motion fly-ins)
-    trade/                — /trade, the main app entry
-    follow/               — /follow leaderboard + /follow/[handle] profiles
-    calculator/           — /calculator (The Math)
-    health/               — /health portfolio score + stress test
-    practice/             — /practice testnet + journal
-    invite/[code]/        — invite-gated signup
-    api/                  — /api/portfolio, /api/invite, /api/waitlist
-  components/
-    top-nav.tsx           — shared in-app nav (landing has its own)
-  lib/
-    mock-data/            — seeded leaders for /follow
-    ramp/                 — Coinbase + experimental Ika drivers
-
-packages/
-  api-client/             — typed wrapper around Bulk Exchange API (+ WS)
-  calc/                   — pure-math liquidation / PnL / health engine
-
-deck/                     — investor deck, demo script, tearsheet
-marketing/                — founding blog, content calendar, email sequence
-docs/                     — leader outreach playbook
-klub-preview.html         — standalone landing preview (opens in any browser)
+apps/web/                 — Next.js presentation and HTTP adapters
+apps/worker/              — background indexing, alerts, and experimental copy workflows
+packages/api-client/      — external Bulk transport boundary
+packages/calc/            — deterministic financial calculations
+packages/db/              — Drizzle/Postgres schema and migrations
+packages/signing/         — cryptography scaffolding; production typed signer pending
+programs/basis-vault/     — Quasar/Solana testnet custody program
+docs/security/            — trust, threat, signing, key, incident, and remediation docs
 ```
 
 ## Design tokens
 
-- **Palette:** near-black matte (`#0A0A0B`) with light-purple accent (`#A78BFA`).
+- **Palette:** near-black matte with KLUB gold accent.
 - **Type:** Inter (UI), JetBrains Mono (numerics + labels).
 - **Radii:** `rounded-klub` (10px), `rounded-klub-lg` (16px).
 - **Motion:** Framer Motion `whileInView` on the landing; CSS `.reveal` utility elsewhere. Respects `prefers-reduced-motion`.
 
-## Phase status
+## Readiness
 
-- **Phase 1 — Foundations** ✓
-- **Phase 2 — Core math** ✓
-- **Phase 3 — Differentiators** ✓
-- **Phase 4 — Go-to-market** ✓
-- **Phase 3.5 — Backend** (alerts worker, copy-trade engine, Postgres, bulk-keychain signing) — next
+| Area                           | State                                                          |
+| ------------------------------ | -------------------------------------------------------------- |
+| Public UI and Privy connection | Integrated testnet beta                                        |
+| Bulk market/account data       | Integrated; upstream availability applies                      |
+| User-signed order flow         | Testnet integration; reliability hardening active              |
+| Postgres persistence           | Partially integrated                                           |
+| Worker/copy execution          | Experimental; production executor disabled by default          |
+| Delegated signing              | Scaffold only; not production-approved                         |
+| Basis Vault                    | Experimental public-testnet program; source interface changing |
+| Mainnet capital                | Not ready                                                      |
 
-See `PHASE-*-BRIEF.md` files for per-phase detail.
+Architecture is documented in [`ARCHITECTURE.md`](ARCHITECTURE.md). Security
+status and reviewer remediation are tracked in
+[`docs/security/independent-review-remediation.md`](docs/security/independent-review-remediation.md).

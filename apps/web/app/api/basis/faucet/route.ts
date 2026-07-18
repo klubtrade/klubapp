@@ -21,6 +21,10 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getBasisVaultConfig } from "@/lib/basis-vault/config";
+import {
+  requireLinkedSolanaWallet,
+  requirePrivyAuth,
+} from "@/lib/server/privy-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,11 +35,15 @@ const EXPECTED_MINT_AUTHORITY = "HmA31z4YGiH8mB4GqoNDbXgasfASYYoErK3RxMQp475X";
 const recentClaims = new Map<string, number>();
 
 export async function POST(request: NextRequest) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   try {
     const body = (await request.json()) as { owner?: unknown };
     if (typeof body.owner !== "string")
       return error("Connect a Solana wallet first.", 400);
     const owner = address(body.owner);
+    const ownershipError = requireLinkedSolanaWallet(auth.principal, owner);
+    if (ownershipError) return ownershipError;
     const now = Date.now();
     if (now - (recentClaims.get(owner) ?? 0) < 60_000) {
       return error(

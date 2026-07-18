@@ -2,6 +2,10 @@ import { parseSignedTransaction } from "@klub/api-client";
 import { NextResponse } from "next/server";
 
 import { normalizeBulkErrorMessage } from "@/lib/bulk/error-messages";
+import {
+  requireAnyLinkedSolanaWallet,
+  requirePrivyAuth,
+} from "@/lib/server/privy-auth";
 
 /**
  * POST /api/bulk/place-order
@@ -42,13 +46,14 @@ const BULK_HTTP_URL =
 const PLACE_ORDER_PATH = "/order";
 
 export async function POST(req: Request): Promise<NextResponse> {
+  const auth = await requirePrivyAuth(req);
+  if (!auth.ok) return auth.response;
   let input: unknown;
   try {
     input = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-
   let payload: ReturnType<typeof parseSignedTransaction>;
   try {
     payload = parseSignedTransaction(input);
@@ -61,6 +66,11 @@ export async function POST(req: Request): Promise<NextResponse> {
       { status: 400 },
     );
   }
+  const ownershipError = requireAnyLinkedSolanaWallet(auth.principal, [
+    payload.account,
+    payload.signer,
+  ]);
+  if (ownershipError) return ownershipError;
 
   const url = `${BULK_HTTP_URL}${PLACE_ORDER_PATH}`;
 

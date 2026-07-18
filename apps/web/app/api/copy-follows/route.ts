@@ -1,10 +1,15 @@
-import { base58Decode, verifyEd25519 } from '@klub/signing';
-import { copyFollows, createDbClient } from '@klub/db';
-import { and, eq } from 'drizzle-orm';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { base58Decode, verifyEd25519 } from "@klub/signing";
+import { copyFollows, createDbClient } from "@klub/db";
+import { and, eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { z } from "zod";
 
-export const runtime = 'nodejs';
+import {
+  requireLinkedSolanaWallet,
+  requirePrivyAuth,
+} from "@/lib/server/privy-auth";
+
+export const runtime = "nodejs";
 
 const PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,128}$/;
 
@@ -17,13 +22,13 @@ const FollowBody = z.object({
 });
 
 function getDb() {
-  const url = process.env['DATABASE_URL'];
+  const url = process.env["DATABASE_URL"];
   if (!url) return null;
   return createDbClient({ connectionString: url, maxConnections: 3 });
 }
 
 function followMessage(input: {
-  readonly action: 'follow' | 'unfollow';
+  readonly action: "follow" | "unfollow";
   readonly followerPubkey: string;
   readonly leaderPubkey: string;
   readonly allocationPct?: number;
@@ -49,15 +54,25 @@ async function verify(input: {
 }
 
 export async function GET(request: Request) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   const url = new URL(request.url);
-  const followerPubkey = url.searchParams.get('followerPubkey') ?? '';
+  const followerPubkey = url.searchParams.get("followerPubkey") ?? "";
   if (!PUBKEY_RE.test(followerPubkey)) {
-    return NextResponse.json({ error: 'invalid_pubkey' }, { status: 400 });
+    return NextResponse.json({ error: "invalid_pubkey" }, { status: 400 });
   }
+  const ownershipError = requireLinkedSolanaWallet(
+    auth.principal,
+    followerPubkey,
+  );
+  if (ownershipError) return ownershipError;
 
   const db = getDb();
   if (!db) {
-    return NextResponse.json({ follows: [], persisted: false }, { status: 200 });
+    return NextResponse.json(
+      { follows: [], persisted: false },
+      { status: 200 },
+    );
   }
 
   try {
@@ -79,24 +94,40 @@ export async function GET(request: Request) {
       { status: 200 },
     );
   } catch (err) {
-    console.error('[copy-follows/get] failed', err);
-    return NextResponse.json({ follows: [], persisted: false, degraded: true }, { status: 200 });
+    console.error("[copy-follows/get] failed", err);
+    return NextResponse.json(
+      { follows: [], persisted: false, degraded: true },
+      { status: 200 },
+    );
   }
 }
 
 export async function POST(request: Request) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   const parsed = await parseBody(request);
   if (!parsed.ok) return parsed.response;
-  const { followerPubkey, leaderPubkey, signature, label, allocationPct = 20 } = parsed.data;
+  const {
+    followerPubkey,
+    leaderPubkey,
+    signature,
+    label,
+    allocationPct = 20,
+  } = parsed.data;
+  const ownershipError = requireLinkedSolanaWallet(
+    auth.principal,
+    followerPubkey,
+  );
+  if (ownershipError) return ownershipError;
   const message = followMessage({
-    action: 'follow',
+    action: "follow",
     followerPubkey,
     leaderPubkey,
     allocationPct,
     ...(label ? { label } : {}),
   });
   if (!(await verify({ message, pubkey: followerPubkey, signature }))) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const db = getDb();
@@ -123,18 +154,32 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, follow: row }, { status: 200 });
   } catch (err) {
-    console.error('[copy-follows/post] failed', err);
-    return NextResponse.json({ ok: true, persisted: false, degraded: true }, { status: 200 });
+    console.error("[copy-follows/post] failed", err);
+    return NextResponse.json(
+      { ok: true, persisted: false, degraded: true },
+      { status: 200 },
+    );
   }
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   const parsed = await parseBody(request);
   if (!parsed.ok) return parsed.response;
   const { followerPubkey, leaderPubkey, signature } = parsed.data;
-  const message = followMessage({ action: 'unfollow', followerPubkey, leaderPubkey });
+  const ownershipError = requireLinkedSolanaWallet(
+    auth.principal,
+    followerPubkey,
+  );
+  if (ownershipError) return ownershipError;
+  const message = followMessage({
+    action: "unfollow",
+    followerPubkey,
+    leaderPubkey,
+  });
   if (!(await verify({ message, pubkey: followerPubkey, signature }))) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const db = getDb();
@@ -153,8 +198,11 @@ export async function DELETE(request: Request) {
       );
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (err) {
-    console.error('[copy-follows/delete] failed', err);
-    return NextResponse.json({ ok: true, persisted: false, degraded: true }, { status: 200 });
+    console.error("[copy-follows/delete] failed", err);
+    return NextResponse.json(
+      { ok: true, persisted: false, degraded: true },
+      { status: 200 },
+    );
   }
 }
 
@@ -168,14 +216,17 @@ async function parseBody(
   try {
     payload = await request.json();
   } catch {
-    return { ok: false, response: NextResponse.json({ error: 'invalid_json' }, { status: 400 }) };
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "invalid_json" }, { status: 400 }),
+    };
   }
   const parsed = FollowBody.safeParse(payload);
   if (!parsed.success) {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'invalid_payload', issues: parsed.error.issues },
+        { error: "invalid_payload", issues: parsed.error.issues },
         { status: 422 },
       ),
     };

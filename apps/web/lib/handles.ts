@@ -1,6 +1,8 @@
-'use client';
+"use client";
 
-import bs58 from 'bs58';
+import bs58 from "bs58";
+
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 
 /**
  * Client helpers for the @handle social layer.
@@ -17,7 +19,7 @@ import bs58 from 'bs58';
 export const HANDLE_RE = /^[a-z0-9_]{3,30}$/;
 
 export function normalizeHandle(input: string): string {
-  return input.toLowerCase().replace(/^@/, '').trim();
+  return input.toLowerCase().replace(/^@/, "").trim();
 }
 
 export function isValidHandle(handle: string): boolean {
@@ -34,23 +36,29 @@ export interface ResolveResult {
 /**
  * Look up a handle. Returns null on 404, throws on network/other errors.
  */
-export async function resolveHandle(handle: string): Promise<ResolveResult | null> {
+export async function resolveHandle(
+  handle: string,
+): Promise<ResolveResult | null> {
   const normalized = normalizeHandle(handle);
   if (!isValidHandle(normalized)) return null;
   const res = await fetch(`/api/handles/${encodeURIComponent(normalized)}`);
   if (res.status === 404) return null;
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
+    const text = await res.text().catch(() => "");
     throw new Error(text || `handle resolve failed (${res.status})`);
   }
   return (await res.json()) as ResolveResult;
 }
 
-export async function resolveHandleByPubkey(pubkey: string): Promise<ResolveResult | null> {
-  const res = await fetch(`/api/handles/by-pubkey/${encodeURIComponent(pubkey)}`);
+export async function resolveHandleByPubkey(
+  pubkey: string,
+): Promise<ResolveResult | null> {
+  const res = await fetch(
+    `/api/handles/by-pubkey/${encodeURIComponent(pubkey)}`,
+  );
   if (res.status === 404) return null;
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
+    const text = await res.text().catch(() => "");
     throw new Error(text || `handle lookup failed (${res.status})`);
   }
   return (await res.json()) as ResolveResult;
@@ -62,8 +70,23 @@ export interface HandleSigner {
 }
 
 export type ClaimResult =
-  | { readonly ok: true; readonly handle: string; readonly pubkey: string; readonly fallback?: boolean; readonly alreadyClaimed?: boolean }
-  | { readonly ok: false; readonly reason: 'invalid' | 'taken' | 'unauthorized' | 'database' | 'network'; readonly message: string };
+  | {
+      readonly ok: true;
+      readonly handle: string;
+      readonly pubkey: string;
+      readonly fallback?: boolean;
+      readonly alreadyClaimed?: boolean;
+    }
+  | {
+      readonly ok: false;
+      readonly reason:
+        | "invalid"
+        | "taken"
+        | "unauthorized"
+        | "database"
+        | "network";
+      readonly message: string;
+    };
 
 /**
  * Claim a handle. Signs `claim:${handle}` with the supplied wallet
@@ -75,7 +98,11 @@ export async function claimHandle(
 ): Promise<ClaimResult> {
   const handle = normalizeHandle(rawHandle);
   if (!isValidHandle(handle)) {
-    return { ok: false, reason: 'invalid', message: 'Handle must be 3–30 lowercase letters / digits / underscore.' };
+    return {
+      ok: false,
+      reason: "invalid",
+      message: "Handle must be 3–30 lowercase letters / digits / underscore.",
+    };
   }
 
   let signatureBytes: Uint8Array;
@@ -85,16 +112,16 @@ export async function claimHandle(
   } catch (err) {
     return {
       ok: false,
-      reason: 'unauthorized',
-      message: err instanceof Error ? err.message : 'Signature was rejected',
+      reason: "unauthorized",
+      message: err instanceof Error ? err.message : "Signature was rejected",
     };
   }
 
   let res: Response;
   try {
-    res = await fetch('/api/handles/claim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    res = await authenticatedFetch("/api/handles/claim", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         handle,
         pubkey: signer.publicKeyBase58,
@@ -104,8 +131,8 @@ export async function claimHandle(
   } catch (err) {
     return {
       ok: false,
-      reason: 'network',
-      message: err instanceof Error ? err.message : 'Network error',
+      reason: "network",
+      message: err instanceof Error ? err.message : "Network error",
     };
   }
 
@@ -129,13 +156,29 @@ export async function claimHandle(
 
   const errBody = body as { error?: string; message?: string } | null;
   if (res.status === 409) {
-    return { ok: false, reason: 'taken', message: errBody?.message ?? 'Handle already claimed' };
+    return {
+      ok: false,
+      reason: "taken",
+      message: errBody?.message ?? "Handle already claimed",
+    };
   }
   if (res.status === 401) {
-    return { ok: false, reason: 'unauthorized', message: errBody?.message ?? 'Signature rejected by server' };
+    return {
+      ok: false,
+      reason: "unauthorized",
+      message: errBody?.message ?? "Signature rejected by server",
+    };
   }
   if (res.status === 503) {
-    return { ok: false, reason: 'database', message: errBody?.message ?? 'Handles registry not yet provisioned' };
+    return {
+      ok: false,
+      reason: "database",
+      message: errBody?.message ?? "Handles registry not yet provisioned",
+    };
   }
-  return { ok: false, reason: 'invalid', message: errBody?.message ?? `Failed (${res.status})` };
+  return {
+    ok: false,
+    reason: "invalid",
+    message: errBody?.message ?? `Failed (${res.status})`,
+  };
 }

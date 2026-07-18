@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import bs58 from 'bs58';
+import bs58 from "bs58";
 import {
   createContext,
   useCallback,
@@ -10,10 +10,15 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from 'react';
+} from "react";
 
-import { useBulkAccount } from '@/hooks/use-bulk-account';
-import { detectSignals, type Follow, type MirrorSignal } from '@/lib/copy-trade/engine';
+import { useBulkAccount } from "@/hooks/use-bulk-account";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
+import {
+  detectSignals,
+  type Follow,
+  type MirrorSignal,
+} from "@/lib/copy-trade/engine";
 import {
   addFollow as storeAddFollow,
   listFollows as storeListFollows,
@@ -21,8 +26,8 @@ import {
   patchMirrorPosition as storePatchMirrorPosition,
   removeFollow as storeRemoveFollow,
   setLastKnownPositions as storeSetLastKnownPositions,
-} from '@/lib/copy-trade/store';
-import { useTradingWallet } from '@/lib/trading-wallet';
+} from "@/lib/copy-trade/store";
+import { useTradingWallet } from "@/lib/trading-wallet";
 
 /**
  * CopyTradeProvider — runs the live engine and exposes signals.
@@ -74,12 +79,18 @@ interface CopyTradeContextValue {
 
 const Ctx = createContext<CopyTradeContextValue | null>(null);
 
-export function CopyTradeProvider({ children }: { readonly children: ReactNode }) {
+export function CopyTradeProvider({
+  children,
+}: {
+  readonly children: ReactNode;
+}) {
   const wallet = useTradingWallet();
   const followerPubkey = wallet.publicKeyBase58;
 
   const [follows, setFollows] = useState<readonly Follow[]>([]);
-  const [pendingMirrors, setPendingMirrors] = useState<readonly MirrorSignal[]>([]);
+  const [pendingMirrors, setPendingMirrors] = useState<readonly MirrorSignal[]>(
+    [],
+  );
 
   // Load follows when pubkey becomes available or changes.
   useEffect(() => {
@@ -140,7 +151,7 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
       setFollows(next);
       if (wallet.signMessage) {
         void persistServerFollow({
-          action: 'follow',
+          action: "follow",
           followerPubkey,
           follow: record,
           signMessage: wallet.signMessage,
@@ -157,7 +168,7 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
       setFollows(next);
       if (wallet.signMessage) {
         void persistServerFollow({
-          action: 'unfollow',
+          action: "unfollow",
           followerPubkey,
           follow: {
             leaderPubkey,
@@ -170,7 +181,9 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
         });
       }
       // Drop any pending mirrors from this leader.
-      setPendingMirrors((prev) => prev.filter((s) => s.leaderPubkey !== leaderPubkey));
+      setPendingMirrors((prev) =>
+        prev.filter((s) => s.leaderPubkey !== leaderPubkey),
+      );
     },
     [followerPubkey, wallet.signMessage],
   );
@@ -219,7 +232,11 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
   const persistLastKnown = useCallback(
     (leaderPubkey: string, positions: Readonly<Record<string, number>>) => {
       if (!followerPubkey) return;
-      const next = storeSetLastKnownPositions(followerPubkey, leaderPubkey, positions);
+      const next = storeSetLastKnownPositions(
+        followerPubkey,
+        leaderPubkey,
+        positions,
+      );
       setFollows(next);
     },
     [followerPubkey],
@@ -256,7 +273,14 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
       dismissMirror,
       notePositionChange,
     }),
-    [follows, pendingMirrors, follow, unfollow, dismissMirror, notePositionChange],
+    [
+      follows,
+      pendingMirrors,
+      follow,
+      unfollow,
+      dismissMirror,
+      notePositionChange,
+    ],
   );
 
   return (
@@ -276,8 +300,12 @@ export function CopyTradeProvider({ children }: { readonly children: ReactNode }
   );
 }
 
-async function loadServerFollows(followerPubkey: string): Promise<readonly Follow[] | null> {
-  const res = await fetch(`/api/copy-follows?followerPubkey=${encodeURIComponent(followerPubkey)}`);
+async function loadServerFollows(
+  followerPubkey: string,
+): Promise<readonly Follow[] | null> {
+  const res = await authenticatedFetch(
+    `/api/copy-follows?followerPubkey=${encodeURIComponent(followerPubkey)}`,
+  );
   if (!res.ok) return null;
   const body = (await res.json()) as { follows?: readonly Follow[] };
   return body.follows ?? [];
@@ -287,7 +315,9 @@ function mergeServerFollows(
   local: readonly Follow[],
   server: readonly Follow[],
 ): readonly Follow[] {
-  const localByLeader = new Map(local.map((follow) => [follow.leaderPubkey, follow]));
+  const localByLeader = new Map(
+    local.map((follow) => [follow.leaderPubkey, follow]),
+  );
   return server.map((follow) => {
     const existing = localByLeader.get(follow.leaderPubkey);
     return existing
@@ -295,44 +325,50 @@ function mergeServerFollows(
           ...follow,
           baselineSymbols: existing.baselineSymbols,
           mirroredSymbols: existing.mirroredSymbols,
-          ...(existing.lastKnownPositions ? { lastKnownPositions: existing.lastKnownPositions } : {}),
-          ...(existing.mirrorPositions ? { mirrorPositions: existing.mirrorPositions } : {}),
+          ...(existing.lastKnownPositions
+            ? { lastKnownPositions: existing.lastKnownPositions }
+            : {}),
+          ...(existing.mirrorPositions
+            ? { mirrorPositions: existing.mirrorPositions }
+            : {}),
         }
       : follow;
   });
 }
 
 async function persistServerFollow(input: {
-  readonly action: 'follow' | 'unfollow';
+  readonly action: "follow" | "unfollow";
   readonly followerPubkey: string;
   readonly follow: Follow;
   readonly signMessage: (bytes: Uint8Array) => Promise<Uint8Array>;
 }): Promise<void> {
   const messageInput =
-    input.action === 'follow'
+    input.action === "follow"
       ? {
-          action: 'follow' as const,
+          action: "follow" as const,
           followerPubkey: input.followerPubkey,
           leaderPubkey: input.follow.leaderPubkey,
           allocationPct: input.follow.allocationPct,
           ...(input.follow.label ? { label: input.follow.label } : {}),
         }
       : {
-          action: 'unfollow' as const,
+          action: "unfollow" as const,
           followerPubkey: input.followerPubkey,
           leaderPubkey: input.follow.leaderPubkey,
         };
   const signature = await input.signMessage(
-    new TextEncoder().encode(`klub:copy-follow:${JSON.stringify(messageInput)}`),
+    new TextEncoder().encode(
+      `klub:copy-follow:${JSON.stringify(messageInput)}`,
+    ),
   );
-  await fetch('/api/copy-follows', {
-    method: input.action === 'follow' ? 'POST' : 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+  await authenticatedFetch("/api/copy-follows", {
+    method: input.action === "follow" ? "POST" : "DELETE",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       followerPubkey: input.followerPubkey,
       leaderPubkey: input.follow.leaderPubkey,
       signature: bs58.encode(signature),
-      ...(input.action === 'follow'
+      ...(input.action === "follow"
         ? {
             allocationPct: input.follow.allocationPct,
             ...(input.follow.label ? { label: input.follow.label } : {}),
@@ -366,14 +402,17 @@ function LeaderWatcher({
   readonly follow: Follow;
   readonly followerEquityUsd: number;
   readonly onSignals: (sigs: readonly MirrorSignal[]) => void;
-  readonly onBaseline: (leaderPubkey: string, symbols: readonly string[]) => void;
+  readonly onBaseline: (
+    leaderPubkey: string,
+    symbols: readonly string[],
+  ) => void;
   readonly onLastKnown: (
     leaderPubkey: string,
     positions: Readonly<Record<string, number>>,
   ) => void;
 }): null {
   const { state } = useBulkAccount(follow.leaderPubkey);
-  const lastFingerprintRef = useRef<string>('');
+  const lastFingerprintRef = useRef<string>("");
 
   useEffect(() => {
     const snapshot = state.data;
@@ -393,7 +432,7 @@ function LeaderWatcher({
     const fingerprint = positions
       .map((p) => `${p.symbol}:${p.sizeBase}`)
       .sort()
-      .join('|');
+      .join("|");
     if (fingerprint === lastFingerprintRef.current) return;
     lastFingerprintRef.current = fingerprint;
 
@@ -422,13 +461,21 @@ function LeaderWatcher({
     const nextMap: Record<string, number> = {};
     for (const p of positions) nextMap[p.symbol] = p.sizeBase;
     onLastKnown(follow.leaderPubkey, nextMap);
-  }, [state.data, follow, followerEquityUsd, onBaseline, onSignals, onLastKnown]);
+  }, [
+    state.data,
+    follow,
+    followerEquityUsd,
+    onBaseline,
+    onSignals,
+    onLastKnown,
+  ]);
 
   return null;
 }
 
 export function useCopyTrade(): CopyTradeContextValue {
   const v = useContext(Ctx);
-  if (!v) throw new Error('useCopyTrade must be used within <CopyTradeProvider>');
+  if (!v)
+    throw new Error("useCopyTrade must be used within <CopyTradeProvider>");
   return v;
 }

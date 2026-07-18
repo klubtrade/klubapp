@@ -1,9 +1,14 @@
 // apps/web/app/api/leaders/review/route.ts
-import { base58Decode, verifyEd25519 } from '@klub/signing';
-import { createDbClient, leaderApplications } from '@klub/db';
-import { eq } from 'drizzle-orm';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { base58Decode, verifyEd25519 } from "@klub/signing";
+import { createDbClient, leaderApplications } from "@klub/db";
+import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import {
+  requireLinkedSolanaWallet,
+  requirePrivyAuth,
+} from "@/lib/server/privy-auth";
 
 /**
  * POST /api/leaders/review
@@ -30,61 +35,65 @@ import { z } from 'zod';
 
 const ReviewBody = z.object({
   application_id: z.string().uuid(),
-  status: z.enum(['approved', 'rejected']),
+  status: z.enum(["approved", "rejected"]),
 });
 
 function getDb() {
-  const url = process.env['DATABASE_URL'];
+  const url = process.env["DATABASE_URL"];
   if (!url) return null;
   return createDbClient({ connectionString: url, maxConnections: 3 });
 }
 
 function adminAllowlist(): readonly string[] {
-  const raw = process.env['ADMIN_PUBKEYS'] ?? '';
+  const raw = process.env["ADMIN_PUBKEYS"] ?? "";
   return raw
-    .split(',')
+    .split(",")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }
 
 export async function POST(request: Request) {
-  const adminPubkey = request.headers.get('x-admin-pubkey');
-  const adminSignature = request.headers.get('x-admin-signature');
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
+  const adminPubkey = request.headers.get("x-admin-pubkey");
+  const adminSignature = request.headers.get("x-admin-signature");
   const allowlist = adminAllowlist();
 
   if (allowlist.length === 0) {
     // Fail-closed: if the env isn't configured, no one is admin.
-    return NextResponse.json(
-      { error: 'admin_unconfigured' },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "admin_unconfigured" }, { status: 503 });
   }
 
   if (!adminPubkey || !adminSignature) {
     return NextResponse.json(
-      { error: 'unauthorized', message: 'Missing x-admin-pubkey or x-admin-signature' },
+      {
+        error: "unauthorized",
+        message: "Missing x-admin-pubkey or x-admin-signature",
+      },
       { status: 401 },
     );
   }
 
   if (!allowlist.includes(adminPubkey)) {
     return NextResponse.json(
-      { error: 'forbidden', message: 'Pubkey not in admin allowlist' },
+      { error: "forbidden", message: "Pubkey not in admin allowlist" },
       { status: 403 },
     );
   }
+  const ownershipError = requireLinkedSolanaWallet(auth.principal, adminPubkey);
+  if (ownershipError) return ownershipError;
 
   let payload: unknown;
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
   const parsed = ReviewBody.safeParse(payload);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'invalid_payload', issues: parsed.error.issues },
+      { error: "invalid_payload", issues: parsed.error.issues },
       { status: 422 },
     );
   }
@@ -100,7 +109,7 @@ export async function POST(request: Request) {
     signatureBytes = base58Decode(adminSignature);
   } catch {
     return NextResponse.json(
-      { error: 'unauthorized', message: 'Malformed admin pubkey or signature' },
+      { error: "unauthorized", message: "Malformed admin pubkey or signature" },
       { status: 401 },
     );
   }
@@ -111,7 +120,7 @@ export async function POST(request: Request) {
   });
   if (!sigOk) {
     return NextResponse.json(
-      { error: 'unauthorized', message: 'Invalid signature' },
+      { error: "unauthorized", message: "Invalid signature" },
       { status: 401 },
     );
   }
@@ -119,7 +128,7 @@ export async function POST(request: Request) {
   const db = getDb();
   if (!db) {
     return NextResponse.json(
-      { error: 'database_unavailable' },
+      { error: "database_unavailable" },
       { status: 500 },
     );
   }
@@ -135,12 +144,12 @@ export async function POST(request: Request) {
       .returning();
 
     if (!application) {
-      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
     return NextResponse.json({ ok: true, application }, { status: 200 });
   } catch (err) {
-    console.error('[leaders/review] update failed', err);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    console.error("[leaders/review] update failed", err);
+    return NextResponse.json({ error: "internal" }, { status: 500 });
   }
 }

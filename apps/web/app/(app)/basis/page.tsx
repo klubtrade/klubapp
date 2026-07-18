@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useFundingRates } from "@/hooks/use-funding-rates";
 import { useTickers } from "@/hooks/use-tickers";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import {
   buildBasisDepositTransaction,
   buildBasisWithdrawTransaction,
@@ -135,7 +136,7 @@ export default function BasisPage() {
     setFaucetClaiming(true);
     setTxStatus({ kind: "pending", message: "Preparing vault USDC…" });
     try {
-      const response = await fetch("/api/basis/faucet", {
+      const response = await authenticatedFetch("/api/basis/faucet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ owner: wallet.publicKeyBase58 }),

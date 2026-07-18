@@ -19,8 +19,6 @@ impl<'info> InitPosition<'info> {
             0,
             0,
             0,
-            0,
-            0,
             bumps.position,
         );
 

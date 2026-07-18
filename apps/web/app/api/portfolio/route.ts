@@ -13,6 +13,11 @@ import type {
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  requireLinkedSolanaWallet,
+  requirePrivyAuth,
+} from "@/lib/server/privy-auth";
+
 /**
  * POST /api/portfolio
  *
@@ -33,6 +38,8 @@ const Body = z.object({
 type BulkLambdaBySymbol = Readonly<Record<string, number>>;
 
 export async function POST(request: Request) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
   let payload: unknown;
   try {
     payload = await request.json();
@@ -44,6 +51,11 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_user" }, { status: 422 });
   }
+  const ownershipError = requireLinkedSolanaWallet(
+    auth.principal,
+    parsed.data.user,
+  );
+  if (ownershipError) return ownershipError;
 
   const baseUrl =
     process.env["BULK_HTTP_URL"] ?? process.env["BULK_API_BASE_URL"];

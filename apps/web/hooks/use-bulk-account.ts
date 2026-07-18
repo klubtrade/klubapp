@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { normalizeBulkErrorMessage } from "@/lib/bulk/error-messages";
 
 export interface BulkPosition {
@@ -107,7 +108,7 @@ export function useBulkAccount(pubkey: string | null): {
 
       let response: Response;
       try {
-        response = await fetch("/api/bulk/account", {
+        response = await authenticatedFetch("/api/bulk/account", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user: key }),

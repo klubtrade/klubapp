@@ -16,6 +16,7 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
+    "format:check:critical": "prettier --check README.md ARCHITECTURE.md CHANGELOG.md SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md \"docs/security/**/*.md\" \"apps/web/lib/server/**/*.ts\" apps/web/lib/authenticated-fetch.ts apps/web/app/api/bulk/account/route.ts apps/web/app/api/bulk/place-order/route.ts apps/web/app/api/basis/faucet/route.ts apps/web/app/api/profile/route.ts apps/web/app/api/copy-follows/route.ts apps/web/app/api/portfolio/route.ts apps/web/app/api/handles/claim/route.ts apps/web/app/api/leaders/apply/route.ts apps/web/app/api/leaders/review/route.ts",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {

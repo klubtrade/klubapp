@@ -1,5 +1,6 @@
 import { parseSignedTransaction } from "@klub/api-client";
 
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { normalizeBulkErrorMessage } from "@/lib/bulk/error-messages";
 
 import type { SignedTransaction, SubmitOrderResult } from "./types";
@@ -67,7 +68,7 @@ export async function submitSignedTransaction(
 
   let response: Response;
   try {
-    response = await fetch("/api/bulk/place-order", {
+    response = await authenticatedFetch("/api/bulk/place-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
