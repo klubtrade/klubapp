@@ -17,23 +17,36 @@ pub struct RequestWithdraw<'info> {
 
 impl<'info> RequestWithdraw<'info> {
     #[inline(always)]
-    pub fn handler(&mut self, shares: u64) -> Result<(), ProgramError> {
-        require!(shares > 0, ProgramError::InvalidArgument);
+    pub fn handler(&mut self, amount_usdc: u64) -> Result<(), ProgramError> {
+        require!(amount_usdc > 0, ProgramError::InvalidArgument);
+        let principal: u64 = self.position.deposited_usdc.into();
+        let earned: u64 = self.position.claimable_yield_usdc.into();
+        let available = principal
+            .checked_add(earned)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+        let already_requested: u64 = self.position.requested_withdraw_usdc.into();
+        require!(
+            amount_usdc
+                .checked_add(already_requested)
+                .ok_or(ProgramError::ArithmeticOverflow)?
+                <= available,
+            ProgramError::InsufficientFunds
+        );
 
-        self.position.requested_withdraw_shares = self
+        self.position.requested_withdraw_usdc = self
             .position
-            .requested_withdraw_shares
-            .checked_add(shares)
+            .requested_withdraw_usdc
+            .checked_add(amount_usdc)
             .ok_or(ProgramError::ArithmeticOverflow)?;
         self.position.request_count = self
             .position
             .request_count
             .checked_add(1)
             .ok_or(ProgramError::ArithmeticOverflow)?;
-        self.vault.total_requested_withdraw_shares = self
+        self.vault.total_requested_withdraw_usdc = self
             .vault
-            .total_requested_withdraw_shares
-            .checked_add(shares)
+            .total_requested_withdraw_usdc
+            .checked_add(amount_usdc)
             .ok_or(ProgramError::ArithmeticOverflow)?;
         self.vault.request_count = self
             .vault

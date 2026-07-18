@@ -40,6 +40,8 @@ impl<'info> InitializeVault<'info> {
             0,
             0,
             0,
+            0,
+            0,
             VAULT_STATUS_ACTIVE,
             bumps.vault,
         );

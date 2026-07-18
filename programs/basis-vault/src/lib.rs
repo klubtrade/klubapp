@@ -42,8 +42,11 @@ mod basis_vault {
     }
 
     #[instruction(discriminator = [4])]
-    pub fn request_withdraw(ctx: Ctx<RequestWithdraw>, shares: u64) -> Result<(), ProgramError> {
-        ctx.accounts.handler(shares)
+    pub fn request_withdraw(
+        ctx: Ctx<RequestWithdraw>,
+        amount_usdc: u64,
+    ) -> Result<(), ProgramError> {
+        ctx.accounts.handler(amount_usdc)
     }
 
     #[instruction(discriminator = [5])]
@@ -52,6 +55,21 @@ mod basis_vault {
         enabled: bool,
     ) -> Result<(), ProgramError> {
         ctx.accounts.handler(enabled)
+    }
+
+    #[instruction(discriminator = [6])]
+    pub fn settle_deposit(ctx: Ctx<SettleDeposit>, amount_usdc: u64) -> Result<(), ProgramError> {
+        ctx.accounts.handler(amount_usdc)
+    }
+
+    #[instruction(discriminator = [7])]
+    pub fn credit_yield(ctx: Ctx<CreditYield>, amount_usdc: u64) -> Result<(), ProgramError> {
+        ctx.accounts.handler(amount_usdc)
+    }
+
+    #[instruction(discriminator = [8])]
+    pub fn settle_withdraw(ctx: Ctx<SettleWithdraw>, amount_usdc: u64) -> Result<(), ProgramError> {
+        ctx.accounts.handler(amount_usdc)
     }
 }
 

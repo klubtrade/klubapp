@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * User preferences — server-backed when connected, local fallback otherwise.
@@ -9,24 +9,30 @@
  * once a wallet is connected and the production database is configured.
  */
 
-import bs58 from 'bs58';
-import { useEffect, useState } from 'react';
+import bs58 from "bs58";
+import { useEffect, useState } from "react";
 
-import { useTradingWallet } from '@/lib/trading-wallet';
+import { useTradingWallet } from "@/lib/trading-wallet";
 import {
   DEFAULT_PREFS,
   profileUpdateMessage,
   type ProfilePrefsUpdate,
   type RiskProfile,
   type UserPrefs,
-} from '@/lib/profile-contract';
+} from "@/lib/profile-contract";
 
-export { DEFAULT_PREFS, type ProfilePrefsUpdate, type RiskProfile, type UserPrefs };
+export {
+  DEFAULT_PREFS,
+  type ProfilePrefsUpdate,
+  type RiskProfile,
+  type UserPrefs,
+};
 
-const STORAGE_KEY = 'klub.prefs.v1';
+const STORAGE_KEY = "klub.prefs.v1";
+const PREFS_CHANGED_EVENT = "klub:prefs-changed";
 
 function loadPrefs(): UserPrefs {
-  if (typeof window === 'undefined') return DEFAULT_PREFS;
+  if (typeof window === "undefined") return DEFAULT_PREFS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_PREFS;
@@ -38,12 +44,35 @@ function loadPrefs(): UserPrefs {
 }
 
 function savePrefs(prefs: UserPrefs): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    window.dispatchEvent(
+      new CustomEvent<UserPrefs>(PREFS_CHANGED_EVENT, { detail: prefs }),
+    );
   } catch {
     // quota / private browsing
   }
+}
+
+function mergeServerPrefs(
+  local: UserPrefs,
+  server: UserPrefs,
+  pubkey: string,
+): UserPrefs {
+  const localCompletedCurrentWallet =
+    local.onboardingComplete && local.onboardingWallet === pubkey;
+
+  if (localCompletedCurrentWallet && !server.onboardingComplete) {
+    return {
+      ...local,
+      ...server,
+      onboardingComplete: true,
+      onboardingWallet: pubkey,
+    };
+  }
+
+  return { ...local, ...server };
 }
 
 async function loadServerPrefs(pubkey: string): Promise<UserPrefs | null> {
@@ -57,7 +86,9 @@ export async function persistUserProfile(input: {
   readonly pubkey: string;
   readonly signMessage: (bytes: Uint8Array) => Promise<Uint8Array>;
   readonly update: ProfilePrefsUpdate;
-}): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+}): Promise<
+  { readonly ok: true } | { readonly ok: false; readonly message: string }
+> {
   let signature: Uint8Array;
   try {
     signature = await input.signMessage(
@@ -68,14 +99,15 @@ export async function persistUserProfile(input: {
   } catch (err) {
     return {
       ok: false,
-      message: err instanceof Error ? err.message : 'Profile signature was rejected',
+      message:
+        err instanceof Error ? err.message : "Profile signature was rejected",
     };
   }
 
   try {
-    const res = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pubkey: input.pubkey,
         signature: bs58.encode(signature),
@@ -83,12 +115,17 @@ export async function persistUserProfile(input: {
       }),
     });
     if (res.ok) return { ok: true };
-    const body = (await res.json().catch(() => null)) as { message?: string } | null;
-    return { ok: false, message: body?.message ?? `Profile save failed (${res.status})` };
+    const body = (await res.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    return {
+      ok: false,
+      message: body?.message ?? `Profile save failed (${res.status})`,
+    };
   } catch (err) {
     return {
       ok: false,
-      message: err instanceof Error ? err.message : 'Profile save failed',
+      message: err instanceof Error ? err.message : "Profile save failed",
     };
   }
 }
@@ -112,12 +149,25 @@ export function useUserPrefs(): {
   }, []);
 
   useEffect(() => {
+    function onPrefsChanged(event: Event) {
+      const detail = (event as CustomEvent<UserPrefs>).detail;
+      setPrefsState(detail ?? loadPrefs());
+    }
+
+    window.addEventListener(PREFS_CHANGED_EVENT, onPrefsChanged);
+    return () => {
+      window.removeEventListener(PREFS_CHANGED_EVENT, onPrefsChanged);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!wallet.ready || !wallet.connected || !wallet.publicKeyBase58) return;
+    const pubkey = wallet.publicKeyBase58;
     let cancelled = false;
-    void loadServerPrefs(wallet.publicKeyBase58)
+    void loadServerPrefs(pubkey)
       .then((serverPrefs) => {
         if (cancelled || !serverPrefs) return;
-        const next = { ...loadPrefs(), ...serverPrefs };
+        const next = mergeServerPrefs(loadPrefs(), serverPrefs, pubkey);
         setPrefsState(next);
         savePrefs(next);
       })
@@ -156,24 +206,25 @@ export const RISK_PRESETS: Record<
   }
 > = {
   conservative: {
-    label: 'Conservative',
-    description: 'Low leverage, tight stops, max 20% into any one position. Slow and steady.',
+    label: "Conservative",
+    description:
+      "Low leverage, tight stops, max 20% into any one position. Slow and steady.",
     maxLeverage: 5,
     defaultLeverage: 2,
     defaultStopDistancePct: 3,
     maxCopyAllocPct: 20,
   },
   balanced: {
-    label: 'Balanced',
-    description: 'Moderate leverage, standard stops. Default for most retail.',
+    label: "Balanced",
+    description: "Moderate leverage, standard stops. Default for most retail.",
     maxLeverage: 15,
     defaultLeverage: 5,
     defaultStopDistancePct: 5,
     maxCopyAllocPct: 35,
   },
   aggressive: {
-    label: 'Aggressive',
-    description: 'Higher leverage, wider stops. For experienced traders only.',
+    label: "Aggressive",
+    description: "Higher leverage, wider stops. For experienced traders only.",
     maxLeverage: 30,
     defaultLeverage: 10,
     defaultStopDistancePct: 8,

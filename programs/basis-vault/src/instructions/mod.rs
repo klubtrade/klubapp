@@ -1,3 +1,5 @@
+mod credit_yield;
+pub use credit_yield::*;
 mod initialize_vault;
 pub use initialize_vault::*;
 mod init_position;
@@ -8,3 +10,7 @@ mod request_withdraw;
 pub use request_withdraw::*;
 mod set_deposits_enabled;
 pub use set_deposits_enabled::*;
+mod settle_deposit;
+pub use settle_deposit::*;
+mod settle_withdraw;
+pub use settle_withdraw::*;

@@ -1,15 +1,22 @@
-'use client';
+"use client";
 
-import { usePrivy } from '@privy-io/react-auth';
-import { useWallets } from '@privy-io/react-auth/solana';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { usePrivy } from "@privy-io/react-auth";
+import { useCreateWallet, useWallets } from "@privy-io/react-auth/solana";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 export interface TradingWalletSession {
   readonly ready: boolean;
   readonly connected: boolean;
   readonly publicKeyBase58: string | null;
   readonly signMessage: ((bytes: Uint8Array) => Promise<Uint8Array>) | null;
-  readonly source: 'privy' | null;
+  readonly source: "privy" | null;
   readonly promptConnect: () => void;
   readonly disconnect: () => Promise<void>;
 }
@@ -34,7 +41,26 @@ export function PrivyTradingWalletProvider({
   const mounted = useMounted();
   const privy = usePrivy();
   const solana = useWallets();
+  const { createWallet } = useCreateWallet();
   const privyWallet = solana.wallets[0] ?? null;
+
+  const promptConnect = useCallback(() => {
+    if (!privy.ready) return;
+
+    if (!privy.authenticated) {
+      privy.connectOrCreateWallet();
+      return;
+    }
+
+    if (privyWallet) {
+      privy.linkWallet({ walletChainType: "solana-only" });
+      return;
+    }
+
+    void createWallet().catch(() => {
+      privy.linkWallet({ walletChainType: "solana-only" });
+    });
+  }, [createWallet, privy, privyWallet]);
 
   const value = useMemo<TradingWalletSession>(
     () => ({
@@ -47,18 +73,25 @@ export function PrivyTradingWalletProvider({
             return result.signature;
           }
         : null,
-      source: privyWallet ? 'privy' : null,
-      promptConnect: () => privy.login(),
+      source: privyWallet ? "privy" : null,
+      promptConnect,
       disconnect: async () => privy.logout(),
     }),
-    [mounted, privy, privyWallet, solana.ready],
+    [mounted, privy, privyWallet, promptConnect, solana.ready],
   );
 
-  return <TradingWalletContext.Provider value={value}>{children}</TradingWalletContext.Provider>;
+  return (
+    <TradingWalletContext.Provider value={value}>
+      {children}
+    </TradingWalletContext.Provider>
+  );
 }
 
 export function useTradingWallet(): TradingWalletSession {
   const session = useContext(TradingWalletContext);
-  if (!session) throw new Error('useTradingWallet must be used inside a trading wallet provider');
+  if (!session)
+    throw new Error(
+      "useTradingWallet must be used inside a trading wallet provider",
+    );
   return session;
 }
