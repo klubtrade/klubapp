@@ -11,6 +11,8 @@ import {
   type Time,
 } from "lightweight-charts";
 
+import { prepareChartCandles } from "@/lib/market-data/candles";
+
 /**
  * <CandleChart /> — TradingView Lightweight Charts wrapper.
  *
@@ -149,13 +151,9 @@ export default function CandleChart({
     const chart = chartRef.current;
     if (!series || !chart) return;
 
-    const data = candles.map((c) => ({
-      // Bulk gives ms; lightweight-charts wants seconds.
-      time: (c.t / 1000) as Time,
-      open: Number(c.o),
-      high: Number(c.h),
-      low: Number(c.l),
-      close: Number(c.c),
+    const data = prepareChartCandles(candles).map((candle) => ({
+      ...candle,
+      time: candle.time as Time,
     }));
 
     series.setData(data);

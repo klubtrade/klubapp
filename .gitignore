@@ -13,3 +13,5 @@ coverage/
 .idea/
 .claude/
 *.tsbuildinfo
+.vercel
+.env*

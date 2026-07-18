@@ -40,6 +40,7 @@ export default function BasisPage() {
     | { readonly kind: "success"; readonly message: string }
     | { readonly kind: "error"; readonly message: string }
   >({ kind: "idle", message: null });
+  const [faucetClaiming, setFaucetClaiming] = useState(false);
   const vault = getBasisVaultConfig();
   const wallet = useTradingWallet();
   const symbols = useMemo<readonly MarketSymbol[]>(
@@ -123,6 +124,36 @@ export default function BasisPage() {
         kind: "error",
         message: err instanceof Error ? err.message : "Withdrawal failed.",
       });
+    }
+  }
+
+  async function claimVaultUsdc() {
+    if (!wallet.publicKeyBase58) {
+      wallet.promptConnect();
+      return;
+    }
+    setFaucetClaiming(true);
+    setTxStatus({ kind: "pending", message: "Preparing vault USDC…" });
+    try {
+      const response = await fetch("/api/basis/faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ owner: wallet.publicKeyBase58 }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Vault faucet is unavailable.");
+      }
+      setTxStatus({ kind: "success", message: "1,000 vault USDC is ready." });
+      await loadSnapshot();
+    } catch (err) {
+      setTxStatus({
+        kind: "error",
+        message:
+          err instanceof Error ? err.message : "Vault faucet is unavailable.",
+      });
+    } finally {
+      setFaucetClaiming(false);
     }
   }
 
@@ -283,7 +314,9 @@ export default function BasisPage() {
           vault={vault}
           walletAddress={wallet.publicKeyBase58}
           onConnect={wallet.promptConnect}
+          onFaucet={() => void claimVaultUsdc()}
           onRefresh={() => void loadSnapshot()}
+          faucetClaiming={faucetClaiming}
         />
 
         <div className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface">

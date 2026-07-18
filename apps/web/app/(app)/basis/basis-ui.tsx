@@ -24,7 +24,9 @@ export function VaultReadinessCard({
   vault,
   walletAddress,
   onConnect,
+  onFaucet,
   onRefresh,
+  faucetClaiming,
 }: {
   readonly connected: boolean;
   readonly snapshot: BasisVaultSnapshot | null;
@@ -32,7 +34,9 @@ export function VaultReadinessCard({
   readonly vault: BasisVaultConfig;
   readonly walletAddress: string | null;
   readonly onConnect: () => void;
+  readonly onFaucet: () => void;
   readonly onRefresh: () => void;
+  readonly faucetClaiming: boolean;
 }) {
   return (
     <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
@@ -92,8 +96,22 @@ export function VaultReadinessCard({
           />
           <button
             type="button"
+            onClick={onFaucet}
+            disabled={
+              faucetClaiming || (snapshot?.ownerUsdcBalance ?? 0) >= 1_000
+            }
+            className="btn-primary md:col-span-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {(snapshot?.ownerUsdcBalance ?? 0) >= 1_000
+              ? "Vault USDC ready"
+              : faucetClaiming
+                ? "Claiming…"
+                : "Claim 1,000 vault USDC"}
+          </button>
+          <button
+            type="button"
             onClick={onRefresh}
-            className="rounded-klub border border-border-subtle px-3 py-2 text-[11px] text-fg-secondary transition-colors hover:border-border md:col-span-4"
+            className="rounded-klub border border-border-subtle px-3 py-2 text-[11px] text-fg-secondary transition-colors hover:border-border md:col-span-2"
           >
             Refresh vault state
           </button>

@@ -37,7 +37,7 @@ export function MarketNewsTicker() {
   const item = items[activeIndex % Math.max(items.length, 1)];
 
   return (
-    <aside className="flex h-[92px] shrink-0 items-center border-t border-border-subtle bg-bg-base/55 px-5">
+    <aside className="flex h-[68px] shrink-0 items-center border-t border-border-subtle bg-bg-base/70 px-4">
       {item ? (
         <a
           key={item.id}

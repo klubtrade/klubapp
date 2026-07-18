@@ -39,7 +39,7 @@ export function PanelWatchlist({
   return (
     <section className="pro-panel flex flex-col overflow-hidden">
       <PanelHead>Watchlist</PanelHead>
-      <div className="grid min-h-0 flex-1 auto-rows-fr overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         {MARKETS.map((m) => {
           const live = livePrices[m.symbol];
           const displayMark = live?.mark ?? null;
@@ -56,7 +56,7 @@ export function PanelWatchlist({
               key={m.symbol}
               type="button"
               onClick={() => onSelect(m.symbol)}
-              className={`flex min-h-[52px] w-full items-center justify-between gap-2 border-b border-border-subtle px-4 py-3 text-left font-mono text-[13px] transition-colors ${
+              className={`flex w-full items-baseline justify-between border-b border-border-subtle px-3 py-2 text-left font-mono text-[12px] transition-colors ${
                 active ? "bg-accent/10" : "hover:bg-bg-elevated"
               }`}
             >
@@ -67,11 +67,11 @@ export function PanelWatchlist({
               >
                 {m.label}
               </span>
-              <span className="flex min-w-0 items-baseline justify-end gap-2">
-                <span className="truncate text-[13px] text-fg-secondary">
+              <span className="flex items-baseline gap-2">
+                <span className="text-fg-secondary">
                   {displayMark === null ? "—" : `$${formatPrice(displayMark)}`}
                 </span>
-                <span className={`shrink-0 text-[12px] ${chgTone}`}>
+                <span className={chgTone}>
                   {chg === undefined
                     ? "—"
                     : `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%`}
@@ -137,7 +137,7 @@ export function PanelChart({
           </div>
         </div>
       </PanelHead>
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         {state.status === "error" && candles.length === 0 ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-[12px] text-fg-muted">
             Couldn&rsquo;t load candles. Bulk&rsquo;s API may be slow —
@@ -147,13 +147,13 @@ export function PanelChart({
           <CandleChart key={`${symbol}-${interval}`} candles={candles} fill />
         )}
       </div>
-      <div className="border-t border-border-subtle px-4 py-1.5 font-mono text-[11px] text-fg-muted">
+      <MarketNewsTicker />
+      <div className="shrink-0 border-t border-border-subtle px-4 py-1.5 font-mono text-[11px] text-fg-muted">
         O {o === null ? "—" : `$${formatPrice(o)}`} · H{" "}
         {h === null ? "—" : `$${formatPrice(h)}`} · L{" "}
         {l === null ? "—" : `$${formatPrice(l)}`} · C{" "}
         {c === null ? "—" : `$${formatPrice(c)}`}
       </div>
-      <MarketNewsTicker />
     </section>
   );
 }

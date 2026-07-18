@@ -133,20 +133,20 @@ export default function ProPage() {
           livePrices={livePrices}
         />
 
-        <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)_320px] gap-2 p-2 xl:grid-cols-[260px_minmax(0,1fr)_330px] min-[1750px]:grid-cols-[280px_minmax(0,1fr)_350px]">
+        <div className="grid min-h-0 flex-1 grid-cols-[210px_minmax(0,1fr)_320px] gap-2 overflow-hidden p-2 xl:grid-cols-[220px_minmax(0,1fr)_250px_330px] min-[1750px]:grid-cols-[230px_minmax(0,1fr)_270px_350px]">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}
             livePrices={livePrices}
           />
 
-          <div className="grid min-w-0 grid-rows-[minmax(360px,1.2fr)_minmax(180px,0.55fr)] gap-2">
+          <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_190px] gap-2 overflow-hidden">
             <PanelChart
               symbol={symbol}
               interval={interval}
               onInterval={setInterval}
             />
-            <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(220px,0.65fr)] gap-2">
+            <div className="min-h-0 overflow-hidden">
               <PanelPositions
                 positions={accountState.data?.positions ?? []}
                 openOrders={accountState.data?.openOrders ?? []}
@@ -155,18 +155,21 @@ export default function ProPage() {
                 connected={connected}
                 onResult={handleResult}
               />
-              <PanelTape symbol={symbol} />
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-rows-[minmax(0,1fr)_minmax(160px,0.62fr)] gap-2">
+          <div className="hidden min-h-0 grid-rows-[minmax(0,1.25fr)_minmax(180px,0.75fr)] gap-2 overflow-hidden xl:grid">
+            <PanelOrderbook symbol={symbol} mark={mark} />
+            <PanelTape symbol={symbol} />
+          </div>
+
+          <div className="min-h-0 min-w-0 overflow-hidden">
             <PanelOrderForm
               symbol={symbol}
               mark={mark}
               connected={connected}
               onResult={handleResult}
             />
-            <PanelOrderbook symbol={symbol} mark={mark} />
           </div>
         </div>
 
