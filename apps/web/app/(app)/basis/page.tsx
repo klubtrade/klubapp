@@ -191,7 +191,7 @@ export default function BasisPage() {
 
           <div className="rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
             <label className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
-              Vault amount · USDC
+              Vault amount · mock USDC
             </label>
             <input
               type="number"
@@ -350,6 +350,9 @@ function VaultReadinessCard({
             Min ${vault.minDepositUsdc} · instant withdrawals ·{" "}
             {formatBasisVaultFee(vault.performanceFeeBps)} yield fee
           </div>
+          <div className="mt-1 text-[11px] text-accent">
+            Uses vault mock USDC, separate from Bulk test USDC.
+          </div>
         </div>
         <span
           className={`rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.08em] ${
@@ -377,7 +380,7 @@ function VaultReadinessCard({
             value={walletAddress ? shorten(walletAddress) : "—"}
           />
           <VaultMetric
-            label="Vault USDC"
+            label="Vault mock USDC"
             value={
               snapshotStatus === "loading"
                 ? "…"

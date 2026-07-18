@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useToast } from "@/components/toast";
 import { useBulkFaucet } from "@/hooks/use-bulk-faucet";
@@ -25,10 +25,22 @@ export default function OnboardingPage() {
   const toast = useToast();
   const router = useRouter();
   const [showInfo, setShowInfo] = useState(false);
+  const [connectStarted, setConnectStarted] = useState(false);
+
+  const hasWallet = wallet.connected && wallet.publicKeyBase58 !== null;
+
+  useEffect(() => {
+    if (hasWallet) setConnectStarted(false);
+  }, [hasWallet]);
+
+  function connectWallet() {
+    setConnectStarted(true);
+    wallet.promptConnect();
+  }
 
   function finish(destination: Destination) {
     if (!wallet.publicKeyBase58) {
-      wallet.promptConnect();
+      connectWallet();
       return;
     }
 
@@ -42,7 +54,7 @@ export default function OnboardingPage() {
 
   async function claimFunds() {
     if (!wallet.connected || !wallet.publicKeyBase58) {
-      wallet.promptConnect();
+      connectWallet();
       return;
     }
 
@@ -59,7 +71,6 @@ export default function OnboardingPage() {
 
   const claiming = faucet.state.status === "claiming";
   const claimed = faucet.state.status === "success";
-  const hasWallet = wallet.connected && wallet.publicKeyBase58 !== null;
   const infoText =
     "Bulk faucet gives 1,000 test USDC per wallet every 72 hours.";
 
@@ -95,13 +106,26 @@ export default function OnboardingPage() {
 
           <div className="mt-8 space-y-3">
             {!hasWallet ? (
-              <button
-                type="button"
-                onClick={() => wallet.promptConnect()}
-                className="btn-primary btn-block btn-lg"
-              >
-                {wallet.ready ? "Connect wallet" : "Loading wallet…"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={connectWallet}
+                  disabled={!wallet.ready}
+                  className="btn-primary btn-block btn-lg disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {wallet.ready ? "Connect wallet" : "Loading…"}
+                </button>
+                {connectStarted && !wallet.connectionError && (
+                  <p className="text-center text-[12px] text-fg-muted">
+                    Finish in Privy.
+                  </p>
+                )}
+                {wallet.connectionError && (
+                  <p className="text-center text-[12px] text-pnl-short">
+                    Wallet setup failed. Try again.
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <button
