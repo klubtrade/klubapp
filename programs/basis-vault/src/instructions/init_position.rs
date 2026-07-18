@@ -4,7 +4,10 @@ use {crate::state::*, quasar_lang::prelude::*};
 pub struct InitPosition<'info> {
     #[account(mut)]
     pub owner: &'info mut Signer,
-    pub vault: &'info Account<VaultConfig>,
+    // The vault is writable at transaction level because the following deposit
+    // instruction mutates it in the same atomic transaction.
+    #[account(mut)]
+    pub vault: &'info mut Account<VaultConfig>,
     #[account(mut, init, payer = owner, seeds = [b"basis_position", owner, vault], bump)]
     pub position: &'info mut Account<UserPosition>,
     pub system_program: &'info Program<System>,

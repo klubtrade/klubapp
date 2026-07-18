@@ -136,17 +136,9 @@ function ConnectedHome() {
         </div>
         <div className="grid grid-cols-4 gap-2 border-t border-border-subtle px-4 py-4 sm:px-6">
           <ActionCircle label="Trade" href="/trade" icon={<IconTrade />} />
-          <ActionCircle
-            label="Receive"
-            href="/funding"
-            icon={<IconReceive />}
-          />
-          <ActionCircle
-            label="Add funds"
-            href="/funding/add"
-            icon={<IconAdd />}
-          />
-          <ActionCircle label="Transfer" href="/funding" icon={<IconSend />} />
+          <ActionCircle label="Receive" href="/cash" icon={<IconReceive />} />
+          <ActionCircle label="Add funds" href="/cash/add" icon={<IconAdd />} />
+          <ActionCircle label="Transfer" href="/cash" icon={<IconSend />} />
         </div>
       </section>
 
@@ -288,7 +280,7 @@ function PositionsPreview({
               title="No open exposure"
               description="Your positions and unrealized PnL will appear here after your first trade."
               primaryCta={{ label: "Open Simple Trade", href: "/trade" }}
-              secondaryCta={{ label: "Add funds", href: "/funding" }}
+              secondaryCta={{ label: "Add funds", href: "/cash" }}
             />
           </div>
         ) : (

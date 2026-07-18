@@ -1,6 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import {
+  ArrowDownToLine,
+  ArrowUpRight,
+  CandlestickChart,
+  Plus,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 // =============================================================================
@@ -28,7 +34,7 @@ export function ActionCircle({
   const inner = (
     <div className="flex flex-col items-center gap-2">
       <div
-        className={`flex h-14 w-14 items-center justify-center rounded-full bg-accent/15 text-accent transition-all ${
+        className={`flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent transition-all sm:h-14 sm:w-14 ${
           disabled
             ? "opacity-40"
             : "hover:bg-accent/25 hover:scale-[1.04] active:scale-95"
@@ -66,56 +72,17 @@ export function ActionCircle({
 }
 
 export function IconSend() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 12l14-7-7 14-2-5-5-2z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <ArrowUpRight size={22} strokeWidth={1.7} aria-hidden />;
 }
 
 export function IconReceive() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 4v13m0 0l-5-5m5 5l5-5M5 21h14"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <ArrowDownToLine size={22} strokeWidth={1.7} aria-hidden />;
 }
 
 export function IconAdd() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 5v14M5 12h14"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <Plus size={22} strokeWidth={1.8} aria-hidden />;
 }
 
 export function IconTrade() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 7h13l-3-3m6 13H6l3 3"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <CandlestickChart size={22} strokeWidth={1.7} aria-hidden />;
 }

@@ -21,7 +21,8 @@ available vault custody.
 
 - `initialize_vault` creates the vault config PDA and the program-owned
   `vault_usdc` SPL token account.
-- `init_position` creates a wallet-scoped user position PDA.
+- `init_position` creates a wallet-scoped user position PDA. The client combines
+  it with `request_deposit` in one atomic transaction and one wallet signature.
 - `request_deposit` transfers SPL USDC from the user token account into
   `vault_usdc` and credits user principal.
 - `credit_yield` requires the strategy authority to transfer funded SPL USDC

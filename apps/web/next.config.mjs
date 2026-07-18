@@ -46,13 +46,13 @@ const config = {
         permanent: true,
       },
       {
-        source: "/cash/:path*",
-        destination: "/funding/:path*",
+        source: "/funding/:path*",
+        destination: "/cash/:path*",
         permanent: true,
       },
       {
         source: "/ramp/:path*",
-        destination: "/funding/add/:path*",
+        destination: "/cash/add/:path*",
         permanent: true,
       },
     ];

@@ -228,9 +228,9 @@ export function CommandPalette({
       {
         id: "nav-ramp",
         label: "Add funds",
-        hint: "/funding/add",
+        hint: "/cash/add",
         run: () => {
-          window.location.href = "/funding/add";
+          window.location.href = "/cash/add";
         },
       },
     ],

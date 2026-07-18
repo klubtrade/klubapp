@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 
 /**
  * Invite redemption - minimalist.
@@ -10,7 +10,7 @@ import { useState } from 'react';
  * /onboarding, not here - we keep this screen about one decision only.
  */
 
-type Status = 'idle' | 'submitting' | 'ok' | 'err';
+type Status = "idle" | "submitting" | "ok" | "err";
 
 export function InviteFlow({
   code,
@@ -21,44 +21,44 @@ export function InviteFlow({
   readonly label: string;
   readonly remaining?: number;
 }) {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<Status>('idle');
-  const [errMsg, setErrMsg] = useState('');
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [errMsg, setErrMsg] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (status === 'submitting') return;
-    setStatus('submitting');
-    setErrMsg('');
+    if (status === "submitting") return;
+    setStatus("submitting");
+    setErrMsg("");
     try {
-      const res = await fetch('/api/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, email }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setStatus('err');
+        setStatus("err");
         setErrMsg(
-          body.error === 'invalid_code'
-            ? 'Code no longer valid.'
-            : body.error === 'invalid_payload'
-              ? 'Check your email format.'
-              : 'Something went wrong. Try again.',
+          body.error === "invalid_code"
+            ? "Code no longer valid."
+            : body.error === "invalid_payload"
+              ? "Check your email format."
+              : "Something went wrong. Try again.",
         );
         return;
       }
-      setStatus('ok');
+      setStatus("ok");
     } catch {
-      setStatus('err');
-      setErrMsg('Network error. Try again.');
+      setStatus("err");
+      setErrMsg("Network error. Try again.");
     }
   }
 
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
       <section className="mx-auto w-full max-w-md">
-        {status === 'ok' ? (
+        {status === "ok" ? (
           <SuccessPanel />
         ) : (
           <>
@@ -88,19 +88,19 @@ export function InviteFlow({
 
               <button
                 type="submit"
-                disabled={status === 'submitting'}
+                disabled={status === "submitting"}
                 className="btn-primary btn-block btn-lg mt-4"
               >
-                {status === 'submitting' ? 'Joining…' : 'Join the klub'}
+                {status === "submitting" ? "Joining…" : "Join the klub"}
               </button>
 
-              {status === 'err' && (
+              {status === "err" && (
                 <div className="mt-3 text-[13px] text-pnl-short">{errMsg}</div>
               )}
 
-              {typeof remaining === 'number' && remaining > 0 && (
+              {typeof remaining === "number" && remaining > 0 && (
                 <div className="mt-6 text-[11px] text-fg-muted">
-                  {remaining} spot{remaining === 1 ? '' : 's'} remaining
+                  {remaining} spot{remaining === 1 ? "" : "s"} remaining
                 </div>
               )}
             </form>
@@ -123,7 +123,7 @@ function SuccessPanel() {
       <p className="mt-4 text-[15px] leading-relaxed text-fg-secondary">
         Check your email for the sign-in link. Set up takes about a minute.
       </p>
-      <a href="/funding" className="btn-primary btn-block btn-lg mt-8">
+      <a href="/cash" className="btn-primary btn-block btn-lg mt-8">
         Continue to home
       </a>
     </div>

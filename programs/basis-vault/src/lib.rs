@@ -27,14 +27,14 @@ mod basis_vault {
         )
     }
 
-    #[instruction(discriminator = [2])]
-    pub fn init_position(ctx: Ctx<InitPosition>) -> Result<(), ProgramError> {
-        ctx.accounts.handler(&ctx.bumps)
-    }
-
     #[instruction(discriminator = [3])]
     pub fn request_deposit(ctx: Ctx<RequestDeposit>, amount_usdc: u64) -> Result<(), ProgramError> {
         ctx.accounts.handler(amount_usdc)
+    }
+
+    #[instruction(discriminator = [2])]
+    pub fn init_position(ctx: Ctx<InitPosition>) -> Result<(), ProgramError> {
+        ctx.accounts.handler(&ctx.bumps)
     }
 
     #[instruction(discriminator = [4])]

@@ -37,7 +37,7 @@ describe("navigation", () => {
 
   it("recognizes secondary routes without treating them as primary", () => {
     expect(isMoreNavigationActive("/cash")).toBe(true);
-    expect(isMoreNavigationActive("/funding/add")).toBe(true);
+    expect(isMoreNavigationActive("/cash/add")).toBe(true);
     expect(isMoreNavigationActive("/ramp")).toBe(true);
     expect(isMoreNavigationActive("/basis/details")).toBe(true);
     expect(isMoreNavigationActive("/more")).toBe(true);
@@ -47,12 +47,14 @@ describe("navigation", () => {
 
   it("canonicalizes legacy and overlapping routes", () => {
     expect(canonicalizePathname("/home")).toBe("/portfolio");
-    expect(canonicalizePathname("/home/positions")).toBe("/portfolio/positions");
-    expect(canonicalizePathname("/cash")).toBe("/funding");
+    expect(canonicalizePathname("/home/positions")).toBe(
+      "/portfolio/positions",
+    );
+    expect(canonicalizePathname("/funding")).toBe("/cash");
     expect(canonicalizePathname("/quick-trade")).toBe("/trade");
     expect(canonicalizePathname("/follow/alpha")).toBe("/copy/alpha");
     expect(canonicalizePathname("/copy-trade")).toBe("/copy");
-    expect(canonicalizePathname("/ramp")).toBe("/funding/add");
+    expect(canonicalizePathname("/ramp")).toBe("/cash/add");
     expect(canonicalizePathname("/portfolio")).toBeNull();
   });
 
@@ -60,8 +62,6 @@ describe("navigation", () => {
     const items = MORE_NAVIGATION.flatMap((group) => group.items);
     expect(items.find(({ href }) => href === "/pro")?.badge).toBe("Advanced");
     expect(items.find(({ href }) => href === "/basis")?.badge).toBe("Testnet");
-    expect(
-      items.find(({ href }) => href === "/funding")?.label,
-    ).toBe("Cash");
+    expect(items.find(({ href }) => href === "/cash")?.label).toBe("Cash");
   });
 });

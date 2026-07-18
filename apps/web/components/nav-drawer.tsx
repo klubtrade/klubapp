@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { WalletButton } from "@/components/wallet-button";
+import { NavigationIcon } from "@/components/navigation-icon";
 import {
   isNavigationItemActive,
   MORE_NAVIGATION,
@@ -95,33 +98,16 @@ export function NavDrawer() {
           }}
           className="inline-flex h-10 w-10 items-center justify-center rounded-klub border border-border-subtle bg-bg-base text-fg-primary transition-colors hover:bg-bg-elevated"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden
-          >
-            <path
-              d="M3 6h14M3 10h14M3 14h14"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Menu size={19} strokeWidth={1.7} aria-hidden />
         </button>
 
-        <div
-          role="img"
-          aria-label="KLUB"
-          className="flex items-center gap-2 font-semibold tracking-[-0.02em] text-fg-primary"
-        >
-          <span
-            aria-hidden
-            className="h-2.5 w-2.5 rounded-full bg-accent shadow-[0_0_12px_rgba(232,182,71,0.6)]"
-          />
-          klub
-        </div>
+        <Image
+          src="/privy-logo.png"
+          alt="KLUB"
+          width={64}
+          height={32}
+          className="h-9 w-16 object-contain"
+        />
       </div>
 
       {/* Backdrop */}
@@ -161,9 +147,9 @@ export function NavDrawer() {
             onClick={() => {
               setOpen(false);
             }}
-            className="text-xl text-fg-muted transition-colors hover:text-fg-primary"
+            className="rounded-lg p-2 text-fg-muted transition-colors hover:bg-bg-surface hover:text-fg-primary"
           >
-            ×
+            <X size={20} aria-hidden />
           </button>
         </div>
 
@@ -180,14 +166,15 @@ export function NavDrawer() {
                     <li key={item.href}>
                       <Link
                         href={item.href}
-                        className={`block rounded-md px-3 py-2.5 text-[16px] transition-colors ${
+                        className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-[16px] transition-colors ${
                           active
                             ? "bg-bg-surface text-accent"
                             : "text-fg-primary hover:bg-bg-surface hover:text-fg-primary"
                         }`}
                       >
-                        <span className="flex items-center justify-between gap-3">
-                          <span>
+                        <NavigationIcon href={item.href} size={20} />
+                        <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                          <span className="min-w-0">
                             <span className="block">{item.label}</span>
                             {item.description && (
                               <span className="mt-0.5 block text-[11px] text-fg-muted">

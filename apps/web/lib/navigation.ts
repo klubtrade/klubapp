@@ -16,11 +16,11 @@ export interface NavigationGroup {
 
 export const CANONICAL_ROUTE_ALIASES = [
   { from: "/home", to: "/portfolio" },
-  { from: "/cash", to: "/funding" },
+  { from: "/funding", to: "/cash" },
   { from: "/quick-trade", to: "/trade" },
   { from: "/follow", to: "/copy" },
   { from: "/copy-trade", to: "/copy" },
-  { from: "/ramp", to: "/funding/add" },
+  { from: "/ramp", to: "/cash/add" },
 ] as const;
 
 /** The only destinations that compete for primary-navigation attention. */
@@ -51,10 +51,10 @@ export const MORE_NAVIGATION: readonly NavigationGroup[] = [
     label: "Money",
     items: [
       {
-        href: "/funding",
+        href: "/cash",
         label: "Cash",
         description: "Add, send and receive funds",
-        aliases: ["/cash", "/ramp"],
+        aliases: ["/funding", "/ramp"],
       },
     ],
   },

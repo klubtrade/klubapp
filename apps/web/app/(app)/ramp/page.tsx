@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 
-import { useToast } from '@/components/toast';
+import { useToast } from "@/components/toast";
 
 /**
- * /funding/add - fiat on-ramp.
+ * /cash/add - fiat on-ramp.
  *
  * Visible by default:
  *   - Amount field with preset buttons
@@ -16,25 +16,25 @@ import { useToast } from '@/components/toast';
  *   - Fee breakdown, you-receive, settlement time
  */
 
-type Method = 'apple-pay' | 'card' | 'bank';
+type Method = "apple-pay" | "card" | "bank";
 
 const PRESETS = [50, 100, 500, 1_000] as const;
 
 const FEES_BY_METHOD: Record<Method, number> = {
-  'apple-pay': 2.5,
+  "apple-pay": 2.5,
   card: 2.9,
   bank: 0.5,
 };
 
 const METHOD_LABEL: Record<Method, string> = {
-  'apple-pay': 'Apple Pay',
-  card: 'Card',
-  bank: 'Bank',
+  "apple-pay": "Apple Pay",
+  card: "Card",
+  bank: "Bank",
 };
 
 export default function RampPage() {
   const [amount, setAmount] = useState(100);
-  const [method, setMethod] = useState<Method>('apple-pay');
+  const [method, setMethod] = useState<Method>("apple-pay");
   const [showReview, setShowReview] = useState(false);
   const toast = useToast();
 
@@ -43,12 +43,12 @@ export default function RampPage() {
   const youReceive = amount - feeAmount;
 
   function handleSubmit() {
-    const coinbaseAppId = process.env['NEXT_PUBLIC_COINBASE_ONRAMP_APP_ID'];
+    const coinbaseAppId = process.env["NEXT_PUBLIC_COINBASE_ONRAMP_APP_ID"];
     if (!coinbaseAppId) {
-      toast.warning('Ramp provider not configured');
+      toast.warning("Ramp provider not configured");
       return;
     }
-    toast.success('Redirecting to Coinbase');
+    toast.success("Redirecting to Coinbase");
   }
 
   return (
@@ -97,8 +97,8 @@ export default function RampPage() {
               }}
               className={`rounded-klub border px-3 py-2 text-[13px] font-medium transition-colors ${
                 amount === v
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-border-subtle bg-bg-surface text-fg-secondary hover:border-border'
+                  ? "border-accent bg-accent/10 text-accent"
+                  : "border-border-subtle bg-bg-surface text-fg-secondary hover:border-border"
               }`}
             >
               ${v}
@@ -108,7 +108,7 @@ export default function RampPage() {
 
         {/* Method */}
         <div className="mt-8 space-y-2">
-          {(['apple-pay', 'card', 'bank'] as const).map((m) => (
+          {(["apple-pay", "card", "bank"] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -117,12 +117,16 @@ export default function RampPage() {
               }}
               className={`flex w-full items-center justify-between rounded-klub border px-4 py-3.5 text-left transition-colors ${
                 method === m
-                  ? 'border-accent bg-accent/5'
-                  : 'border-border-subtle bg-bg-surface hover:border-border'
+                  ? "border-accent bg-accent/5"
+                  : "border-border-subtle bg-bg-surface hover:border-border"
               }`}
             >
-              <span className="text-[14px] font-medium text-fg-primary">{METHOD_LABEL[m]}</span>
-              <span className="font-mono text-[11px] text-fg-muted">{FEES_BY_METHOD[m]}%</span>
+              <span className="text-[14px] font-medium text-fg-primary">
+                {METHOD_LABEL[m]}
+              </span>
+              <span className="font-mono text-[11px] text-fg-muted">
+                {FEES_BY_METHOD[m]}%
+              </span>
             </button>
           ))}
         </div>
@@ -144,26 +148,33 @@ export default function RampPage() {
           aria-expanded={showReview}
           className="mt-6 self-start text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
         >
-          {showReview ? 'Hide breakdown' : 'Show breakdown'}
+          {showReview ? "Hide breakdown" : "Show breakdown"}
         </button>
 
         {showReview && (
           <div className="mt-4 space-y-2.5 border-t border-border-subtle pt-5 text-[13px]">
             <div className="flex items-baseline justify-between">
               <span className="text-fg-muted">You pay</span>
-              <span className="font-mono text-fg-primary">${amount.toFixed(2)}</span>
+              <span className="font-mono text-fg-primary">
+                ${amount.toFixed(2)}
+              </span>
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-fg-muted">Fee</span>
-              <span className="font-mono text-fg-muted">−${feeAmount.toFixed(2)}</span>
+              <span className="font-mono text-fg-muted">
+                −${feeAmount.toFixed(2)}
+              </span>
             </div>
             <div className="flex items-baseline justify-between border-t border-border-subtle pt-2.5">
               <span className="text-fg-muted">You receive</span>
-              <span className="font-mono text-accent">${youReceive.toFixed(2)} USDC</span>
+              <span className="font-mono text-accent">
+                ${youReceive.toFixed(2)} USDC
+              </span>
             </div>
             <div className="pt-2 text-[11px] text-fg-muted">
-              Settles in {method === 'bank' ? '1-3 business days' : '2-5 minutes'}. KLUB never
-              sees your card or bank details.
+              Settles in{" "}
+              {method === "bank" ? "1-3 business days" : "2-5 minutes"}. KLUB
+              never sees your card or bank details.
             </div>
           </div>
         )}

@@ -54,14 +54,16 @@ export default function AppLayout({
           />
           <NavDrawer />
           <div className="pointer-events-none fixed right-4 top-4 z-30 flex items-center gap-2 md:right-6 md:top-6">
-            <div className="pointer-events-auto">
+            <div className="pointer-events-auto hidden min-[430px]:block">
               <AccountSwitcher />
             </div>
             <div className="pointer-events-auto">
               <WalletButton variant="secondary" size="sm" />
             </div>
           </div>
-          <div className="isolate md:pl-20">{children}</div>
+          <div className="isolate min-w-0 overflow-x-clip md:pl-20">
+            {children}
+          </div>
           <CopyTradeBanner />
         </CopyTradeProvider>
       </ActiveAccountProvider>

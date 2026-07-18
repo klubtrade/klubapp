@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { MORE_NAVIGATION } from "@/lib/navigation";
 
+import { HubIcon } from "./hub-icon";
+
 export default function MorePage() {
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
@@ -34,7 +36,7 @@ export default function MorePage() {
                     <HubIcon href={item.href} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[14px] font-semibold text-fg-primary">
                             {item.label}
                           </div>
@@ -45,13 +47,16 @@ export default function MorePage() {
                           )}
                         </div>
                         {item.badge && (
-                          <span className="rounded-full border border-border-subtle px-2 py-1 text-[9px] uppercase tracking-[0.08em] text-fg-muted">
+                          <span className="hidden shrink-0 rounded-full border border-border-subtle px-2 py-1 text-[9px] uppercase tracking-[0.08em] text-fg-muted min-[430px]:inline-flex">
                             {item.badge}
                           </span>
                         )}
                       </div>
                     </div>
-                    <span aria-hidden className="text-[20px] text-fg-muted">
+                    <span
+                      aria-hidden
+                      className="shrink-0 text-[20px] text-fg-muted"
+                    >
                       ›
                     </span>
                   </Link>
@@ -62,29 +67,5 @@ export default function MorePage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function HubIcon({ href }: { readonly href: string }) {
-  const label =
-    href === "/funding"
-      ? "$"
-      : href === "/pro"
-        ? "↗"
-        : href === "/earn"
-          ? "%"
-          : href === "/basis"
-            ? "≈"
-            : href === "/desk"
-              ? "ƒ"
-              : href === "/practice"
-                ? "P"
-                : href === "/calculator"
-                  ? "="
-                  : "+";
-  return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-klub border border-accent/15 bg-accent/10 font-mono text-[17px] text-accent">
-      {label}
-    </span>
   );
 }

@@ -215,7 +215,7 @@ export default function QuickTradePage() {
           title="No open trades yet"
           description="After you place a trade, positions and waiting orders will appear here."
           primaryCta={{ label: "Keep trading", href: "/trade" }}
-          secondaryCta={{ label: "Check cash", href: "/funding" }}
+          secondaryCta={{ label: "Check cash", href: "/cash" }}
         />
       )}
     </>

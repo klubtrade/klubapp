@@ -146,7 +146,10 @@ export function PrivyTradingWalletProvider({
               transaction,
               wallet: privyWallet,
               chain: SOLANA_DEVNET_CHAIN,
-              options: { optimisticBroadcast: true },
+              options: {
+                optimisticBroadcast: false,
+                skipSimulation: false,
+              },
             });
             return result.signature;
           }

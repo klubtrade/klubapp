@@ -164,7 +164,10 @@ export default function BasisPage() {
   const depositDisabled =
     !vault.ready ||
     pending ||
-    (connected && (amount < vault.minDepositUsdc || amount > ownerUsdc));
+    (connected &&
+      (amount < vault.minDepositUsdc ||
+        amount > ownerUsdc ||
+        snapshot?.gasReady !== true));
   const withdrawDisabled =
     !vault.ready ||
     !connected ||
@@ -177,18 +180,30 @@ export default function BasisPage() {
       <section className="mx-auto w-full max-w-2xl">
         <header>
           <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-accent">
-            Basis trade
+            Earn
           </div>
           <h1 className="mt-2 text-[30px] font-semibold tracking-[-0.03em] text-fg-primary md:text-[42px]">
-            Capture funding without picking direction.
+            Basis vault
           </h1>
           <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-fg-muted">
-            KLUB scans Bulk funding and builds a neutral long/short plan.
+            Deposit vault mock USDC. Earn funded basis carry. Withdraw anytime.
           </p>
         </header>
 
+        <VaultReadinessCard
+          connected={connected}
+          snapshot={snapshot}
+          snapshotStatus={snapshotStatus}
+          vault={vault}
+          walletAddress={wallet.publicKeyBase58}
+          onConnect={wallet.promptConnect}
+          onFaucet={() => void claimVaultUsdc()}
+          onRefresh={() => void loadSnapshot()}
+          faucetClaiming={faucetClaiming}
+        />
+
         <div className="mt-8 grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+          <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
             <div className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
               Best current carry
             </div>
@@ -229,7 +244,7 @@ export default function BasisPage() {
             )}
           </div>
 
-          <div className="rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+          <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
             <label className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
               Vault amount · mock USDC
             </label>
@@ -273,6 +288,7 @@ export default function BasisPage() {
                 amount,
                 minDeposit: vault.minDepositUsdc,
                 ownerUsdc,
+                gasReady: snapshot?.gasReady === true,
               })}
             </button>
             <button
@@ -306,18 +322,6 @@ export default function BasisPage() {
             </Link>
           </div>
         </div>
-
-        <VaultReadinessCard
-          connected={connected}
-          snapshot={snapshot}
-          snapshotStatus={snapshotStatus}
-          vault={vault}
-          walletAddress={wallet.publicKeyBase58}
-          onConnect={wallet.promptConnect}
-          onFaucet={() => void claimVaultUsdc()}
-          onRefresh={() => void loadSnapshot()}
-          faucetClaiming={faucetClaiming}
-        />
 
         <div className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface">
           <div className="border-b border-border-subtle px-5 py-4">

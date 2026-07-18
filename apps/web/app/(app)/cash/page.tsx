@@ -25,7 +25,7 @@ import {
 } from "./_components";
 
 /**
- * /funding - balances, transfers, pots, and funding entry points.
+ * /cash - balances, transfers, pots, and funding entry points.
  *
  * Q1 of the NeoBank pivot. Today this page wires:
  *   - Real master account balance (`useBulkAccount`)
@@ -80,7 +80,7 @@ function CashPageInner() {
   const [showReceive, setShowReceive] = useState(false);
   const [result, setResult] = useState<SubmitOrderResult | null>(null);
 
-  // Pay-by-link: `/funding?to=<pubkey>&amount=10` opens the Send modal
+  // Pay-by-link: `/cash?to=<pubkey>&amount=10` opens the Send modal
   // pre-filled. Handles (`@micah`) are resolved client-side to pubkeys
   // once the handle endpoint ships; for now we just pass strings
   // through and let the user see the literal value.
@@ -120,6 +120,14 @@ function CashPageInner() {
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
       <div className="mx-auto w-full max-w-5xl">
+        <header className="mb-6">
+          <h1 className="text-[30px] font-semibold tracking-[-0.03em] text-fg-primary md:text-[40px]">
+            Cash
+          </h1>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            Move funds and organize trading accounts.
+          </p>
+        </header>
         <section className="rounded-klub-lg border border-border-subtle bg-bg-surface p-5 md:p-7">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.12em] text-fg-muted">
             <span className="truncate">
@@ -158,7 +166,7 @@ function CashPageInner() {
                       : "Loading…"}
               </div>
 
-              <div className="mt-7 grid grid-cols-4 gap-3">
+              <div className="mt-7 grid grid-cols-4 gap-1 sm:gap-3">
                 <ActionCircle
                   label="Send"
                   disabled={!connected}
@@ -171,11 +179,7 @@ function CashPageInner() {
                   onClick={() => setShowReceive(true)}
                   icon={<IconReceive />}
                 />
-                <ActionCircle
-                  label="Add"
-                  href="/funding/add"
-                  icon={<IconAdd />}
-                />
+                <ActionCircle label="Add" href="/cash/add" icon={<IconAdd />} />
                 <ActionCircle
                   label="Trade"
                   href="/trade"

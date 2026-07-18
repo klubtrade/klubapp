@@ -5,6 +5,7 @@ import {
   compileTransaction,
   createSolanaRpc,
   createTransactionMessage,
+  getBase64EncodedWireTransaction,
   getAddressEncoder,
   getProgramDerivedAddress,
   getTransactionEncoder,
@@ -25,6 +26,7 @@ import { getBasisVaultConfig } from "./config";
 
 const SYSTEM_PROGRAM_ADDRESS = address("11111111111111111111111111111111");
 const BASIS_VAULT_DECIMALS = 6;
+export const BASIS_MIN_GAS_LAMPORTS = 3_000_000n;
 const BASIS_VAULT_DISCRIMINATORS = {
   initPosition: 2,
   requestDeposit: 3,
@@ -53,6 +55,8 @@ export interface BasisUserPosition {
 
 export interface BasisVaultSnapshot {
   readonly vaultReady: boolean;
+  readonly gasReady: boolean;
+  readonly ownerSolLamports: bigint;
   readonly ownerUsdcBalance: number;
   readonly vaultDepositedUsdc: number;
   readonly vaultClaimableYieldUsdc: number;
@@ -67,11 +71,13 @@ export async function getBasisVaultSnapshot(
   const rpc = createSolanaRpc(config.rpcUrl);
   const addresses = await deriveBasisVaultAddresses(ownerBase58);
 
-  const [vaultAccount, positionAccount, ownerUsdcAccount] = await Promise.all([
-    rpc.getAccountInfo(addresses.vault, { encoding: "base64" }).send(),
-    rpc.getAccountInfo(addresses.position, { encoding: "base64" }).send(),
-    rpc.getAccountInfo(addresses.ownerUsdc, { encoding: "base64" }).send(),
-  ]);
+  const [vaultAccount, positionAccount, ownerUsdcAccount, ownerBalance] =
+    await Promise.all([
+      rpc.getAccountInfo(addresses.vault, { encoding: "base64" }).send(),
+      rpc.getAccountInfo(addresses.position, { encoding: "base64" }).send(),
+      rpc.getAccountInfo(addresses.ownerUsdc, { encoding: "base64" }).send(),
+      rpc.getBalance(addresses.owner).send(),
+    ]);
 
   const vaultData = accountDataBytes(vaultAccount.value?.data);
   const positionData = accountDataBytes(positionAccount.value?.data);
@@ -81,6 +87,8 @@ export async function getBasisVaultSnapshot(
 
   return {
     vaultReady: Boolean(vaultState),
+    gasReady: ownerBalance.value >= BASIS_MIN_GAS_LAMPORTS,
+    ownerSolLamports: ownerBalance.value,
     ownerUsdcBalance: ownerUsdcData ? rawToUsdc(readU64(ownerUsdcData, 64)) : 0,
     vaultDepositedUsdc: vaultState ? rawToUsdc(vaultState.totalDeposited) : 0,
     vaultClaimableYieldUsdc: vaultState
@@ -118,12 +126,11 @@ export async function buildBasisDepositTransaction({
 
   const instructions: Instruction[] = [createOwnerAtaInstruction(addresses)];
 
-  if (!positionExists) {
-    instructions.push(initPositionInstruction(addresses));
-  }
+  if (!positionExists) instructions.push(initPositionInstruction(addresses));
   instructions.push(requestDepositInstruction(addresses, amountRaw));
 
-  return buildUnsignedTransaction({
+  return await buildUnsignedTransaction({
+    rpc,
     feePayer: addresses.owner,
     latestBlockhash,
     instructions,
@@ -143,7 +150,8 @@ export async function buildBasisWithdrawTransaction({
   const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
   const amountRaw = usdcToRaw(amountUsdc);
 
-  return buildUnsignedTransaction({
+  return await buildUnsignedTransaction({
+    rpc,
     feePayer: addresses.owner,
     latestBlockhash,
     instructions: [
@@ -262,7 +270,7 @@ function initPositionInstruction(addresses: BasisVaultAddresses): Instruction {
     programAddress: addresses.programId,
     accounts: [
       { address: addresses.owner, role: AccountRole.WRITABLE_SIGNER },
-      { address: addresses.vault, role: AccountRole.READONLY },
+      { address: addresses.vault, role: AccountRole.WRITABLE },
       { address: addresses.position, role: AccountRole.WRITABLE },
       { address: SYSTEM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
     ],
@@ -316,18 +324,20 @@ function requestWithdrawInstruction(
   };
 }
 
-function buildUnsignedTransaction({
+async function buildUnsignedTransaction({
+  rpc,
   feePayer,
   latestBlockhash,
   instructions,
 }: {
+  readonly rpc: ReturnType<typeof createSolanaRpc>;
   readonly feePayer: Address;
   readonly latestBlockhash: {
     readonly blockhash: Blockhash;
     readonly lastValidBlockHeight: bigint;
   };
   readonly instructions: readonly Instruction[];
-}): Uint8Array {
+}): Promise<Uint8Array> {
   const message = pipe(
     createTransactionMessage({ version: "legacy" }),
     (m) => setTransactionMessageFeePayer(feePayer, m),
@@ -335,7 +345,49 @@ function buildUnsignedTransaction({
     (m) => appendTransactionMessageInstructions(instructions, m),
   );
   const transaction = compileTransaction(message);
+  const simulation = await rpc
+    .simulateTransaction(getBase64EncodedWireTransaction(transaction), {
+      commitment: "confirmed",
+      encoding: "base64",
+      sigVerify: false,
+    })
+    .send();
+  if (simulation.value.err) {
+    console.error("[basis-vault] preflight failed", {
+      error: simulation.value.err,
+      logs: simulation.value.logs,
+    });
+    throw new Error(basisSimulationError(simulation.value.logs ?? []));
+  }
   return Uint8Array.from(getTransactionEncoder().encode(transaction));
+}
+
+function basisSimulationError(logs: readonly string[]): string {
+  const detail = logs.join("\n").toLowerCase();
+  if (
+    detail.includes("insufficient funds") ||
+    detail.includes("insufficient lamports")
+  ) {
+    return "This wallet needs devnet SOL for the first deposit. Claim vault funds once more, then retry.";
+  }
+  if (
+    detail.includes("already in use") ||
+    detail.includes("already initialized")
+  ) {
+    return "Your vault position already exists. Refreshing it before another deposit.";
+  }
+  if (
+    detail.includes("invalidargument") ||
+    detail.includes("invalid argument")
+  ) {
+    return "Deposit must be at least 100 vault mock USDC.";
+  }
+  const programLog = [...logs]
+    .reverse()
+    .find((line) => /program log:|program .* failed:/i.test(line));
+  return programLog
+    ? `Vault preflight failed: ${programLog.replace(/^program log:\s*/i, "")}`
+    : "Vault preflight failed. Refresh your balance and try again.";
 }
 
 function accountDataBytes(
@@ -352,8 +404,8 @@ function decodeVault(data: Uint8Array): {
 } {
   if (data[0] !== 1) throw new Error("Invalid Basis vault account.");
   return {
-    totalDeposited: readU64(data, 149),
-    totalClaimableYield: readU64(data, 173),
+    totalDeposited: readU64(data, 172),
+    totalClaimableYield: readU64(data, 188),
   };
 }
 
@@ -364,9 +416,9 @@ function decodePosition(data: Uint8Array): {
 } {
   if (data[0] !== 2) throw new Error("Invalid Basis position account.");
   return {
-    deposited: readU64(data, 81),
-    claimableYield: readU64(data, 89),
-    requestCount: readU64(data, 97),
+    deposited: readU64(data, 65),
+    claimableYield: readU64(data, 73),
+    requestCount: readU64(data, 81),
   };
 }
 

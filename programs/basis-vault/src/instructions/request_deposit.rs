@@ -28,77 +28,96 @@ pub struct RequestDeposit<'info> {
 impl<'info> RequestDeposit<'info> {
     #[inline(always)]
     pub fn handler(&mut self, amount_usdc: u64) -> Result<(), ProgramError> {
-        require!(
-            amount_usdc >= self.vault.min_deposit_usdc.into(),
-            ProgramError::InvalidArgument
-        );
-        require!(
-            self.vault.status == VAULT_STATUS_ACTIVE,
-            ProgramError::InvalidAccountData
-        );
-        require_keys_eq!(
-            *self.usdc_mint.address(),
-            self.vault.usdc_mint,
-            ProgramError::InvalidAccountData
-        );
-        require_keys_eq!(
-            *self.vault_usdc.address(),
-            self.vault.vault_usdc,
-            ProgramError::InvalidAccountData
-        );
-        require_keys_eq!(
-            *self.owner_usdc.mint(),
-            self.vault.usdc_mint,
-            ProgramError::InvalidAccountData
-        );
-        require_keys_eq!(
-            *self.owner_usdc.owner(),
-            *self.owner.address(),
-            ProgramError::InvalidAccountData
-        );
-        require_keys_eq!(
-            *self.vault_usdc.mint(),
-            self.vault.usdc_mint,
-            ProgramError::InvalidAccountData
-        );
-        require_keys_eq!(
-            *self.vault_usdc.owner(),
-            *self.vault.address(),
-            ProgramError::InvalidAccountData
-        );
-
-        self.token_program
-            .transfer_checked(
-                self.owner_usdc,
-                self.usdc_mint,
-                self.vault_usdc,
-                self.owner,
-                amount_usdc,
-                self.vault.usdc_decimals,
-            )
-            .invoke()?;
-
-        self.position.deposited_usdc = self
-            .position
-            .deposited_usdc
-            .checked_add(amount_usdc)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        self.position.request_count = self
-            .position
-            .request_count
-            .checked_add(1)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        self.vault.total_deposited_usdc = self
-            .vault
-            .total_deposited_usdc
-            .checked_add(amount_usdc)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        self.vault.request_count = self
-            .vault
-            .request_count
-            .checked_add(1)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-
-        Ok(())
+        execute_deposit(
+            self.owner,
+            self.vault,
+            self.position,
+            self.owner_usdc,
+            self.vault_usdc,
+            self.usdc_mint,
+            self.token_program,
+            amount_usdc,
+        )
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn execute_deposit<'info>(
+    owner: &'info Signer,
+    vault: &'info mut Account<VaultConfig>,
+    position: &'info mut Account<UserPosition>,
+    owner_usdc: &'info mut Account<Token>,
+    vault_usdc: &'info mut Account<Token>,
+    usdc_mint: &'info Account<Mint>,
+    token_program: &'info Program<Token>,
+    amount_usdc: u64,
+) -> Result<(), ProgramError> {
+    require!(
+        amount_usdc >= vault.min_deposit_usdc.into(),
+        ProgramError::InvalidArgument
+    );
+    require!(
+        vault.status == VAULT_STATUS_ACTIVE,
+        ProgramError::InvalidAccountData
+    );
+    require_keys_eq!(
+        *usdc_mint.address(),
+        vault.usdc_mint,
+        ProgramError::InvalidAccountData
+    );
+    require_keys_eq!(
+        *vault_usdc.address(),
+        vault.vault_usdc,
+        ProgramError::InvalidAccountData
+    );
+    require_keys_eq!(
+        *owner_usdc.mint(),
+        vault.usdc_mint,
+        ProgramError::InvalidAccountData
+    );
+    require_keys_eq!(
+        *owner_usdc.owner(),
+        *owner.address(),
+        ProgramError::InvalidAccountData
+    );
+    require_keys_eq!(
+        *vault_usdc.mint(),
+        vault.usdc_mint,
+        ProgramError::InvalidAccountData
+    );
+    require_keys_eq!(
+        *vault_usdc.owner(),
+        *vault.address(),
+        ProgramError::InvalidAccountData
+    );
+
+    token_program
+        .transfer_checked(
+            owner_usdc,
+            usdc_mint,
+            vault_usdc,
+            owner,
+            amount_usdc,
+            vault.usdc_decimals,
+        )
+        .invoke()?;
+
+    position.deposited_usdc = position
+        .deposited_usdc
+        .checked_add(amount_usdc)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+    position.request_count = position
+        .request_count
+        .checked_add(1)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+    vault.total_deposited_usdc = vault
+        .total_deposited_usdc
+        .checked_add(amount_usdc)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+    vault.request_count = vault
+        .request_count
+        .checked_add(1)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
+    Ok(())
 }

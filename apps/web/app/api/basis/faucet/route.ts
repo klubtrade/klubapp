@@ -10,6 +10,7 @@ import {
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
   type Address,
+  type Instruction,
   type Signature,
 } from "@solana/kit";
 import {
@@ -18,6 +19,7 @@ import {
   getMintToCheckedInstruction,
   TOKEN_PROGRAM_ADDRESS,
 } from "@solana-program/token";
+import { getTransferSolInstruction } from "@solana-program/system";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getBasisVaultConfig } from "@/lib/basis-vault/config";
@@ -31,6 +33,9 @@ export const dynamic = "force-dynamic";
 
 const FAUCET_USDC = 1_000;
 const USDC_DECIMALS = 6;
+// The first deposit creates a user-position PDA. Keep enough SOL in the
+// connected wallet for its rent and transaction fees so mock USDC is usable.
+const MIN_OWNER_SOL_LAMPORTS = 3_000_000n;
 const EXPECTED_MINT_AUTHORITY = "HmA31z4YGiH8mB4GqoNDbXgasfASYYoErK3RxMQp475X";
 const recentClaims = new Map<string, number>();
 
@@ -73,34 +78,50 @@ export async function POST(request: NextRequest) {
       tokenProgram: TOKEN_PROGRAM_ADDRESS,
     });
     const currentBalance = await getTokenBalance(rpc, ownerAta);
-    if (currentBalance >= FAUCET_USDC) {
+    const { value: ownerLamports } = await rpc.getBalance(owner).send();
+    const needsUsdc = currentBalance < FAUCET_USDC;
+    const needsSol = ownerLamports < MIN_OWNER_SOL_LAMPORTS;
+    if (!needsUsdc && !needsSol) {
       return NextResponse.json({
         status: "funded",
         balance: currentBalance,
+        gasReady: true,
         signature: null,
       });
     }
 
     recentClaims.set(owner, now);
-    const amountRaw = BigInt(
-      Math.round((FAUCET_USDC - currentBalance) * 10 ** USDC_DECIMALS),
-    );
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    const instructions = [
-      getCreateAssociatedTokenIdempotentInstruction({
-        payer: signer,
-        ata: ownerAta,
-        owner,
-        mint,
-      }),
-      getMintToCheckedInstruction({
-        mint,
-        token: ownerAta,
-        mintAuthority: signer,
-        amount: amountRaw,
-        decimals: USDC_DECIMALS,
-      }),
-    ];
+    const instructions: Instruction[] = [];
+    if (needsSol) {
+      instructions.push(
+        getTransferSolInstruction({
+          source: signer,
+          destination: owner,
+          amount: MIN_OWNER_SOL_LAMPORTS - ownerLamports,
+        }),
+      );
+    }
+    if (needsUsdc) {
+      const amountRaw = BigInt(
+        Math.round((FAUCET_USDC - currentBalance) * 10 ** USDC_DECIMALS),
+      );
+      instructions.push(
+        getCreateAssociatedTokenIdempotentInstruction({
+          payer: signer,
+          ata: ownerAta,
+          owner,
+          mint,
+        }),
+        getMintToCheckedInstruction({
+          mint,
+          token: ownerAta,
+          mintAuthority: signer,
+          amount: amountRaw,
+          decimals: USDC_DECIMALS,
+        }),
+      );
+    }
     const message = pipe(
       createTransactionMessage({ version: 0 }),
       (value) => setTransactionMessageFeePayer(signer.address, value),
@@ -121,6 +142,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       status: "claimed",
       balance: FAUCET_USDC,
+      gasReady: true,
       signature,
     });
   } catch (cause) {

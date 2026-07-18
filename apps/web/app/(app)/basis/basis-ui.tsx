@@ -32,8 +32,10 @@ export function VaultReadinessCard({
   readonly onRefresh: () => void;
   readonly faucetClaiming: boolean;
 }) {
+  const fundsReady =
+    (snapshot?.ownerUsdcBalance ?? 0) >= 1_000 && snapshot?.gasReady === true;
   return (
-    <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+    <section className="mt-8 min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-[13px] font-medium text-fg-primary">
@@ -91,16 +93,16 @@ export function VaultReadinessCard({
           <button
             type="button"
             onClick={onFaucet}
-            disabled={
-              faucetClaiming || (snapshot?.ownerUsdcBalance ?? 0) >= 1_000
-            }
+            disabled={faucetClaiming || fundsReady}
             className="btn-primary md:col-span-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {(snapshot?.ownerUsdcBalance ?? 0) >= 1_000
-              ? "Vault USDC ready"
+            {fundsReady
+              ? "Vault funds ready"
               : faucetClaiming
                 ? "Claiming…"
-                : "Claim 1,000 vault USDC"}
+                : (snapshot?.ownerUsdcBalance ?? 0) >= 1_000
+                  ? "Prepare deposit gas"
+                  : "Claim 1,000 vault USDC"}
           </button>
           <button
             type="button"
@@ -144,6 +146,7 @@ export function depositButtonLabel({
   amount,
   minDeposit,
   ownerUsdc,
+  gasReady,
 }: {
   readonly ready: boolean;
   readonly connected: boolean;
@@ -151,12 +154,14 @@ export function depositButtonLabel({
   readonly amount: number;
   readonly minDeposit: number;
   readonly ownerUsdc: number;
+  readonly gasReady: boolean;
 }): string {
   if (!ready) return "Temporarily unavailable";
   if (!connected) return "Connect wallet";
   if (pending) return "Confirming…";
   if (amount < minDeposit) return `Min $${minDeposit}`;
   if (amount > ownerUsdc) return "Need vault USDC";
+  if (!gasReady) return "Prepare deposit gas";
   return "Deposit";
 }
 
@@ -170,14 +175,14 @@ export function LegCard({
   readonly annualPct: number;
 }) {
   return (
-    <div className="rounded-klub border border-border-subtle bg-bg-base p-4">
+    <div className="min-w-0 rounded-klub border border-border-subtle bg-bg-base p-4">
       <div className="text-[10px] uppercase tracking-[0.12em] text-fg-muted">
         {label}
       </div>
       <div className="mt-1 text-[18px] font-semibold text-fg-primary">
         {labelFor(symbol)}
       </div>
-      <div className="mt-2 font-mono text-[12px] text-fg-muted">
+      <div className="mt-2 break-words font-mono text-[12px] text-fg-muted">
         current {annualPct >= 0 ? "+" : ""}
         {annualPct.toFixed(1)}% ann.
       </div>
