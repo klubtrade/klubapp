@@ -66,4 +66,9 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+      # Run the open-source scanner directly. The GitHub Action wrapper now
+      # requires a commercial license even though the scanner itself does not.
+      - name: Run Gitleaks
+        uses: docker://ghcr.io/gitleaks/gitleaks:v8.28.0
+        with:
+          args: detect --source=/github/workspace --verbose --redact --no-banner
