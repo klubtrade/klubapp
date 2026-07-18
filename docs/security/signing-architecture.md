@@ -58,9 +58,16 @@ correlation ID, intent hash, policy version, decision, reason codes, key ID,
 and venue result. Logs exclude tokens, raw keys, raw signatures, and complete
 signed payloads.
 
-## Current gap
+## Implemented testnet boundary
 
-`packages/signing` still exposes `Signer.sign(Uint8Array)`. That interface is
-allowed only for low-level cryptographic tests and must not be available to
-application or worker code in production. Replacing it with the typed intent
-gateway and a KMS provider is a tracked blocker for production automation.
+`packages/signing` now exposes `signOrderIntent`, which parses the V1 command,
+performs the mandatory identity/account/network/market/expiry/freshness/risk
+checks with exact decimal arithmetic, atomically consumes a nonce through a
+storage port, constructs a domain-separated canonical payload, and only then
+invokes the cryptographic signer. Policy denial and replay tests are included.
+
+The package still exposes `Signer.sign(Uint8Array)` for low-level cryptographic
+tests and adapters. Application and worker execution must use the typed gateway.
+The following production blockers remain: non-exportable KMS/HSM provider,
+durable nonce-store adapter wired to Postgres, daily loss/drawdown policy,
+revocation service, anomaly monitoring, and deployed end-to-end validation.

@@ -5,6 +5,8 @@ import postgres from "postgres";
 import * as schema from "./schema.js";
 
 export * from "./schema.js";
+export * from "./order-workflow.js";
+export * from "./security-controls.js";
 
 /**
  * Create a Drizzle db client.

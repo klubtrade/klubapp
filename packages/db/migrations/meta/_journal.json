@@ -57,6 +57,13 @@
       "when": 1784322000000,
       "tag": "0007_add_worker_runtime_state",
       "breakpoints": false
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784379600000,
+      "tag": "0008_add_security_and_execution_state",
+      "breakpoints": false
     }
   ]
 }

@@ -252,7 +252,9 @@ export const userProfiles = pgTable(
       .$type<"simple" | "expert">()
       .default("simple")
       .notNull(),
-    defaultCopyAllocPct: integer("default_copy_alloc_pct").default(20).notNull(),
+    defaultCopyAllocPct: integer("default_copy_alloc_pct")
+      .default(20)
+      .notNull(),
     alertsEnabled: boolean("alerts_enabled").default(true).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -483,11 +485,326 @@ export const journalEntries = pgTable(
 export interface AgentWalletScope {
   readonly purpose: "copy-trade" | "liquidation-defense" | "basis-vault";
   readonly symbols: readonly string[] | "all";
-  readonly maxNotionalUsd: number;
-  readonly maxLeverage: number;
+  /** Canonical decimal strings; never authoritative JavaScript floats. */
+  readonly maxNotionalUsd: string;
+  readonly maxLeverage: string;
   readonly allowedActions: readonly (
     | "placeOrder"
     | "cancelOrder"
     | "reducePosition"
   )[];
 }
+
+// ---------------------------------------------------------------------------
+// Security identity, audit, idempotency, and financial workflow state
+// ---------------------------------------------------------------------------
+
+/** Canonical Privy identity. Wallet ownership is resolved server-side. */
+export const privyAccounts = pgTable("privy_accounts", {
+  privyUserId: varchar("privy_user_id", { length: 128 }).primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  lastAuthenticatedAt: timestamp("last_authenticated_at", {
+    withTimezone: true,
+  })
+    .defaultNow()
+    .notNull(),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+});
+
+export const privyWallets = pgTable(
+  "privy_wallets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    privyUserId: varchar("privy_user_id", { length: 128 })
+      .notNull()
+      .references(() => privyAccounts.privyUserId, { onDelete: "cascade" }),
+    address: varchar("address", { length: 128 }).notNull(),
+    chain: varchar("chain", { length: 16 }).notNull(),
+    firstVerifiedAt: timestamp("first_verified_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    unlinkedAt: timestamp("unlinked_at", { withTimezone: true }),
+  },
+  (t) => ({
+    userWalletUnique: uniqueIndex("privy_wallets_user_address_idx").on(
+      t.privyUserId,
+      t.address,
+    ),
+    addressIdx: index("privy_wallets_address_idx").on(t.address),
+  }),
+);
+
+/** Fixed-window counters. Redis may accelerate these; Postgres is durable. */
+export const apiRateLimits = pgTable("api_rate_limits", {
+  key: varchar("key", { length: 256 }).primaryKey(),
+  count: integer("count").default(0).notNull(),
+  windowStartedAt: timestamp("window_started_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+/** Append-only security record. Migration triggers reject UPDATE and DELETE. */
+export const securityAuditEvents = pgTable(
+  "security_audit_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    chainKey: varchar("chain_key", { length: 128 }).notNull(),
+    principalId: varchar("principal_id", { length: 128 }),
+    sessionId: varchar("session_id", { length: 128 }),
+    action: varchar("action", { length: 96 }).notNull(),
+    resource: varchar("resource", { length: 128 }),
+    decision: varchar("decision", { length: 16 })
+      .$type<"allowed" | "denied" | "error">()
+      .notNull(),
+    reasonCodes: jsonb("reason_codes").default([]).notNull(),
+    correlationId: uuid("correlation_id").notNull(),
+    previousHash: varchar("previous_hash", { length: 64 }),
+    eventHash: varchar("event_hash", { length: 64 }).notNull(),
+    metadata: jsonb("metadata").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    eventHashIdx: uniqueIndex("security_audit_events_hash_idx").on(t.eventHash),
+    principalTimeIdx: index("security_audit_events_principal_time_idx").on(
+      t.principalId,
+      t.createdAt,
+    ),
+    correlationIdx: index("security_audit_events_correlation_idx").on(
+      t.correlationId,
+    ),
+  }),
+);
+
+/** Serialized head prevents two concurrent writers from forking an audit chain. */
+export const securityAuditHeads = pgTable("security_audit_heads", {
+  chainKey: varchar("chain_key", { length: 128 }).primaryKey(),
+  eventHash: varchar("event_hash", { length: 64 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const idempotencyRecords = pgTable(
+  "idempotency_records",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    scope: varchar("scope", { length: 64 }).notNull(),
+    key: varchar("key", { length: 192 }).notNull(),
+    requestHash: varchar("request_hash", { length: 64 }).notNull(),
+    status: varchar("status", { length: 16 })
+      .$type<"processing" | "completed" | "failed">()
+      .default("processing")
+      .notNull(),
+    responseCode: integer("response_code"),
+    responseBody: jsonb("response_body"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    scopeKeyUnique: uniqueIndex("idempotency_records_scope_key_idx").on(
+      t.scope,
+      t.key,
+    ),
+    expiryIdx: index("idempotency_records_expiry_idx").on(t.expiresAt),
+  }),
+);
+
+export const orderIntents = pgTable(
+  "order_intents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    privyUserId: varchar("privy_user_id", { length: 128 })
+      .notNull()
+      .references(() => privyAccounts.privyUserId),
+    accountId: varchar("account_id", { length: 128 }).notNull(),
+    marketId: varchar("market_id", { length: 64 }).notNull(),
+    side: varchar("side", { length: 4 }).$type<"buy" | "sell">().notNull(),
+    orderType: varchar("order_type", { length: 8 })
+      .$type<"market" | "limit">()
+      .notNull(),
+    quantity: varchar("quantity", { length: 80 }).notNull(),
+    limitPrice: varchar("limit_price", { length: 80 }),
+    reduceOnly: boolean("reduce_only").default(false).notNull(),
+    maxSlippageBps: integer("max_slippage_bps").notNull(),
+    network: varchar("network", { length: 32 }).notNull(),
+    nonce: varchar("nonce", { length: 128 }).notNull(),
+    idempotencyKey: varchar("idempotency_key", { length: 192 }).notNull(),
+    status: varchar("status", { length: 32 })
+      .$type<
+        | "CREATED"
+        | "VALIDATED"
+        | "POLICY_APPROVED"
+        | "SUBMISSION_PENDING"
+        | "SUBMITTED"
+        | "ACKNOWLEDGED"
+        | "PARTIALLY_FILLED"
+        | "FILLED"
+        | "REJECTED"
+        | "EXPIRED"
+        | "CANCEL_PENDING"
+        | "CANCELLED"
+        | "RECONCILIATION_REQUIRED"
+        | "MANUAL_REVIEW"
+      >()
+      .default("CREATED")
+      .notNull(),
+    venueOrderId: varchar("venue_order_id", { length: 128 }),
+    correlationId: uuid("correlation_id").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    idempotencyUnique: uniqueIndex("order_intents_idempotency_idx").on(
+      t.idempotencyKey,
+    ),
+    nonceUnique: uniqueIndex("order_intents_account_nonce_idx").on(
+      t.accountId,
+      t.nonce,
+      t.network,
+    ),
+    statusIdx: index("order_intents_status_idx").on(t.status, t.updatedAt),
+  }),
+);
+
+export const orderStateTransitions = pgTable(
+  "order_state_transitions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderIntentId: uuid("order_intent_id")
+      .notNull()
+      .references(() => orderIntents.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").notNull(),
+    fromStatus: varchar("from_status", { length: 32 }),
+    toStatus: varchar("to_status", { length: 32 }).notNull(),
+    reasonCode: varchar("reason_code", { length: 96 }),
+    metadata: jsonb("metadata").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    sequenceUnique: uniqueIndex("order_state_transitions_sequence_idx").on(
+      t.orderIntentId,
+      t.sequence,
+    ),
+  }),
+);
+
+export const outboxEvents = pgTable(
+  "outbox_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    aggregateType: varchar("aggregate_type", { length: 64 }).notNull(),
+    aggregateId: varchar("aggregate_id", { length: 128 }).notNull(),
+    eventType: varchar("event_type", { length: 96 }).notNull(),
+    eventVersion: integer("event_version").default(1).notNull(),
+    payload: jsonb("payload").notNull(),
+    status: varchar("status", { length: 16 })
+      .$type<"pending" | "publishing" | "published" | "dead">()
+      .default("pending")
+      .notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lockedBy: varchar("locked_by", { length: 128 }),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    lastErrorCode: varchar("last_error_code", { length: 96 }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    pendingIdx: index("outbox_events_pending_idx").on(t.status, t.availableAt),
+  }),
+);
+
+export const reconciliationItems = pgTable(
+  "reconciliation_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    entityType: varchar("entity_type", { length: 32 }).notNull(),
+    entityId: varchar("entity_id", { length: 128 }).notNull(),
+    localVersion: varchar("local_version", { length: 128 }),
+    venueVersion: varchar("venue_version", { length: 128 }),
+    difference: jsonb("difference").notNull(),
+    resolutionStatus: varchar("resolution_status", { length: 24 })
+      .$type<"open" | "rechecking" | "resolved" | "manual_review">()
+      .default("open")
+      .notNull(),
+    correlationId: uuid("correlation_id").notNull(),
+    detectedAt: timestamp("detected_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => ({
+    entityIdx: index("reconciliation_items_entity_idx").on(
+      t.entityType,
+      t.entityId,
+    ),
+    openIdx: index("reconciliation_items_open_idx").on(
+      t.resolutionStatus,
+      t.detectedAt,
+    ),
+  }),
+);
+
+export const faucetClaims = pgTable(
+  "faucet_claims",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    faucet: varchar("faucet", { length: 32 }).notNull(),
+    wallet: varchar("wallet", { length: 128 }).notNull(),
+    mint: varchar("mint", { length: 128 }).notNull(),
+    amountBaseUnits: varchar("amount_base_units", { length: 80 }).notNull(),
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    transactionSignature: varchar("transaction_signature", { length: 128 }),
+    status: varchar("status", { length: 16 })
+      .$type<"processing" | "confirmed" | "failed">()
+      .default("processing")
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    windowUnique: uniqueIndex("faucet_claims_window_idx").on(
+      t.faucet,
+      t.wallet,
+      t.mint,
+      t.windowStartedAt,
+    ),
+    walletTimeIdx: index("faucet_claims_wallet_time_idx").on(
+      t.wallet,
+      t.createdAt,
+    ),
+  }),
+);

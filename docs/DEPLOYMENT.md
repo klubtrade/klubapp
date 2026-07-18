@@ -3,6 +3,7 @@
 > Local dev in 10 minutes. Production deploy the first time in ~2 hours.
 
 Two paths:
+
 - **Local** — run the full stack on your machine (web + worker + Postgres + Redis)
 - **Global / Production** — ship to the public internet (Vercel + Railway + Neon + Upstash + Resend + Cloudflare)
 
@@ -82,6 +83,7 @@ pnpm --filter @klub/worker dev
 **Migrations fail with "permission denied"** — the Postgres user in docker-compose is `klub`, not `postgres`. Check `DATABASE_URL` in your `.env.local`.
 
 **Worker exits immediately with "Missing required env"** — worker needs `DATABASE_URL`. `REDIS_URL` is optional until queue-based alerts/copy execution are enabled. Pass env via `.env.local` or export it inline:
+
 ```bash
 DATABASE_URL=... pnpm --filter @klub/worker dev
 ```
@@ -92,16 +94,16 @@ DATABASE_URL=... pnpm --filter @klub/worker dev
 
 ### Architecture at a glance
 
-| Surface | Host | Why |
-|---|---|---|
-| Web app (Next.js) | Vercel | Zero-config for Next 14, edge network, preview deploys per PR |
-| Background worker | Railway | Persistent process — BullMQ needs an always-on host |
-| Postgres | Railway Postgres | System of record for handles, profiles, onboarding, follows, alerts |
-| Redis | Railway Redis or Upstash | Queues, short-lived cache entries, rate limits, idempotency locks |
-| Email | Resend | Transactional + waitlist audiences |
-| DNS + SSL | Cloudflare | Free, fast, handles the `klub.trade` domain |
-| Monitoring | Sentry + PostHog | Errors + product analytics |
-| KMS (Phase 3.5 signing) | AWS KMS | Wraps agent-wallet private keys at rest |
+| Surface                 | Host                     | Why                                                                 |
+| ----------------------- | ------------------------ | ------------------------------------------------------------------- |
+| Web app (Next.js)       | Vercel                   | Zero-config for Next 14, edge network, preview deploys per PR       |
+| Background worker       | Railway                  | Persistent process — BullMQ needs an always-on host                 |
+| Postgres                | Railway Postgres         | System of record for handles, profiles, onboarding, follows, alerts |
+| Redis                   | Railway Redis or Upstash | Queues, short-lived cache entries, rate limits, idempotency locks   |
+| Email                   | Resend                   | Transactional + waitlist audiences                                  |
+| DNS + SSL               | Cloudflare               | Free, fast, handles the `klub.trade` domain                         |
+| Monitoring              | Sentry + PostHog         | Errors + product analytics                                          |
+| KMS (Phase 3.5 signing) | AWS KMS                  | Wraps agent-wallet private keys at rest                             |
 
 ### 2.1 Database — Railway Postgres
 
@@ -146,20 +148,20 @@ Current migrations include durable onboarding/profile state and one active handl
    - **Output directory:** `apps/web/.next`
 4. **Environment Variables** — add these from `.env.example`:
 
-   | Name | Scope | Notes |
-   |---|---|---|
-   | `DATABASE_URL` | Production | Railway Postgres URL |
-   | `REDIS_URL` | Production | Railway Redis or Upstash URL |
-   | `RESEND_API_KEY` | Production | |
-   | `WAITLIST_AUDIENCE_ID` | Production | |
-   | `NEXT_PUBLIC_BULK_NETWORK` | Production | `mainnet` |
-   | `BULK_HTTP_URL` | Production | `https://exchange-api.bulk.trade/api/v1` |
-   | `NEXT_PUBLIC_BULK_WS_URL` | Production | `wss://exchange-ws1.bulk.trade` — **flips pages from Demo → Live** |
-   | `NEXT_PUBLIC_PRIVY_APP_ID` | Production | From Privy dashboard |
-   | `PRIVY_APP_SECRET` | Production | From Privy dashboard |
-   | `NEXT_PUBLIC_COINBASE_ONRAMP_APP_ID` | Production | From Coinbase Onramp |
-   | `SENTRY_DSN` | Production | |
-   | `NEXT_PUBLIC_POSTHOG_KEY` | Production | |
+   | Name                                 | Scope      | Notes                                                              |
+   | ------------------------------------ | ---------- | ------------------------------------------------------------------ |
+   | `DATABASE_URL`                       | Production | Railway Postgres URL                                               |
+   | `REDIS_URL`                          | Production | Railway Redis or Upstash URL                                       |
+   | `RESEND_API_KEY`                     | Production |                                                                    |
+   | `WAITLIST_AUDIENCE_ID`               | Production |                                                                    |
+   | `NEXT_PUBLIC_BULK_NETWORK`           | Production | `mainnet`                                                          |
+   | `BULK_HTTP_URL`                      | Production | `https://exchange-api.bulk.trade/api/v1`                           |
+   | `NEXT_PUBLIC_BULK_WS_URL`            | Production | `wss://exchange-ws1.bulk.trade` — **flips pages from Demo → Live** |
+   | `NEXT_PUBLIC_PRIVY_APP_ID`           | Production | From Privy dashboard                                               |
+   | `PRIVY_APP_SECRET`                   | Production | From Privy dashboard                                               |
+   | `NEXT_PUBLIC_COINBASE_ONRAMP_APP_ID` | Production | From Coinbase Onramp                                               |
+   | `SENTRY_DSN`                         | Production |                                                                    |
+   | `NEXT_PUBLIC_POSTHOG_KEY`            | Production |                                                                    |
 
    For `Preview` environment, use staging Railway/Redis URLs and leave `NEXT_PUBLIC_BULK_WS_URL` unset so PRs get Demo mode.
 
@@ -177,19 +179,23 @@ The worker runs the Postgres-backed copy-follow scanner with only `DATABASE_URL`
    - **Start command:** `pnpm --filter @klub/worker start`
 4. **Environment Variables** (most are the same as Vercel minus the `NEXT_PUBLIC_*` ones, plus worker-specific):
 
-   | Name | Notes |
-   |---|---|
-   | `DATABASE_URL` | Railway Postgres URL |
-   | `REDIS_URL` | Optional until queues are active; Railway Redis or Upstash URL |
-   | `BULK_WS_URL` | `wss://exchange-ws1.bulk.trade` — required for real alerts once Redis queues are active |
-   | `RESEND_API_KEY` | For email alerts |
-   | `TELEGRAM_BOT_TOKEN` | From @BotFather |
-   | `AGENT_WALLET_KMS_KEY_ARN` | AWS KMS key ARN (see §2.7) |
-   | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | IAM user scoped to KMS |
-   | `PUSH_VAPID_PUBLIC_KEY` / `PUSH_VAPID_PRIVATE_KEY` | `npx web-push generate-vapid-keys` |
-   | `SENTRY_DSN` | Errors |
+   | Name                                                         | Notes                                                                                   |
+   | ------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+   | `DATABASE_URL`                                               | Railway Postgres URL                                                                    |
+   | `REDIS_URL`                                                  | Optional until queues are active; Railway Redis or Upstash URL                          |
+   | `BULK_WS_URL`                                                | `wss://exchange-ws1.bulk.trade` — required for real alerts once Redis queues are active |
+   | `RESEND_API_KEY`                                             | For email alerts                                                                        |
+   | `TELEGRAM_BOT_TOKEN`                                         | From @BotFather                                                                         |
+   | `AGENT_WALLET_KMS_KEY_ARN`                                   | AWS KMS key ARN (see §2.7)                                                              |
+   | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | IAM user scoped to KMS                                                                  |
+   | `PUSH_VAPID_PUBLIC_KEY` / `PUSH_VAPID_PRIVATE_KEY`           | `npx web-push generate-vapid-keys`                                                      |
+   | `SENTRY_DSN`                                                 | Errors                                                                                  |
 
 5. Deploy. Railway auto-restarts on push to `main`.
+   `apps/worker/railway.toml` runs `pnpm --filter @klub/db migrate` as a
+   pre-deploy command. Railway provides private-network variables during this
+   phase and aborts the deployment if migration fails. Run migrations from one
+   service only; do not add the same pre-deploy command to the web service.
 6. **Critical:** verify in the Railway logs that you see:
    ```
    [klub-worker] boot
@@ -219,11 +225,13 @@ The agent-wallet private keys KLUB mints to copy-trade on user behalf must be wr
 ### 2.8 Monitoring
 
 **Sentry (errors):**
+
 1. Create projects `klub-web` + `klub-worker` at [sentry.io](https://sentry.io).
 2. Add the DSNs to Vercel / Railway env vars.
 3. Run `npx @sentry/wizard@latest -i nextjs` in `apps/web`.
 
 **PostHog (product analytics):**
+
 1. Create a project at [posthog.com](https://posthog.com). Add the public key to Vercel.
 2. Auto-captures clicks, pageviews, feature-flag exposures.
 3. Create funnels:
@@ -231,6 +239,7 @@ The agent-wallet private keys KLUB mints to copy-trade on user behalf must be wr
    - `/invite/[code] → /onboarding → /home`
 
 **Axiom or Datadog (logs):**
+
 1. Pipe logs from Vercel and Railway. One-click integrations for Axiom on both.
 2. Set alerts on:
    - `copy-trade job status = failed` count per hour
@@ -276,17 +285,20 @@ Before announcing user-visible changes:
 ## 5. First-Week Operations
 
 **Day 1:**
+
 - Deploy to production, verify all health checks
 - Insert 5 invite codes into the `invites` table (via Drizzle Studio or psql)
 - Smoke-test with yourself + 2 founders
 
 **Week 1:**
+
 - Monitor Sentry daily; fix regressions within 24h
 - Watch PostHog funnel — where do users drop between `/home` and `/quick-trade`?
 - Seed first 3 real leaders (opt-in from your outreach list)
 - Send the Bulk schema confirmation email (`docs/bulk-schema-confirmation-email.md`)
 
 **Week 2–4:**
+
 - Gradually increase worker concurrency on copy-trade jobs: 1 → 10 → 100
 - Add a synthetic canary position in the alerts subscriber that always triggers a tier-3 alert; daily check that alerts arrive on every channel
 - Ship the three blog posts on ProductHunt, Farcaster, and your newsletter
@@ -297,7 +309,9 @@ Before announcing user-visible changes:
 
 1. **Copy-trade latency.** Leader fills land; followers' signed orders lag. Instrument `leader_fill_ts → worker_enqueue_ts → bulk_ack_ts`; alarm if median crosses 500ms.
 2. **Alert delivery silently fails.** Resend throttles, Telegram IP-blocks, VAPID cert expires. Synthetic canary + daily check.
-3. **Drizzle migration lock.** Two Vercel deploys race to run migrations. Fix: migrations run from the worker boot, not the web app.
+3. **Drizzle migration lock.** Two application services must not race to run
+   migrations. Migrations run once in the Railway worker pre-deploy phase, not
+   in Vercel or application startup.
 4. **Postgres connection exhaustion.** Each Vercel serverless function opens its own pool. Use Neon's pooler endpoint (`...pooler.neon.tech`) for `DATABASE_URL` in Vercel specifically.
 5. **Ramp provider terms.** Coinbase Onramp occasionally restricts territories or fee schedules. Watch their changelog monthly.
 
@@ -305,21 +319,21 @@ Before announcing user-visible changes:
 
 ## 7. Cost Estimate (Month 1–3)
 
-| Service | Plan | Cost |
-|---|---|---|
-| Vercel | Pro | $20/mo |
-| Railway | Hobby | $5/mo + usage (~$10 total) |
-| Neon | Pro | $19/mo |
-| Upstash | Pay-as-you-go | ~$5/mo at low volume |
-| Resend | Free tier | $0 (up to 3k emails/mo) |
-| Cloudflare | Free | $0 |
-| Sentry | Team | $26/mo |
-| PostHog | Free | $0 (up to 1M events/mo) |
-| AWS KMS | Pay-per-use | ~$1/mo |
-| **Total** | | **~$86/mo** |
+| Service    | Plan          | Cost                       |
+| ---------- | ------------- | -------------------------- |
+| Vercel     | Pro           | $20/mo                     |
+| Railway    | Hobby         | $5/mo + usage (~$10 total) |
+| Neon       | Pro           | $19/mo                     |
+| Upstash    | Pay-as-you-go | ~$5/mo at low volume       |
+| Resend     | Free tier     | $0 (up to 3k emails/mo)    |
+| Cloudflare | Free          | $0                         |
+| Sentry     | Team          | $26/mo                     |
+| PostHog    | Free          | $0 (up to 1M events/mo)    |
+| AWS KMS    | Pay-per-use   | ~$1/mo                     |
+| **Total**  |               | **~$86/mo**                |
 
 At 10k users scale Neon to `Scale` ($69/mo) and Vercel to Enterprise if your build minutes spike. Upstash + Sentry scale smoothly.
 
 ---
 
-*Deployment is the boring part. Shipping something people want is the hard part. This guide gets you through step one so you can focus on step two.*
+_Deployment is the boring part. Shipping something people want is the hard part. This guide gets you through step one so you can focus on step two._
