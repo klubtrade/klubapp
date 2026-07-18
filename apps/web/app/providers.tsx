@@ -45,7 +45,7 @@ export function Providers({ children }: { readonly children: React.ReactNode }) 
         },
         externalWallets: {
           solana: {
-            connectors: toSolanaWalletConnectors({ shouldAutoConnect: true }),
+            connectors: toSolanaWalletConnectors({ shouldAutoConnect: false }),
           },
         },
       }}

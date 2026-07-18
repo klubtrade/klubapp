@@ -1,6 +1,6 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
+import { useConnectWallet, useLogin, usePrivy } from "@privy-io/react-auth";
 import {
   useCreateWallet,
   useSignAndSendTransaction,
@@ -50,6 +50,16 @@ export function PrivyTradingWalletProvider({
   const mounted = useMounted();
   const privy = usePrivy();
   const solana = useWallets();
+  const { login } = useLogin({
+    onError: (error) => {
+      setConnectionError(`Login failed: ${String(error)}`);
+    },
+  });
+  const { connectWallet } = useConnectWallet({
+    onError: (error) => {
+      setConnectionError(`Wallet connection failed: ${String(error)}`);
+    },
+  });
   const { createWallet } = useCreateWallet();
   const { signAndSendTransaction } = useSignAndSendTransaction();
   const privyWallet = solana.wallets[0] ?? null;
@@ -102,14 +112,20 @@ export function PrivyTradingWalletProvider({
     setConnectionError(null);
 
     if (!privy.authenticated) {
-      privy.connectOrCreateWallet();
+      login({
+        loginMethods: ["email", "wallet"],
+        walletChainType: "solana-only",
+      });
       return;
     }
 
     if (privyWallet) return;
 
+    connectWallet({
+      walletChainType: "solana-only",
+    });
     void ensureEmbeddedSolanaWallet();
-  }, [ensureEmbeddedSolanaWallet, privy, privyWallet]);
+  }, [connectWallet, ensureEmbeddedSolanaWallet, login, privy, privyWallet]);
 
   const value = useMemo<TradingWalletSession>(
     () => ({
