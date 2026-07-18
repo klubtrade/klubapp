@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
-import { useActiveAccount } from '@/hooks/use-active-account';
+import { useActiveAccount } from "@/hooks/use-active-account";
 
 /**
  * <AccountSwitcher /> - pill button + dropdown for switching between
@@ -22,18 +23,21 @@ export function AccountSwitcher() {
   useEffect(() => {
     if (!open) return;
     function onClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === "Escape") setOpen(false);
     }
-    window.addEventListener('mousedown', onClick);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener('mousedown', onClick);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
@@ -65,7 +69,12 @@ export function AccountSwitcher() {
       >
         <span className="h-1.5 w-1.5 rounded-full bg-accent" />
         <span className="max-w-[120px] truncate">{name}</span>
-        <span className="text-[8px] text-fg-muted">▾</span>
+        <ChevronDown
+          size={12}
+          strokeWidth={1.8}
+          aria-hidden
+          className={`text-fg-muted transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
@@ -84,11 +93,13 @@ export function AccountSwitcher() {
                   setOpen(false);
                 }}
                 className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors ${
-                  active ? 'bg-accent/10' : 'hover:bg-bg-elevated'
+                  active ? "bg-accent/10" : "hover:bg-bg-elevated"
                 }`}
               >
                 <span className="min-w-0 flex-1">
-                  <span className={`block truncate text-[12px] ${active ? 'font-semibold text-accent' : 'text-fg-primary'}`}>
+                  <span
+                    className={`block truncate text-[12px] ${active ? "font-semibold text-accent" : "text-fg-primary"}`}
+                  >
                     {acc.name}
                   </span>
                   <span className="block truncate font-mono text-[10px] text-fg-muted">

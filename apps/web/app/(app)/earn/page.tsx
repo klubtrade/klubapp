@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Sparkles, TrendingUp, Waves } from "lucide-react";
 
 import { useFundingRates } from "@/hooks/use-funding-rates";
 import {
@@ -221,42 +222,13 @@ function YieldCard() {
 // ---------------------------------------------------------------------------
 
 function IconBasis() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 12c2-4 6-4 9 0s7 4 9 0M3 18h18"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+  return <Waves size={22} strokeWidth={1.6} aria-hidden />;
 }
 
 function IconFunding() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 17l5-5 4 4 9-9m0 0v6m0-6h-6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <TrendingUp size={22} strokeWidth={1.7} aria-hidden />;
 }
 
 function IconYield() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 2v3m0 14v3M5 12H2m20 0h-3M5.6 5.6l-2 -2m16.8 16.8l-2 -2M5.6 18.4l-2 2m16.8-16.8l-2 2"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
+  return <Sparkles size={22} strokeWidth={1.6} aria-hidden />;
 }

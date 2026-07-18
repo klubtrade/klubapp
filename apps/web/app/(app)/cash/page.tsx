@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
 
 import { useActiveAccount } from "@/hooks/use-active-account";
 import { useBulkAccount } from "@/hooks/use-bulk-account";
@@ -74,6 +75,7 @@ function CashPageInner() {
   const equity = state.data?.equityUsd ?? null;
   const free = state.data?.freeMarginUsd ?? null;
   const accountUnavailable = state.data?.unavailable === true;
+  const accountSyncDelayed = state.data?.stale === true && !accountUnavailable;
 
   const [showCreate, setShowCreate] = useState(false);
   const [showSend, setShowSend] = useState(false);
@@ -143,7 +145,15 @@ function CashPageInner() {
               aria-label="Refresh balance"
               className="shrink-0 transition-colors hover:text-fg-primary disabled:opacity-40"
             >
-              {refreshing ? "Refreshing…" : "↻ Refresh"}
+              <span className="inline-flex items-center gap-1.5">
+                <RefreshCw
+                  size={12}
+                  strokeWidth={1.8}
+                  aria-hidden
+                  className={refreshing ? "animate-spin" : ""}
+                />
+                {refreshing ? "Refreshing…" : "Refresh"}
+              </span>
             </button>
           </div>
 
@@ -227,6 +237,11 @@ function CashPageInner() {
               "Bulk exchange is temporarily unavailable. Please try again in a few minutes."}
           </div>
         )}
+        {accountSyncDelayed && (
+          <div className="mt-4 text-[11px] text-alert-orange">
+            Syncing account. Showing your last saved balance.
+          </div>
+        )}
 
         {/* Faucet - testnet utility, demoted to a thin row below the
             primary actions so it doesn't compete for attention. */}
@@ -273,7 +288,10 @@ function CashPageInner() {
                 onClick={() => setActivePubkey(null)}
                 className="w-full rounded-klub border border-border-subtle bg-bg-surface/40 px-3 py-2.5 text-[11px] text-fg-muted transition-colors hover:text-fg-primary"
               >
-                ← Switch back to Master
+                <span className="inline-flex items-center gap-1.5">
+                  <ArrowLeft size={13} strokeWidth={1.8} aria-hidden />
+                  Switch back to Master
+                </span>
               </button>
             )}
 
@@ -283,9 +301,7 @@ function CashPageInner() {
               disabled={!connected}
               className="mt-1 flex w-full items-center justify-center gap-2 rounded-klub border border-dashed border-border-subtle bg-transparent py-3 text-[12px] text-fg-muted transition-colors hover:border-border hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span aria-hidden className="text-[14px] leading-none">
-                +
-              </span>
+              <Plus size={15} strokeWidth={1.8} aria-hidden />
               <span>Create pot</span>
             </button>
           </div>
@@ -295,20 +311,7 @@ function CashPageInner() {
           <h2 className="text-[15px] font-semibold tracking-tight">Activity</h2>
           <div className="mt-3 rounded-klub-lg border border-border-subtle bg-bg-surface/40 px-5 py-8 text-center">
             <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-bg-elevated text-fg-muted">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden
-              >
-                <path
-                  d="M3 10h14M10 3v14"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <Plus size={18} strokeWidth={1.6} aria-hidden />
             </div>
             <div className="mt-3 text-[12px] text-fg-secondary">
               No activity yet

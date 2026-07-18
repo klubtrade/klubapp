@@ -1,5 +1,6 @@
-'use client';
+"use client";
 
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -8,7 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
-} from 'react';
+} from "react";
 
 /**
  * Toast system.
@@ -22,7 +23,7 @@ import {
  * Toasts auto-dismiss after 4 seconds; hover to pause; Esc to clear all.
  */
 
-export type ToastKind = 'success' | 'info' | 'error' | 'warning';
+export type ToastKind = "success" | "info" | "error" | "warning";
 
 export interface Toast {
   readonly id: string;
@@ -44,7 +45,11 @@ const ToastCtx = createContext<ToastApi | null>(null);
 
 const AUTO_DISMISS_MS = 4_000;
 
-export function ToastProvider({ children }: { readonly children: React.ReactNode }) {
+export function ToastProvider({
+  children,
+}: {
+  readonly children: React.ReactNode;
+}) {
   const [toasts, setToasts] = useState<readonly Toast[]>([]);
   const pausedRef = useRef<Set<string>>(new Set());
 
@@ -55,9 +60,10 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
 
   const push = useCallback(
     (kind: ToastKind, message: string, description?: string) => {
-      const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2);
+      const id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
       const toast: Toast = {
         id,
         kind,
@@ -76,16 +82,16 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
   const api = useMemo<ToastApi>(
     () => ({
       success: (m, d) => {
-        push('success', m, d);
+        push("success", m, d);
       },
       info: (m, d) => {
-        push('info', m, d);
+        push("info", m, d);
       },
       error: (m, d) => {
-        push('error', m, d);
+        push("error", m, d);
       },
       warning: (m, d) => {
-        push('warning', m, d);
+        push("warning", m, d);
       },
       dismiss,
     }),
@@ -94,13 +100,13 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setToasts([]);
       }
     }
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("keydown", onKey);
     };
   }, []);
 
@@ -121,7 +127,7 @@ export function ToastProvider({ children }: { readonly children: React.ReactNode
 
 export function useToast(): ToastApi {
   const api = useContext(ToastCtx);
-  if (!api) throw new Error('useToast must be used inside <ToastProvider>');
+  if (!api) throw new Error("useToast must be used inside <ToastProvider>");
   return api;
 }
 
@@ -172,11 +178,11 @@ function ToastCard({
   readonly onMouseEnter: () => void;
   readonly onMouseLeave: () => void;
 }) {
-  const kindStyles: Record<ToastKind, { icon: string; border: string; text: string }> = {
-    success: { icon: '✓', border: 'border-pnl-long/40', text: 'text-pnl-long' },
-    info: { icon: 'ℹ', border: 'border-accent/40', text: 'text-accent' },
-    error: { icon: '✕', border: 'border-pnl-short/40', text: 'text-pnl-short' },
-    warning: { icon: '⚠', border: 'border-alert-orange/40', text: 'text-alert-orange' },
+  const kindStyles: Record<ToastKind, { border: string; text: string }> = {
+    success: { border: "border-pnl-long/40", text: "text-pnl-long" },
+    info: { border: "border-accent/40", text: "text-accent" },
+    error: { border: "border-pnl-short/40", text: "text-pnl-short" },
+    warning: { border: "border-alert-orange/40", text: "text-alert-orange" },
   };
   const k = kindStyles[toast.kind];
 
@@ -186,11 +192,20 @@ function ToastCard({
       onMouseLeave={onMouseLeave}
       className={`pointer-events-auto flex w-full max-w-sm animate-fade-up items-start gap-3 rounded-klub border ${k.border} bg-bg-elevated p-4 shadow-[0_8px_24px_rgba(0,0,0,0.4)] backdrop-blur`}
     >
-      <span className={`mt-0.5 text-base ${k.text}`} aria-hidden>
-        {k.icon}
+      <span className={`mt-0.5 ${k.text}`} aria-hidden>
+        {toast.kind === "success" && (
+          <CheckCircle2 size={17} strokeWidth={1.8} />
+        )}
+        {toast.kind === "info" && <Info size={17} strokeWidth={1.8} />}
+        {toast.kind === "error" && <XCircle size={17} strokeWidth={1.8} />}
+        {toast.kind === "warning" && (
+          <AlertTriangle size={17} strokeWidth={1.8} />
+        )}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-fg-primary">{toast.message}</div>
+        <div className="text-sm font-medium text-fg-primary">
+          {toast.message}
+        </div>
         {toast.description && (
           <div className="mt-1 text-[13px] leading-relaxed text-fg-secondary">
             {toast.description}
@@ -203,7 +218,7 @@ function ToastCard({
         aria-label="Dismiss"
         className="text-fg-muted transition-colors hover:text-fg-primary"
       >
-        ×
+        <X size={16} strokeWidth={1.8} aria-hidden />
       </button>
     </div>
   );

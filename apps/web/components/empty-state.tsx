@@ -8,7 +8,8 @@
  * this space WILL contain, and offers a concrete next action.
  */
 
-import Link from 'next/link';
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export function EmptyState({
   icon,
@@ -42,7 +43,12 @@ export function EmptyState({
           {primaryCta && (
             <Link href={primaryCta.href} className="btn-primary">
               {primaryCta.label}
-              <span className="ml-1">→</span>
+              <ArrowRight
+                className="ml-1"
+                size={14}
+                strokeWidth={1.8}
+                aria-hidden
+              />
             </Link>
           )}
           {secondaryCta && (

@@ -54,7 +54,7 @@ export default function CopyTradePage() {
               promptConnect();
             }}
             disabled={!mounted}
-            className="btn-primary btn-block btn-lg mt-8"
+            className="btn-primary btn-compact btn-lg mt-8"
           >
             Connect wallet
           </button>

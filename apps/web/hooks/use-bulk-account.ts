@@ -3,7 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { authenticatedFetch } from "@/lib/authenticated-fetch";
+import {
+  loadCachedSnapshot,
+  parseKind,
+  parseOpenOrders,
+  parsePositions,
+  parseSubAccounts,
+  saveCachedSnapshot,
+  snapshotFromAccountUpdate,
+} from "@/lib/bulk/account-snapshot";
 import { normalizeBulkErrorMessage } from "@/lib/bulk/error-messages";
+import { marketData } from "@/lib/market-data/client";
 
 export interface BulkPosition {
   readonly symbol: string;
@@ -62,6 +72,8 @@ export interface BulkAccountSnapshot {
   readonly subAccounts: readonly BulkSubAccount[];
   /** True when the server returned an app-safe degraded snapshot. */
   readonly unavailable: boolean;
+  /** True when the UI is showing a last-known snapshot while REST catches up. */
+  readonly stale: boolean;
   /** Calm user-facing message for degraded snapshots. */
   readonly warning: string | null;
   /** Raw response kept for debugging. */
@@ -150,7 +162,26 @@ export function useBulkAccount(pubkey: string | null): {
       }
 
       const snapshot = normalizeAccount(raw);
-      setState({ status: "ready", data: snapshot, error: null });
+      setState((previous) => {
+        if (
+          snapshot.unavailable &&
+          previous.data &&
+          !previous.data.unavailable
+        ) {
+          return {
+            status: "ready",
+            data: {
+              ...previous.data,
+              stale: true,
+              warning:
+                "Account sync is delayed. Showing your last saved balance.",
+            },
+            error: null,
+          };
+        }
+        if (!snapshot.unavailable) saveCachedSnapshot(key, snapshot);
+        return { status: "ready", data: snapshot, error: null };
+      });
     },
     [],
   );
@@ -161,6 +192,27 @@ export function useBulkAccount(pubkey: string | null): {
       return;
     }
 
+    const cached = loadCachedSnapshot(pubkey);
+    if (cached) {
+      setState({
+        status: "ready",
+        data: {
+          ...cached,
+          stale: true,
+          warning: "Account sync is delayed. Showing your last saved balance.",
+        },
+        error: null,
+      });
+    }
+
+    const unsubscribeAccount = marketData.onAccount(pubkey, (update) => {
+      setState((previous) => {
+        const snapshot = snapshotFromAccountUpdate(update, previous.data);
+        saveCachedSnapshot(pubkey, snapshot);
+        return { status: "ready", data: snapshot, error: null };
+      });
+    });
+
     const controller = new AbortController();
     void fetchAccount(pubkey, controller.signal);
 
@@ -170,6 +222,7 @@ export function useBulkAccount(pubkey: string | null): {
 
     return () => {
       controller.abort();
+      unsubscribeAccount();
       window.clearInterval(interval);
     };
   }, [pubkey, fetchAccount]);
@@ -276,133 +329,10 @@ function normalizeAccount(raw: unknown): BulkAccountSnapshot {
     parent,
     subAccounts,
     unavailable,
+    stale: unavailable,
     warning,
     raw,
   };
-}
-
-function parseKind(v: unknown): "MasterEOA" | "SubAccount" | null {
-  if (v === "MasterEOA" || v === "SubAccount") return v;
-  return null;
-}
-
-function parseSubAccounts(raw: unknown): readonly BulkSubAccount[] {
-  if (!Array.isArray(raw)) return [];
-  const out: BulkSubAccount[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const r = item as Record<string, unknown>;
-    const pubkey = typeof r["pubkey"] === "string" ? r["pubkey"] : null;
-    if (!pubkey) continue;
-    const nameRaw = r["name"] ?? r["label"];
-    const name =
-      typeof nameRaw === "string" && nameRaw.length > 0 ? nameRaw : null;
-    out.push({ pubkey, name });
-  }
-  return out;
-}
-
-function parsePositions(raw: unknown): readonly BulkPosition[] {
-  if (!Array.isArray(raw)) return [];
-  const out: BulkPosition[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const r = item as Record<string, unknown>;
-    const symbol = typeof r["symbol"] === "string" ? r["symbol"] : null;
-    if (!symbol) continue;
-
-    // Size - per verified response field is `size`; fallbacks for
-    // future Bulk renames.
-    const sizeBase =
-      readNumber(r["size"]) ??
-      readNumber(r["sz"]) ??
-      readNumber(r["sizeBase"]) ??
-      0;
-    // Entry price - verified as `price`; some exchanges use
-    // avgEntryPrice or entry.
-    const entryPrice =
-      readNumber(r["price"]) ??
-      readNumber(r["entryPrice"]) ??
-      readNumber(r["avgEntry"]) ??
-      0;
-    // Mark/fair - verified as `fairPrice`.
-    const fairPrice =
-      readNumber(r["fairPrice"]) ??
-      readNumber(r["markPrice"]) ??
-      readNumber(r["mark"]) ??
-      entryPrice;
-    // Notional - verified field name; recompute if missing.
-    const notionalUsd =
-      readNumber(r["notional"]) ??
-      (Number.isFinite(sizeBase) && Number.isFinite(entryPrice)
-        ? sizeBase * entryPrice
-        : 0);
-    // Unrealized pnl is not shown as a single field in the item
-    // we've seen - it's probably computed from sizeBase×(fairPrice−entryPrice).
-    // Still probe first, in case Bulk adds it.
-    const probed =
-      readNumber(r["unrealizedPnl"]) ??
-      readNumber(r["upnl"]) ??
-      readNumber(r["pnl"]) ??
-      null;
-    const unrealizedPnlUsd =
-      probed ??
-      (Number.isFinite(sizeBase) &&
-      Number.isFinite(fairPrice) &&
-      Number.isFinite(entryPrice)
-        ? sizeBase * (fairPrice - entryPrice)
-        : null);
-
-    out.push({
-      symbol,
-      sizeBase,
-      entryPrice,
-      fairPrice,
-      notionalUsd,
-      unrealizedPnlUsd,
-      raw: r,
-    });
-  }
-  return out;
-}
-
-function parseOpenOrders(raw: unknown): readonly BulkOpenOrder[] {
-  if (!Array.isArray(raw)) return [];
-  const out: BulkOpenOrder[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const r = item as Record<string, unknown>;
-    const symbol = typeof r["symbol"] === "string" ? r["symbol"] : null;
-    if (!symbol) continue;
-
-    const orderId =
-      (typeof r["orderId"] === "string" && r["orderId"]) ||
-      (typeof r["oid"] === "string" && r["oid"]) ||
-      (typeof r["id"] === "string" && r["id"]) ||
-      "";
-
-    const sizeBase = readNumber(r["size"]) ?? readNumber(r["sz"]) ?? 0;
-    const price = readNumber(r["price"]) ?? readNumber(r["px"]) ?? 0;
-    // is_buy / side - signed size is a common encoding, so fall back
-    // to sign check.
-    const isBuyRaw = r["isBuy"] ?? r["b"] ?? r["buy"];
-    const isBuy = typeof isBuyRaw === "boolean" ? isBuyRaw : sizeBase >= 0;
-    const tif =
-      (typeof r["tif"] === "string" && r["tif"]) ||
-      (typeof r["timeInForce"] === "string" && r["timeInForce"]) ||
-      null;
-
-    out.push({
-      orderId,
-      symbol,
-      isBuy,
-      sizeBase: Math.abs(sizeBase),
-      price,
-      tif,
-      raw: r,
-    });
-  }
-  return out;
 }
 
 const warnedShapes = new Set<string>();

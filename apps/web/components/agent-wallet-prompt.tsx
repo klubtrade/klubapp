@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { Check, Info } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { useAgentWallet } from '@/hooks/use-agent-wallet';
+import { useAgentWallet } from "@/hooks/use-agent-wallet";
 
 /**
  * <AgentWalletPrompt /> - modal that explains the agent-wallet
@@ -42,12 +43,12 @@ export function AgentWalletPrompt({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !pending) onClose();
+      if (e.key === "Escape" && !pending) onClose();
     }
     if (!open) return;
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("keydown", onKey);
     };
   }, [open, pending, onClose]);
 
@@ -86,7 +87,10 @@ export function AgentWalletPrompt({
         ) : (
           <>
             <div className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-accent">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-accent"
+                aria-hidden
+              />
               Fast trading
             </div>
             <h2 className="mt-3 text-xl font-semibold tracking-tight text-fg-primary">
@@ -98,10 +102,14 @@ export function AgentWalletPrompt({
             </p>
 
             <ul className="mt-5 space-y-3 text-[12px] leading-relaxed">
-              <BulletOk>Place & cancel orders without a popup each time</BulletOk>
+              <BulletOk>
+                Place & cancel orders without a popup each time
+              </BulletOk>
               <BulletOk>About 500&thinsp;ms faster per order</BulletOk>
               <BulletOk>You can revoke anytime from your wallet menu</BulletOk>
-              <BulletWarn>Cannot withdraw your funds. Only trades on your collateral.</BulletWarn>
+              <BulletWarn>
+                Cannot withdraw your funds. Only trades on your collateral.
+              </BulletWarn>
             </ul>
 
             {localResult && !localResult.ok && (
@@ -125,7 +133,7 @@ export function AgentWalletPrompt({
                 disabled={pending}
                 className="btn-primary btn-block disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {pending ? 'Approving…' : 'Enable'}
+                {pending ? "Approving…" : "Enable"}
               </button>
             </div>
           </>
@@ -139,18 +147,25 @@ function SuccessView({ onClose }: { readonly onClose: () => void }) {
   return (
     <>
       <div className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-pnl-long">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-pnl-long" aria-hidden />
+        <span
+          className="h-1.5 w-1.5 animate-pulse rounded-full bg-pnl-long"
+          aria-hidden
+        />
         Fast trading enabled
       </div>
       <h2 className="mt-3 text-xl font-semibold tracking-tight text-fg-primary">
         You&rsquo;re set up.
       </h2>
       <p className="mt-3 text-[13px] leading-relaxed text-fg-secondary">
-        Trades from this browser sign instantly. You can revoke any time
-        from the wallet menu.
+        Trades from this browser sign instantly. You can revoke any time from
+        the wallet menu.
       </p>
       <div className="mt-6">
-        <button type="button" onClick={onClose} className="btn-primary btn-block">
+        <button
+          type="button"
+          onClick={onClose}
+          className="btn-primary btn-block"
+        >
           Done
         </button>
       </div>
@@ -161,9 +176,12 @@ function SuccessView({ onClose }: { readonly onClose: () => void }) {
 function BulletOk({ children }: { readonly children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2 text-fg-secondary">
-      <span className="mt-0.5 text-pnl-long" aria-hidden>
-        ✓
-      </span>
+      <Check
+        className="mt-0.5 shrink-0 text-pnl-long"
+        size={14}
+        strokeWidth={2}
+        aria-hidden
+      />
       <span>{children}</span>
     </li>
   );
@@ -172,9 +190,12 @@ function BulletOk({ children }: { readonly children: React.ReactNode }) {
 function BulletWarn({ children }: { readonly children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2 text-fg-secondary">
-      <span className="mt-0.5 text-accent" aria-hidden>
-        i
-      </span>
+      <Info
+        className="mt-0.5 shrink-0 text-accent"
+        size={14}
+        strokeWidth={1.8}
+        aria-hidden
+      />
       <span>{children}</span>
     </li>
   );

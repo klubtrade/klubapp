@@ -63,7 +63,7 @@ export function VaultReadinessCard({
         <button
           type="button"
           onClick={onConnect}
-          className="btn-primary btn-block mt-4"
+          className="btn-primary btn-compact mt-4"
         >
           Connect wallet
         </button>

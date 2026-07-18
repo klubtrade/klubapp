@@ -80,6 +80,7 @@ function ConnectedHome() {
 
   const equity = snapshot?.equityUsd ?? null;
   const accountUnavailable = snapshot?.unavailable === true;
+  const accountSyncDelayed = snapshot?.stale === true && !accountUnavailable;
   const totalPnl = snapshot?.unrealizedPnlUsd ?? null;
   const portfolioHealth = useMemo<HealthOutput | null>(() => {
     const input = buildHealthInput(snapshot, livePrices, mmSurfaces);
@@ -159,6 +160,11 @@ function ConnectedHome() {
             "Bulk exchange is temporarily unavailable. Please try again in a few minutes."}
         </div>
       )}
+      {accountSyncDelayed && (
+        <div className="mt-3 text-[11px] text-alert-orange">
+          Syncing account. Showing your last saved balance.
+        </div>
+      )}
 
       <RiskSummary
         result={accountUnavailable ? null : portfolioHealth}
@@ -195,17 +201,17 @@ function DisconnectedHome() {
           retail flow.
         </p>
 
-        <div className="mt-8 space-y-3">
+        <div className="mt-8">
           <button
             type="button"
             onClick={promptConnect}
-            className="btn-primary btn-block btn-lg"
+            className="btn-primary btn-compact btn-lg"
           >
             Connect wallet
           </button>
           <Link
             href="/copy"
-            className="block text-center text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
+            className="ml-4 inline-block text-[13px] text-fg-muted transition-colors hover:text-fg-primary"
           >
             Browse leaders without connecting →
           </Link>

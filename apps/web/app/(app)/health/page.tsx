@@ -7,6 +7,7 @@ import {
   type SubScore,
 } from "@klub/calc";
 import Link from "next/link";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useBulkAccount } from "@/hooks/use-bulk-account";
@@ -210,7 +211,10 @@ export default function HealthPage() {
               className="shrink-0 text-[11px] uppercase tracking-[0.12em] text-fg-muted transition-colors hover:text-fg-primary"
               aria-label="Refresh account"
             >
-              ↻ Refresh
+              <span className="inline-flex items-center gap-1.5">
+                <RefreshCw size={12} strokeWidth={1.8} aria-hidden />
+                Refresh
+              </span>
             </button>
           )}
         </header>
@@ -384,14 +388,7 @@ function EmptyState({
   return (
     <section className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface p-7 text-center md:p-10">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-bg-elevated text-fg-muted">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path
-            d="M12 2v4m0 12v4M2 12h4m12 0h4M5 5l3 3m8 8l3 3M5 19l3-3m8-8l3-3"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-          />
-        </svg>
+        <Sparkles size={22} strokeWidth={1.6} aria-hidden />
       </div>
       <h2 className="mt-4 text-[22px] font-semibold leading-[1.15] tracking-[-0.02em] text-fg-primary md:text-[26px]">
         {title}

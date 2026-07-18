@@ -2,6 +2,7 @@
 
 import {
   BulkWebSocket,
+  type AccountUpdate,
   type ConnectionState,
   type FrontendContextRow,
   type L2Snapshot,
@@ -84,6 +85,13 @@ class MarketDataClient {
     }
     this.ensureWs();
     return this.ws!.onFrontendContext(handler);
+  }
+
+  /** Live account fallback used when Bulk's REST account read is delayed. */
+  onAccount(user: string, handler: Listener<AccountUpdate>): () => void {
+    if (!this.wsUrl) return () => undefined;
+    this.ensureWs();
+    return this.ws!.onAccount(user, handler);
   }
 
   /**

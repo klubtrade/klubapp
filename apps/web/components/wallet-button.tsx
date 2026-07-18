@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Check, Copy, RefreshCw } from "lucide-react";
 
 import { AgentWalletPrompt } from "@/components/agent-wallet-prompt";
 import { useAgentWallet } from "@/hooks/use-agent-wallet";
@@ -160,7 +161,14 @@ function ConnectedShell({
                 copied ? "text-pnl-long" : "text-accent hover:opacity-80"
               }`}
             >
-              {copied ? "Copied ✓" : "Copy address"}
+              <span className="inline-flex items-center gap-1.5">
+                {copied ? (
+                  <Check size={12} strokeWidth={2} aria-hidden />
+                ) : (
+                  <Copy size={12} strokeWidth={1.8} aria-hidden />
+                )}
+                {copied ? "Copied" : "Copy address"}
+              </span>
             </button>
           </div>
 
@@ -176,7 +184,14 @@ function ConnectedShell({
                 aria-label="Refresh balance"
                 className="text-[10px] text-fg-muted transition-colors hover:text-fg-primary"
               >
-                {accountState.status === "loading" ? "…" : "↻"}
+                <RefreshCw
+                  size={12}
+                  strokeWidth={1.8}
+                  aria-hidden
+                  className={
+                    accountState.status === "loading" ? "animate-spin" : ""
+                  }
+                />
               </button>
             </div>
             <div className="mt-1 font-mono text-[18px] font-semibold text-fg-primary">
@@ -311,7 +326,10 @@ function FaucetRow({
           Testnet faucet
         </div>
         <div className="mt-0.5 text-[11px] text-fg-secondary">
-          Claimed ✓ - balance updating…
+          <span className="inline-flex items-center gap-1.5">
+            <Check size={12} strokeWidth={2} aria-hidden />
+            Claimed. Balance updating…
+          </span>
         </div>
       </div>
     );

@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import { Link as LinkIcon } from "lucide-react";
 
-import { useToast } from '@/components/toast';
-import { resolveHandle } from '@/lib/handles';
-import { useTradingWallet } from '@/lib/trading-wallet';
+import { useToast } from "@/components/toast";
+import { resolveHandle } from "@/lib/handles";
+import { useTradingWallet } from "@/lib/trading-wallet";
 
 /**
  * /invite - share your invite link.
@@ -59,9 +60,9 @@ export default function InvitePage() {
   }, [pubkey]);
 
   const origin =
-    typeof window !== 'undefined'
+    typeof window !== "undefined"
       ? window.location.origin
-      : 'https://klubapptrade.vercel.app';
+      : "https://klubapptrade.vercel.app";
 
   const profileUrl = handle ? `${origin}/copy/${handle}` : null;
   const payUrl = handle ? `${origin}/cash?to=@${handle}` : null;
@@ -72,7 +73,7 @@ export default function InvitePage() {
       await navigator.clipboard.writeText(text);
       toast.success(`${label} copied`);
     } catch {
-      toast.error('Could not copy');
+      toast.error("Could not copy");
     }
   }
 
@@ -97,8 +98,8 @@ export default function InvitePage() {
               Connect a wallet
             </h2>
             <p className="mx-auto mt-2 max-w-[34ch] text-[13px] leading-relaxed text-fg-secondary">
-              Your invite link is tied to your handle, which is tied to
-              your wallet.
+              Your invite link is tied to your handle, which is tied to your
+              wallet.
             </p>
           </section>
         ) : !handle && !loadingHandle ? (
@@ -113,7 +114,10 @@ export default function InvitePage() {
               You need a handle so your invite link reads like
               <span className="font-mono"> klub.app/@you</span>.
             </p>
-            <a href="/settings" className="btn-primary btn-compact mt-5 inline-flex">
+            <a
+              href="/settings"
+              className="btn-primary btn-compact mt-5 inline-flex"
+            >
               Go to settings
             </a>
           </section>
@@ -121,20 +125,20 @@ export default function InvitePage() {
           <section className="mt-8 space-y-3">
             <ShareCard
               label="Your profile"
-              url={profileUrl ?? '-'}
-              onCopy={() => profileUrl && copy(profileUrl, 'Profile link')}
+              url={profileUrl ?? "-"}
+              onCopy={() => profileUrl && copy(profileUrl, "Profile link")}
               accent
             />
             <ShareCard
               label="Pay-by-handle"
-              url={payUrl ?? '-'}
-              onCopy={() => payUrl && copy(payUrl, 'Pay link')}
+              url={payUrl ?? "-"}
+              onCopy={() => payUrl && copy(payUrl, "Pay link")}
               hint="Anyone with this link can send you USDC."
             />
             <ShareCard
               label="Just KLUB"
               url={homeUrl}
-              onCopy={() => copy(homeUrl, 'Link')}
+              onCopy={() => copy(homeUrl, "Link")}
               hint="Plain landing - no handle attribution."
             />
           </section>
@@ -172,15 +176,15 @@ function ShareCard({
     <div
       className={`rounded-klub-lg border p-4 ${
         accent
-          ? 'border-accent/40 bg-accent/5'
-          : 'border-border-subtle bg-bg-surface'
+          ? "border-accent/40 bg-accent/5"
+          : "border-border-subtle bg-bg-surface"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div
             className={`text-[10px] font-medium uppercase tracking-[0.12em] ${
-              accent ? 'text-accent' : 'text-fg-muted'
+              accent ? "text-accent" : "text-fg-muted"
             }`}
           >
             {label}
@@ -203,15 +207,5 @@ function ShareCard({
 }
 
 function IconLink() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M10 14a5 5 0 0 1 0-7l3-3a5 5 0 1 1 7 7l-1.5 1.5M14 10a5 5 0 0 1 0 7l-3 3a5 5 0 0 1-7-7l1.5-1.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <LinkIcon size={20} strokeWidth={1.6} aria-hidden />;
 }

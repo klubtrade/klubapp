@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
+import { GripVertical } from "lucide-react";
+import type { ReactNode } from "react";
 
 /**
  * <PanelFrame />
@@ -25,21 +26,12 @@ export function PanelFrame({
     <section className="absolute inset-0 flex flex-col overflow-hidden border border-border-subtle bg-bg-base">
       <div className="pro-drag-handle flex flex-shrink-0 items-center justify-between gap-2 border-b border-border-subtle px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-muted">
         <div className="flex min-w-0 items-center gap-2">
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
+          <GripVertical
+            size={12}
+            strokeWidth={1.8}
             aria-hidden
             className="flex-shrink-0 opacity-50"
-          >
-            <circle cx="2" cy="2" r="1" fill="currentColor" />
-            <circle cx="2" cy="5" r="1" fill="currentColor" />
-            <circle cx="2" cy="8" r="1" fill="currentColor" />
-            <circle cx="5" cy="2" r="1" fill="currentColor" />
-            <circle cx="5" cy="5" r="1" fill="currentColor" />
-            <circle cx="5" cy="8" r="1" fill="currentColor" />
-          </svg>
+          />
           <span className="truncate">{title}</span>
         </div>
         {actions && (
