@@ -26,6 +26,11 @@ interface NativeKeychain {
     order: Parameters<BulkKeychainAdapter["prepareOrder"]>[0],
     options: Parameters<BulkKeychainAdapter["prepareOrder"]>[1],
   ): NativePreparedMessage;
+  prepareFaucetRequest(options: {
+    readonly account: string;
+    readonly signer?: string;
+    readonly nonce?: number;
+  }): NativePreparedMessage;
   prepareApproveBuilderCode(
     recipient: string,
     feeBps: number,
@@ -63,6 +68,31 @@ export function signPreparedWithAgentSecret(params: {
   }
   const signer = new nativeKeychain.NativeSigner(keypair);
   return signer.signBytes(Buffer.from(params.messageBytes));
+}
+
+export function prepareSignedFaucetRequest(params: {
+  readonly secretKey: Uint8Array;
+  readonly expectedPublicKey: string;
+  readonly nonce?: number;
+}) {
+  const keypair = nativeKeychain.NativeKeypair.fromBytes(
+    Buffer.from(params.secretKey),
+  );
+  if (keypair.pubkey !== params.expectedPublicKey) {
+    throw new Error(
+      "Strategy secret does not match the configured Bulk account",
+    );
+  }
+  const signer = new nativeKeychain.NativeSigner(keypair);
+  const prepared = nativeKeychain.prepareFaucetRequest({
+    account: keypair.pubkey,
+    signer: keypair.pubkey,
+    nonce: params.nonce ?? Date.now(),
+  });
+  return nativeKeychain.finalizePreparedTransaction(
+    prepared,
+    signer.signBytes(prepared.messageBytes),
+  );
 }
 
 /** Native Node adapter backed by Bulk's canonical wincode implementation. */

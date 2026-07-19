@@ -10,6 +10,7 @@
     "leader-indexer": "tsx src/workers/leader-indexer.ts",
     "leader-indexer:once": "tsx src/workers/leader-indexer.ts --once",
     "leader-seed": "tsx src/seed-leaders.ts",
+    "basis:bootstrap": "tsx src/basis-strategy-bootstrap.ts",
     "start": "node dist/index.js",
     "build": "tsc",
     "lint": "eslint src --ext .ts",

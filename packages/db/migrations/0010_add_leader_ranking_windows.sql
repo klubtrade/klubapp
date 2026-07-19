@@ -1,0 +1,4 @@
+ALTER TABLE "leaders" ADD COLUMN IF NOT EXISTS "net_pnl_24h_usd" real DEFAULT 0 NOT NULL;
+ALTER TABLE "leaders" ADD COLUMN IF NOT EXISTS "net_pnl_7d_usd" real DEFAULT 0 NOT NULL;
+ALTER TABLE "leaders" ADD COLUMN IF NOT EXISTS "fills_last_24h" integer DEFAULT 0 NOT NULL;
+ALTER TABLE "leaders" ADD COLUMN IF NOT EXISTS "fills_last_7d" integer DEFAULT 0 NOT NULL;

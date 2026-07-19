@@ -6,11 +6,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useCopyTrade } from "@/components/copy-trade-provider";
 import { useToast } from "@/components/toast";
-import type { VerifiedLeader } from "@/lib/copy-trade/leaders";
+import {
+  leaderWindowFills,
+  leaderWindowPnl,
+  type LeaderRankingWindow,
+  type VerifiedLeader,
+} from "@/lib/copy-trade/leaders";
 import { useUserPrefs } from "@/lib/user-prefs";
 
 export default function FollowPage() {
   const [leaders, setLeaders] = useState<readonly VerifiedLeader[]>([]);
+  const [rankingWindow, setRankingWindow] =
+    useState<LeaderRankingWindow>("24h");
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -25,7 +32,9 @@ export default function FollowPage() {
   const load = useCallback(async () => {
     setStatus("loading");
     try {
-      const response = await fetch("/api/leaders", { cache: "no-store" });
+      const response = await fetch(`/api/leaders?window=${rankingWindow}`, {
+        cache: "no-store",
+      });
       if (!response.ok) throw new Error("leader query failed");
       const payload = (await response.json()) as {
         readonly leaders?: readonly VerifiedLeader[];
@@ -35,7 +44,7 @@ export default function FollowPage() {
     } catch {
       setStatus("error");
     }
-  }, []);
+  }, [rankingWindow]);
 
   useEffect(() => {
     void load();
@@ -50,8 +59,7 @@ export default function FollowPage() {
               Copy trading
             </h1>
             <p className="mt-2 text-[13px] text-fg-muted">
-              Verified Bulk testnet activity, ranked by calculated 30-day net
-              PnL.
+              Verified Bulk testnet activity, ranked by calculated net PnL.
             </p>
           </div>
           <button
@@ -75,6 +83,30 @@ export default function FollowPage() {
           </p>
         </div>
 
+        <div
+          className="mt-5 inline-flex rounded-klub border border-border-subtle bg-bg-surface p-1"
+          aria-label="Ranking period"
+        >
+          {(["24h", "7d", "30d"] as const).map((window) => (
+            <button
+              key={window}
+              type="button"
+              onClick={() => setRankingWindow(window)}
+              className={`rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${
+                rankingWindow === window
+                  ? "bg-accent text-bg-base"
+                  : "text-fg-muted hover:text-fg-primary"
+              }`}
+            >
+              {window === "24h"
+                ? "24 hours"
+                : window === "7d"
+                  ? "7 days"
+                  : "30 days"}
+            </button>
+          ))}
+        </div>
+
         {status === "error" ? (
           <EmptyState
             title="Trader data is temporarily unavailable"
@@ -89,6 +121,8 @@ export default function FollowPage() {
           <ol className="mt-6 grid gap-3 md:grid-cols-2">
             {leaders.map((leader, index) => {
               const isFollowing = following.has(leader.pubkey);
+              const pnl = leaderWindowPnl(leader, rankingWindow);
+              const fills = leaderWindowFills(leader, rankingWindow);
               return (
                 <li
                   key={leader.pubkey}
@@ -106,14 +140,13 @@ export default function FollowPage() {
                         {leader.label}
                       </div>
                       <div className="mt-1 font-mono text-[10px] text-fg-muted">
-                        {leader.fillsLast30d} fills · {leader.closedTradesCount}{" "}
-                        closed
+                        {fills} fills · {leader.closedTradesCount} closed
                       </div>
                     </Link>
                     <div
-                      className={`font-mono text-[14px] font-semibold ${leader.netPnl30dUsd >= 0 ? "text-pnl-long" : "text-pnl-short"}`}
+                      className={`font-mono text-[14px] font-semibold ${pnl >= 0 ? "text-pnl-long" : "text-pnl-short"}`}
                     >
-                      {formatPnl(leader.netPnl30dUsd)}
+                      {formatPnl(pnl)}
                     </div>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border-subtle pt-3 text-center">

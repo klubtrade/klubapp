@@ -31,7 +31,7 @@ import {
 import bs58 from "bs58";
 import { eq, sql } from "drizzle-orm";
 
-import { computeLeaderMetrics } from "./leader-indexer.js";
+import { computeLeaderMetrics } from "./leader-metrics.js";
 
 const USDC_SCALE = 1_000_000n;
 const CREDIT_YIELD_DISCRIMINATOR = 7;
@@ -383,7 +383,7 @@ function operatorConfig() {
     })(),
     sourceAccount: required("BASIS_BULK_STRATEGY_ACCOUNT"),
     strategyAuthority: address(required("BASIS_VAULT_STRATEGY_AUTHORITY")),
-    strategySecret: decodeSecret(
+    strategySecret: decodeStrategySecret(
       required("BASIS_VAULT_STRATEGY_AUTHORITY_SECRET"),
     ),
     rpcUrl: required("SOLANA_RPC_URL"),
@@ -401,11 +401,39 @@ function operatorConfig() {
   };
 }
 
-function decodeSecret(value: string): Uint8Array {
-  const bytes = Uint8Array.from(Buffer.from(value, "base64"));
-  if (bytes.length !== 64)
-    throw new Error("Basis strategy secret must be a base64 64-byte keypair.");
-  return bytes;
+export function decodeStrategySecret(value: string): Uint8Array {
+  const normalized = value
+    .trim()
+    .replace(/^(['"])(.*)\1$/, "$2")
+    .trim();
+  const directJson = parseSecretJson(normalized);
+  if (directJson) return directJson;
+
+  const decoded = Buffer.from(normalized.replace(/\s+/g, ""), "base64");
+  if (decoded.length === 64) return Uint8Array.from(decoded);
+
+  const encodedJson = parseSecretJson(decoded.toString("utf8"));
+  if (encodedJson) return encodedJson;
+  throw new Error(
+    `Basis strategy secret is invalid (decoded ${decoded.length} bytes; expected 64). Re-paste the base64 value only.`,
+  );
+}
+
+function parseSecretJson(value: string): Uint8Array | null {
+  if (!value.startsWith("[") || !value.endsWith("]")) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length !== 64 ||
+      parsed.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)
+    ) {
+      return null;
+    }
+    return Uint8Array.from(parsed as number[]);
+  } catch {
+    return null;
+  }
 }
 
 function latestTimestamp(

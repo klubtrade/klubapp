@@ -171,6 +171,8 @@ export const leaders = pgTable(
   {
     pubkey: varchar("pubkey", { length: 128 }).primaryKey(),
     handle: varchar("handle", { length: 20 }),
+    netPnl24hUsd: real("net_pnl_24h_usd").default(0).notNull(),
+    netPnl7dUsd: real("net_pnl_7d_usd").default(0).notNull(),
     netPnl30dUsd: real("net_pnl_30d_usd").notNull(),
     unrealizedPnlUsd: real("unrealized_pnl_usd").notNull(),
     winRate: real("win_rate").notNull(),
@@ -179,6 +181,8 @@ export const leaders = pgTable(
     maxDrawdownPct: real("max_drawdown_pct").notNull(),
     sharpeRatio: real("sharpe_ratio").notNull(),
     followedEquityUsd: real("followed_equity_usd").default(0).notNull(),
+    fillsLast24h: integer("fills_last_24h").default(0).notNull(),
+    fillsLast7d: integer("fills_last_7d").default(0).notNull(),
     fillsLast30d: integer("fills_last_30d").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

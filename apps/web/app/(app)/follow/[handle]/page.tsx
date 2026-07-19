@@ -28,12 +28,16 @@ export default async function LeaderProfile({
   const leader: VerifiedLeader = {
     pubkey: row.pubkey,
     label: leaderLabel(row.handle, row.pubkey),
+    netPnl24hUsd: row.netPnl24hUsd,
+    netPnl7dUsd: row.netPnl7dUsd,
     netPnl30dUsd: row.netPnl30dUsd,
     unrealizedPnlUsd: row.unrealizedPnlUsd,
     winRate: row.winRate,
     closedTradesCount: row.closedTradesCount,
     maxDrawdownPct: row.maxDrawdownPct,
     sharpeRatio: row.sharpeRatio,
+    fillsLast24h: row.fillsLast24h,
+    fillsLast7d: row.fillsLast7d,
     fillsLast30d: row.fillsLast30d,
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -59,13 +63,13 @@ export default async function LeaderProfile({
           </div>
         </div>
         <div className="mt-10 text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-          Calculated 30-day net PnL
+          Calculated 24-hour net PnL
         </div>
         <div
-          className={`mt-2 font-mono text-[44px] leading-none ${leader.netPnl30dUsd >= 0 ? "text-pnl-long" : "text-pnl-short"}`}
+          className={`mt-2 font-mono text-[44px] leading-none ${leader.netPnl24hUsd >= 0 ? "text-pnl-long" : "text-pnl-short"}`}
         >
-          {leader.netPnl30dUsd >= 0 ? "+" : "−"}$
-          {Math.abs(leader.netPnl30dUsd).toLocaleString(undefined, {
+          {leader.netPnl24hUsd >= 0 ? "+" : "−"}$
+          {Math.abs(leader.netPnl24hUsd).toLocaleString(undefined, {
             maximumFractionDigits: 2,
           })}
         </div>

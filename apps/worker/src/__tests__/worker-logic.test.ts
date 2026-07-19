@@ -10,12 +10,17 @@ import {
 import {
   createNodeKeychainAdapter,
   getNativeAgentPublicKey,
+  prepareSignedFaucetRequest,
   signPreparedWithAgentSecret,
 } from "../signing/keychain-adapter.js";
 import { composeAlertMessage, tierCrossed } from "../workers/alerts-worker.js";
-import { allocateProRata } from "../workers/basis-yield-operator.js";
+import {
+  allocateProRata,
+  decodeStrategySecret,
+} from "../workers/basis-yield-operator.js";
 import { summarizeCopyFollowRows } from "../workers/copy-follow-scanner.js";
 import { computeMirroredSize } from "../workers/copy-trade-worker.js";
+import { summarizeLeaderFills } from "../workers/leader-indexer.js";
 
 const alert = {
   userId: "user-1",
@@ -66,6 +71,20 @@ describe("worker risk helpers", () => {
     ]);
   });
 
+  it("accepts safe Railway encodings for the Basis strategy key", () => {
+    const key = Uint8Array.from({ length: 64 }, (_, index) => index);
+    const base64 = Buffer.from(key).toString("base64");
+    const json = JSON.stringify([...key]);
+
+    expect(decodeStrategySecret(base64)).toEqual(key);
+    expect(decodeStrategySecret(`"${base64}"`)).toEqual(key);
+    expect(decodeStrategySecret(json)).toEqual(key);
+    expect(decodeStrategySecret(Buffer.from(json).toString("base64"))).toEqual(
+      key,
+    );
+    expect(() => decodeStrategySecret("not-a-key")).toThrow("expected 64");
+  });
+
   it("returns the most severe tier crossed during a decline", () => {
     expect(tierCrossed(0.3, 0.09)).toBe(0.1);
     expect(tierCrossed(0.09, 0.12)).toBeNull();
@@ -102,6 +121,69 @@ describe("worker risk helpers", () => {
       uniqueLeaders: 2,
       indexedAt: "2026-07-17T00:00:00.000Z",
     });
+  });
+
+  it("calculates independent 24-hour, 7-day, and 30-day leader PnL", () => {
+    const nowMs = Date.parse("2026-07-19T12:00:00.000Z");
+    const hour = 60 * 60 * 1000;
+    const fill = (
+      symbol: string,
+      amount: number,
+      price: number,
+      isBuy: boolean,
+      timestamp: number,
+    ) => ({
+      symbol,
+      amount,
+      price,
+      isBuy,
+      fee: 1,
+      timestamp,
+      maker: "maker",
+      taker: "taker",
+      reason: "normal",
+      slot: 1,
+    });
+    const summary = summarizeLeaderFills({
+      leaderPubkey: "leader",
+      nowMs,
+      cutoffMs: nowMs - 30 * 24 * hour,
+      fills: [
+        fill("BTC-USD", 1, 100, true, nowMs - 48 * hour),
+        fill("BTC-USD", 1, 120, false, nowMs - 12 * hour),
+        fill("ETH-USD", 1, 50, true, nowMs - 10 * 24 * hour),
+        fill("ETH-USD", 1, 60, false, nowMs - 8 * 24 * hour),
+      ],
+      fundingPayments: [
+        {
+          owner: "leader",
+          symbol: "BTC-USD",
+          size: 1,
+          payment: 2,
+          fundingRate: 0.0001,
+          markPrice: 120,
+          slot: 2,
+          timestamp: nowMs - 6 * hour,
+        },
+        {
+          owner: "leader",
+          symbol: "ETH-USD",
+          size: 1,
+          payment: 3,
+          fundingRate: 0.0001,
+          markPrice: 60,
+          slot: 2,
+          timestamp: nowMs - 8 * 24 * hour,
+        },
+      ],
+    });
+
+    expect(summary.fillsLast24h).toBe(1);
+    expect(summary.fillsLast7d).toBe(2);
+    expect(summary.fillsLast30d).toBe(4);
+    expect(summary.netPnl24hUsd).toBe(21);
+    expect(summary.netPnl7dUsd).toBe(20);
+    expect(summary.netPnl30dUsd).toBe(31);
   });
 
   it("fails closed while the canonical execution gateway is unavailable", async () => {
@@ -271,5 +353,22 @@ describe("Bulk native keychain adapter", () => {
         messageBytes: new Uint8Array([1, 2, 3]),
       }),
     ).toThrow(/does not match/);
+  });
+
+  it("prepares a signed canonical faucet request for the strategy account", () => {
+    const secretKey = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+    const expectedPublicKey = getNativeAgentPublicKey(secretKey);
+    const signed = prepareSignedFaucetRequest({
+      secretKey,
+      expectedPublicKey,
+      nonce: 48,
+    });
+
+    expect(JSON.parse(String(signed.actions))).toEqual([
+      { faucet: { u: expectedPublicKey } },
+    ]);
+    expect(signed.account).toBe(expectedPublicKey);
+    expect(signed.signer).toBe(expectedPublicKey);
+    expect(signed.signature.length).toBeGreaterThan(80);
   });
 });
