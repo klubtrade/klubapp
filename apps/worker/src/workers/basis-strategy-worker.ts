@@ -76,7 +76,7 @@ export async function runBasisStrategyOnce({
   const config = strategyConfig();
   const control = await loadControl(db, config.account);
   if (control.paused || !config.executionEnabled) {
-    if (control.paused && isRecoverableNoEquityPause(control.pauseReason)) {
+    if (control.paused && isRecoverableTestnetPause(control.pauseReason)) {
       await updateControl(db, config.account, {
         paused: false,
         pauseReason: null,
@@ -488,6 +488,10 @@ async function recordReconciliation(
   });
 }
 
-function isRecoverableNoEquityPause(reason: string | null): boolean {
-  return Boolean(reason?.toLowerCase().includes("no equity"));
+function isRecoverableTestnetPause(reason: string | null): boolean {
+  const normalized = reason?.toLowerCase() ?? "";
+  return (
+    normalized.includes("no equity") ||
+    normalized.includes("consecutive strategy errors")
+  );
 }
