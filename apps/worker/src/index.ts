@@ -39,6 +39,22 @@ function env(name: string): string {
   return v;
 }
 
+function basisRuntimeEnabled(): boolean {
+  const explicit = process.env.BASIS_OPERATOR_ENABLED?.trim().toLowerCase();
+  if (explicit === "false") return false;
+  if (explicit === "true") return true;
+  return [
+    "BASIS_BULK_STRATEGY_ACCOUNT",
+    "BASIS_VAULT_STRATEGY_AUTHORITY",
+    "BASIS_VAULT_STRATEGY_AUTHORITY_SECRET",
+    "BASIS_VAULT_PROGRAM_ID",
+    "BASIS_VAULT_USDC_MINT",
+    "BASIS_VAULT_ADDRESS",
+    "BASIS_VAULT_USDC_ACCOUNT",
+    "SOLANA_RPC_URL",
+  ].every((name) => process.env[name]?.trim());
+}
+
 async function main() {
   const instanceId = `${process.env["RAILWAY_SERVICE_ID"] ?? "local"}:${randomUUID()}`;
   console.log(`[klub-worker] boot · ${instanceId}`);
@@ -50,28 +66,27 @@ async function main() {
 
   const copyFollowScanner = startCopyFollowScanner({ db, instanceId });
   const leaderDiscovery = await startLeaderDiscovery({ db });
-  const basisOperator =
-    process.env.BASIS_OPERATOR_ENABLED === "true"
-      ? startBasisYieldOperator({
-          db,
-          intervalMs: workerIntervalMs(
-            "BASIS_OPERATOR_INTERVAL_MS",
-            60_000,
-            30_000,
-          ),
-        })
-      : null;
-  const basisStrategy =
-    process.env.BASIS_OPERATOR_ENABLED === "true"
-      ? startBasisStrategyWorker({
-          db,
-          intervalMs: workerIntervalMs(
-            "BASIS_STRATEGY_INTERVAL_MS",
-            60_000,
-            30_000,
-          ),
-        })
-      : null;
+  const basisEnabled = basisRuntimeEnabled();
+  const basisOperator = basisEnabled
+    ? startBasisYieldOperator({
+        db,
+        intervalMs: workerIntervalMs(
+          "BASIS_OPERATOR_INTERVAL_MS",
+          60_000,
+          30_000,
+        ),
+      })
+    : null;
+  const basisStrategy = basisEnabled
+    ? startBasisStrategyWorker({
+        db,
+        intervalMs: workerIntervalMs(
+          "BASIS_STRATEGY_INTERVAL_MS",
+          60_000,
+          30_000,
+        ),
+      })
+    : null;
   const redisUrl = process.env["REDIS_URL"];
   const redis = redisUrl
     ? new Redis(redisUrl, {
