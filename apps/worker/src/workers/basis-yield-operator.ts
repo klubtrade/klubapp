@@ -378,7 +378,7 @@ function operatorConfig() {
   };
   return {
     network: (() => {
-      const network = required("BASIS_OPERATOR_NETWORK");
+      const network = process.env.BASIS_OPERATOR_NETWORK?.trim() || "devnet";
       if (network !== "devnet") {
         throw new Error("The software-key Basis operator is devnet-only.");
       }

@@ -1,7 +1,7 @@
 import { decodeStrategySecret } from "./basis-yield-operator.js";
 
 export function strategyConfig() {
-  const network = required("BASIS_OPERATOR_NETWORK");
+  const network = process.env.BASIS_OPERATOR_NETWORK?.trim() || "devnet";
   if (network !== "devnet") {
     throw new Error("Software strategy execution is devnet-only.");
   }
