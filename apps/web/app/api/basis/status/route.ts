@@ -11,19 +11,23 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const USDC_SCALE = 1_000_000;
+const DEFAULT_DEVNET_STRATEGY_ACCOUNT =
+  "9pQCDtJxfHDaJzyGsgNyDxakivx1vuD3XQPFYCtiajgh";
 
 export async function GET() {
   const databaseUrl = process.env["DATABASE_URL"];
-  const sourceAccount = process.env["BASIS_BULK_STRATEGY_ACCOUNT"]?.trim();
+  const sourceAccount =
+    process.env["BASIS_BULK_STRATEGY_ACCOUNT"]?.trim() ||
+    process.env["BASIS_VAULT_STRATEGY_AUTHORITY"]?.trim() ||
+    process.env["NEXT_PUBLIC_BASIS_VAULT_STRATEGY_AUTHORITY"]?.trim() ||
+    DEFAULT_DEVNET_STRATEGY_ACCOUNT;
 
-  if (!databaseUrl || !sourceAccount) {
+  if (!databaseUrl) {
     return NextResponse.json(
       {
         ok: false,
         status: "not_configured",
-        message: !databaseUrl
-          ? "DATABASE_URL is not configured."
-          : "BASIS_BULK_STRATEGY_ACCOUNT is not configured.",
+        message: "DATABASE_URL is not configured.",
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
