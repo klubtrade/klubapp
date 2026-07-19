@@ -30,28 +30,9 @@ import {
 import { useTradingWallet } from "@/lib/trading-wallet";
 
 /**
- * CopyTradeProvider - runs the live engine and exposes signals.
- *
- * Mounted once at the (app) layout level so it persists across
- * navigation. Responsibilities:
- *
- *   1. Read the current user's follows from localStorage on mount
- *      and on pubkey change.
- *   2. For each active follow, mount a <LeaderWatcher/> that polls
- *      the leader's account (via `useBulkAccount`) and diffs against
- *      the follow's baseline to detect new trades.
- *   3. Maintain a queue of `pendingMirrors` - detected trades the
- *      user hasn't yet acted on. The banner reads from this queue.
- *   4. Expose `follow/unfollow` mutators so the /copy-trade page can
- *      manage the list without touching the store directly.
- *   5. Expose `dismissMirror` so the banner can remove a signal once
- *      the user has Mirrored or Skipped it.
- *
- * Design note - why a subcomponent per-follow:
- *   React's rules of hooks forbid calling `useBulkAccount` in a loop.
- *   We instead render one `<LeaderWatcher/>` per follow, each of
- *   which owns a single `useBulkAccount` subscription. Adding /
- *   removing a follow mounts / unmounts its watcher cleanly.
+ * Mounted once at the app layout so copy signals survive navigation.
+ * Each follow uses a child watcher because React hooks cannot run in a
+ * loop inside the provider body.
  */
 
 interface CopyTradeContextValue {
@@ -146,6 +127,7 @@ export function CopyTradeProvider({
         createdAt: Date.now(),
         baselineSymbols: [],
         mirroredSymbols: [],
+        mirrorExistingOnFollow: true,
       };
       const next = storeAddFollow(followerPubkey, record);
       setFollows(next);
@@ -209,16 +191,21 @@ export function CopyTradeProvider({
   );
 
   const setBaselineForFollow = useCallback(
-    (leaderPubkey: string, symbols: readonly string[]) => {
+    (
+      leaderPubkey: string,
+      symbols: readonly string[],
+      positions: Readonly<Record<string, number>>,
+    ) => {
       if (!followerPubkey) return;
-      // One-time baseline write. Uses the store's updateFollow so
-      // we stay consistent with localStorage. Re-setting would erase
-      // progress; we only set when baseline is currently empty.
       setFollows((prev) => {
         const target = prev.find((f) => f.leaderPubkey === leaderPubkey);
         if (!target || target.baselineSymbols.length > 0) return prev;
-        const updated: Follow = { ...target, baselineSymbols: symbols };
-        // Write through to storage.
+        const updated: Follow = {
+          ...target,
+          baselineSymbols: symbols,
+          lastKnownPositions: positions,
+          mirrorExistingOnFollow: false,
+        };
         storeAddFollow(followerPubkey, updated);
         return prev.map((f) => (f.leaderPubkey === leaderPubkey ? updated : f));
       });
@@ -320,11 +307,14 @@ function mergeServerFollows(
   );
   return server.map((follow) => {
     const existing = localByLeader.get(follow.leaderPubkey);
-    return existing
+      return existing
       ? {
           ...follow,
           baselineSymbols: existing.baselineSymbols,
           mirroredSymbols: existing.mirroredSymbols,
+          ...(existing.mirrorExistingOnFollow !== undefined
+            ? { mirrorExistingOnFollow: existing.mirrorExistingOnFollow }
+            : {}),
           ...(existing.lastKnownPositions
             ? { lastKnownPositions: existing.lastKnownPositions }
             : {}),
@@ -379,18 +369,8 @@ async function persistServerFollow(input: {
 }
 
 /**
- * One watcher per active follow. Owns a single `useBulkAccount` for
- * the leader's pubkey. When positions arrive:
- *
- *   - First non-empty snapshot → set baseline (no signals emitted).
- *   - Subsequent snapshots → run `detectSignals` to diff against
- *     `follow.lastKnownPositions`, emit the resulting OPEN / CLOSE
- *     / INCREASE / DECREASE signals, then persist the new snapshot.
- *
- * We short-circuit if the follower's equity is 0 - there's nothing
- * to allocate and sizing would come back zero for opens anyway
- * (close signals are still valid with zero equity, but if the user
- * has zero equity they also have nothing to close, so we skip).
+ * One watcher per active follow. First snapshot can now surface
+ * existing leader positions when the user explicitly starts copying.
  */
 function LeaderWatcher({
   follow,
@@ -405,6 +385,7 @@ function LeaderWatcher({
   readonly onBaseline: (
     leaderPubkey: string,
     symbols: readonly string[],
+    positions: Readonly<Record<string, number>>,
   ) => void;
   readonly onLastKnown: (
     leaderPubkey: string,
@@ -436,18 +417,22 @@ function LeaderWatcher({
     if (fingerprint === lastFingerprintRef.current) return;
     lastFingerprintRef.current = fingerprint;
 
-    // Baseline not yet set → set it from this snapshot and stop.
-    // Even an empty positions list counts as a valid baseline -
-    // it just means the leader currently holds nothing.
     if (follow.baselineSymbols.length === 0) {
+      const initialMap: Record<string, number> = {};
+      for (const p of positions) initialMap[p.symbol] = p.sizeBase;
+      if (follow.mirrorExistingOnFollow && followerEquityUsd > 0) {
+        const signals = detectSignals(
+          { ...follow, baselineSymbols: [], lastKnownPositions: {} },
+          positions,
+          followerEquityUsd,
+        );
+        if (signals.length > 0) onSignals(signals);
+      }
       onBaseline(
         follow.leaderPubkey,
         positions.map((p) => p.symbol),
+        initialMap,
       );
-      // Also write the initial lastKnown so we can diff from here.
-      const initialMap: Record<string, number> = {};
-      for (const p of positions) initialMap[p.symbol] = p.sizeBase;
-      onLastKnown(follow.leaderPubkey, initialMap);
       return;
     }
 

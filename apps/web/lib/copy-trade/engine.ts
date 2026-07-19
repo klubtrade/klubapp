@@ -62,6 +62,11 @@ export interface Follow {
    * Keyed by symbol; value is signed sizeBase.
    */
   readonly mirrorPositions?: Readonly<Record<string, number>>;
+  /**
+   * When true, the first leader snapshot after follow creation can emit
+   * open signals for positions the leader already has.
+   */
+  readonly mirrorExistingOnFollow?: boolean;
 }
 
 export interface LeaderPositionSnapshot {

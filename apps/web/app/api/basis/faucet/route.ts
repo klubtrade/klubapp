@@ -61,11 +61,18 @@ export async function GET(request: NextRequest) {
       tokenProgram: TOKEN_PROGRAM_ADDRESS,
     });
     const rpc = createSolanaRpc(config.rpcUrl);
-    const [{ value: tokenAccount }, recorded] = await Promise.all([
+    const [{ value: tokenAccount }, { value: ownerLamports }, recorded] =
+      await Promise.all([
       rpc.getAccountInfo(ownerAta, { encoding: "base64" }).send(),
+      rpc.getBalance(owner).send(),
       hasBasisFaucetClaim(owner, mint),
     ]);
-    return NextResponse.json({ eligible: !tokenAccount && !recorded });
+    return NextResponse.json({
+      eligible:
+        (!tokenAccount && !recorded) || ownerLamports < MIN_OWNER_SOL_LAMPORTS,
+      gasReady: ownerLamports >= MIN_OWNER_SOL_LAMPORTS,
+      alreadyClaimed: Boolean(tokenAccount || recorded),
+    });
   } catch (cause) {
     console.error("[basis-faucet] status failed", cause);
     return error("Vault faucet status is temporarily unavailable.", 503);
@@ -109,7 +116,10 @@ export async function POST(request: NextRequest) {
         rpc.getAccountInfo(ownerAta, { encoding: "base64" }).send(),
         rpc.getBalance(owner).send(),
       ]);
-    if (tokenAccount || (await hasBasisFaucetClaim(owner, mint))) {
+    const recorded = await hasBasisFaucetClaim(owner, mint);
+    const alreadyClaimed = Boolean(tokenAccount || recorded);
+    const needsSol = ownerLamports < MIN_OWNER_SOL_LAMPORTS;
+    if (alreadyClaimed && !needsSol) {
       return NextResponse.json(
         {
           error: "Vault USDC was already claimed for this wallet.",
@@ -119,7 +129,10 @@ export async function POST(request: NextRequest) {
       );
     }
     const amountBaseUnits = String(FAUCET_USDC * 10 ** USDC_DECIMALS);
-    if (!(await reserveBasisFaucetClaim(owner, mint, amountBaseUnits))) {
+    if (
+      !alreadyClaimed &&
+      !(await reserveBasisFaucetClaim(owner, mint, amountBaseUnits))
+    ) {
       return NextResponse.json(
         {
           error: "Vault USDC was already claimed for this wallet.",
@@ -128,10 +141,9 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
-    reservedClaim = { wallet: owner, mint };
+    if (!alreadyClaimed) reservedClaim = { wallet: owner, mint };
     const currentBalance = 0;
-    const needsUsdc = currentBalance < FAUCET_USDC;
-    const needsSol = ownerLamports < MIN_OWNER_SOL_LAMPORTS;
+    const needsUsdc = !alreadyClaimed && currentBalance < FAUCET_USDC;
     if (!needsUsdc && !needsSol) {
       return NextResponse.json({
         status: "funded",
@@ -188,15 +200,17 @@ export async function POST(request: NextRequest) {
       })
       .send();
     await waitForConfirmation(rpc, signature);
-    await finishBasisFaucetClaim({
-      wallet: owner,
-      mint,
-      status: "confirmed",
-      signature,
-    });
+    if (!alreadyClaimed) {
+      await finishBasisFaucetClaim({
+        wallet: owner,
+        mint,
+        status: "confirmed",
+        signature,
+      });
+    }
 
     return NextResponse.json({
-      status: "claimed",
+      status: needsUsdc ? "claimed" : "gas_ready",
       balance: FAUCET_USDC,
       gasReady: true,
       signature,

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createDbClient, leaders } from "@klub/db";
+import { eq } from "drizzle-orm";
 
 import {
   requireLinkedSolanaWallet,
@@ -52,7 +54,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     auth.principal,
     payload.user,
   );
-  if (ownershipError) return ownershipError;
+  if (ownershipError && !(await isVerifiedLeaderRead(payload.user))) {
+    return ownershipError;
+  }
 
   const url = `${BULK_HTTP_URL.replace(/\/+$/, "")}${ACCOUNT_PATH}`;
 
@@ -101,6 +105,23 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
 
   return NextResponse.json(body ?? {}, { status: upstream.status });
+}
+
+async function isVerifiedLeaderRead(pubkey: string): Promise<boolean> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return false;
+  try {
+    const db = createDbClient({ connectionString, maxConnections: 1 });
+    const [row] = await db
+      .select({ pubkey: leaders.pubkey })
+      .from(leaders)
+      .where(eq(leaders.pubkey, pubkey))
+      .limit(1);
+    return Boolean(row);
+  } catch (error) {
+    console.error("[bulk/account] leader authorization lookup failed", error);
+    return false;
+  }
 }
 
 function unavailableAccount(

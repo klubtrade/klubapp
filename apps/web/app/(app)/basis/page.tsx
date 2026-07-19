@@ -148,6 +148,30 @@ export default function BasisPage() {
     }
   }
 
+  async function claimEarnedProceeds() {
+    if (!wallet.publicKeyBase58 || !wallet.signAndSendTransaction) {
+      wallet.promptConnect();
+      return;
+    }
+    if (!isValidWithdrawAmount(claimableYield, claimableYield)) return;
+    setTxStatus({ kind: "pending", message: "Waiting for wallet…" });
+    try {
+      const tx = await buildBasisWithdrawTransaction({
+        ownerBase58: wallet.publicKeyBase58,
+        amountUsdc: claimableYield,
+      });
+      await wallet.signAndSendTransaction(tx);
+      setTxStatus({ kind: "success", message: "Earned proceeds claimed." });
+      await loadSnapshot();
+    } catch (err) {
+      setTxStatus({
+        kind: "error",
+        message:
+          err instanceof Error ? err.message : "Could not claim proceeds.",
+      });
+    }
+  }
+
   async function claimVaultUsdc() {
     if (!wallet.publicKeyBase58) {
       wallet.promptConnect();
@@ -183,6 +207,7 @@ export default function BasisPage() {
   const pending = txStatus.kind === "pending";
   const ownerUsdc = snapshot?.ownerUsdcBalance ?? 0;
   const withdrawable = snapshot?.position.withdrawableUsdc ?? 0;
+  const claimableYield = snapshot?.position.claimableYieldUsdc ?? 0;
   const amount = action === "deposit" ? depositAmount : withdrawAmount;
   const depositDisabled =
     !vault.ready ||
@@ -196,6 +221,11 @@ export default function BasisPage() {
     !connected ||
     pending ||
     !isValidWithdrawAmount(withdrawAmount, withdrawable);
+  const claimDisabled =
+    !vault.ready ||
+    !connected ||
+    pending ||
+    !isValidWithdrawAmount(claimableYield, claimableYield);
 
   function selectAction(nextAction: BasisVaultAction) {
     setAction(nextAction);
@@ -212,35 +242,48 @@ export default function BasisPage() {
   }
 
   return (
-    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
-      <section className="mx-auto w-full max-w-2xl">
-        <header>
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-accent">
-            Earn
+    <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24 lg:h-screen lg:overflow-y-auto">
+      <section className="mx-auto w-full max-w-7xl">
+        <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-accent">
+              Earn
+            </div>
+            <h1 className="mt-2 text-[30px] font-semibold tracking-[-0.03em] text-fg-primary md:text-[42px]">
+              Basis vault
+            </h1>
+            <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-fg-muted">Deposit vault mock USDC. Earn funded basis carry. Withdraw anytime.</p>
           </div>
-          <h1 className="mt-2 text-[30px] font-semibold tracking-[-0.03em] text-fg-primary md:text-[42px]">
-            Basis vault
-          </h1>
-          <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-fg-muted">
-            Deposit vault mock USDC. Earn funded basis carry. Withdraw anytime.
-          </p>
+          <Link href="/desk" className="btn-secondary btn-compact w-fit">
+            Open Funding Desk
+          </Link>
         </header>
 
-        <VaultReadinessCard
-          connected={connected}
-          snapshot={snapshot}
-          snapshotStatus={snapshotStatus}
-          vault={vault}
-          walletAddress={wallet.publicKeyBase58}
-          onConnect={wallet.promptConnect}
-          onFaucet={() => void claimVaultUsdc()}
-          onRefresh={() => void loadSnapshot()}
-          faucetClaiming={faucetClaiming}
-          faucetEligible={faucetEligible}
-        />
+        <div className="mt-8 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="space-y-4">
+            <VaultReadinessCard
+              connected={connected}
+              snapshot={snapshot}
+              snapshotStatus={snapshotStatus}
+              vault={vault}
+              walletAddress={wallet.publicKeyBase58}
+              onConnect={wallet.promptConnect}
+              onFaucet={() => void claimVaultUsdc()}
+              onRefresh={() => void loadSnapshot()}
+              faucetClaiming={faucetClaiming}
+              faucetEligible={faucetEligible}
+            />
+            <section className="grid gap-3 text-[12px] leading-relaxed text-fg-muted md:grid-cols-3 xl:grid-cols-1">
+              <InfoCard title="Strategy">Delta-neutral funding carry.</InfoCard>
+              <InfoCard title="Withdrawals">Instant from vault liquidity.</InfoCard>
+              <InfoCard title="Fee">
+                {formatBasisVaultFee(vault.performanceFeeBps)} on earned yield only.
+              </InfoCard>
+            </section>
+          </div>
 
-        <div className="mt-8 grid gap-3 md:grid-cols-[1.1fr_0.9fr]">
-          <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+          <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
+            <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
             <div className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
               Best current carry
             </div>
@@ -333,17 +376,17 @@ export default function BasisPage() {
 
             <div className="mt-5 rounded-klub border border-border-subtle bg-bg-base p-4">
               <div className="text-[11px] uppercase tracking-[0.1em] text-fg-muted">
-                Strategy estimate
+                Proceeds
               </div>
               <div className="mt-2 text-[16px] font-medium text-fg-primary">
                 {action === "withdraw"
                   ? `${formatBasisAmount(withdrawable)} available now`
-                  : "Awaiting realized funding"}
+                  : `$${formatBasisAmount(claimableYield)} earned`}
               </div>
               <div className="mt-1 text-[11px] text-fg-muted">
                 {action === "withdraw"
                   ? "The 0.10% fee applies only to earned yield."
-                  : "Yield appears only after the operator funds it on-chain."}
+                  : "Claim becomes active after realized strategy profit is funded on-chain."}
               </div>
             </div>
 
@@ -384,6 +427,20 @@ export default function BasisPage() {
                       : "Withdraw now"}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => void claimEarnedProceeds()}
+              disabled={claimDisabled}
+              className={`btn-secondary btn-block mt-3 ${
+                !claimDisabled ? "" : "cursor-not-allowed opacity-50"
+              }`}
+            >
+              {pending
+                ? "Confirming…"
+                : claimableYield > 0
+                  ? `Claim $${formatBasisAmount(claimableYield)} earned`
+                  : "No earned proceeds yet"}
+            </button>
             {txStatus.message && (
               <div
                 className={`mt-3 rounded-klub border px-3 py-2 text-[11px] ${
@@ -397,16 +454,11 @@ export default function BasisPage() {
                 {txStatus.message}
               </div>
             )}
-            <Link
-              href="/desk"
-              className="mt-3 block text-center text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
-            >
-              Open Funding Desk
-            </Link>
           </div>
         </div>
+        </div>
 
-        <div className="mt-8 rounded-klub-lg border border-border-subtle bg-bg-surface">
+        <div className="mt-4 rounded-klub-lg border border-border-subtle bg-bg-surface">
           <div className="border-b border-border-subtle px-5 py-4">
             <div className="text-[13px] font-medium text-fg-primary">
               Live opportunities
@@ -438,14 +490,6 @@ export default function BasisPage() {
             ))}
           </ul>
         </div>
-
-        <section className="mt-8 grid gap-3 text-[12px] leading-relaxed text-fg-muted md:grid-cols-3">
-          <InfoCard title="Strategy">Delta-neutral funding carry.</InfoCard>
-          <InfoCard title="Withdrawals">Instant from vault liquidity.</InfoCard>
-          <InfoCard title="Fee">
-            {formatBasisVaultFee(vault.performanceFeeBps)} on earned yield only.
-          </InfoCard>
-        </section>
       </section>
     </main>
   );
