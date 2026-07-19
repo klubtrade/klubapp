@@ -63,10 +63,10 @@ export async function GET(request: NextRequest) {
     const rpc = createSolanaRpc(config.rpcUrl);
     const [{ value: tokenAccount }, { value: ownerLamports }, recorded] =
       await Promise.all([
-      rpc.getAccountInfo(ownerAta, { encoding: "base64" }).send(),
-      rpc.getBalance(owner).send(),
-      hasBasisFaucetClaim(owner, mint),
-    ]);
+        rpc.getAccountInfo(ownerAta, { encoding: "base64" }).send(),
+        rpc.getBalance(owner).send(),
+        hasBasisFaucetClaim(owner, mint),
+      ]);
     return NextResponse.json({
       eligible:
         (!tokenAccount && !recorded) || ownerLamports < MIN_OWNER_SOL_LAMPORTS,
