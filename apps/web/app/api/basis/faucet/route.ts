@@ -9,7 +9,6 @@ import {
   setTransactionMessageFeePayer,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
-  type Address,
   type Instruction,
   type Signature,
 } from "@solana/kit";
@@ -27,6 +26,11 @@ import {
   requireLinkedSolanaWallet,
   requirePrivyAuth,
 } from "@/lib/server/privy-auth";
+import {
+  finishBasisFaucetClaim,
+  hasBasisFaucetClaim,
+  reserveBasisFaucetClaim,
+} from "@/lib/server/basis-faucet-claims";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,11 +41,42 @@ const USDC_DECIMALS = 6;
 // connected wallet for its rent and transaction fees so mock USDC is usable.
 const MIN_OWNER_SOL_LAMPORTS = 3_000_000n;
 const EXPECTED_MINT_AUTHORITY = "HmA31z4YGiH8mB4GqoNDbXgasfASYYoErK3RxMQp475X";
-const recentClaims = new Map<string, number>();
+
+export async function GET(request: NextRequest) {
+  const auth = await requirePrivyAuth(request);
+  if (!auth.ok) return auth.response;
+  try {
+    const ownerValue = request.nextUrl.searchParams.get("owner");
+    if (!ownerValue) return error("Connect a Solana wallet first.", 400);
+    const owner = address(ownerValue);
+    const ownershipError = requireLinkedSolanaWallet(auth.principal, owner);
+    if (ownershipError) return ownershipError;
+    const config = getBasisVaultConfig();
+    if (!config.rpcUrl || !config.usdcMint)
+      return error("Vault faucet is temporarily unavailable.", 503);
+    const mint = address(config.usdcMint);
+    const [ownerAta] = await findAssociatedTokenPda({
+      owner,
+      mint,
+      tokenProgram: TOKEN_PROGRAM_ADDRESS,
+    });
+    const rpc = createSolanaRpc(config.rpcUrl);
+    const [{ value: tokenAccount }, recorded] = await Promise.all([
+      rpc.getAccountInfo(ownerAta, { encoding: "base64" }).send(),
+      hasBasisFaucetClaim(owner, mint),
+    ]);
+    return NextResponse.json({ eligible: !tokenAccount && !recorded });
+  } catch (cause) {
+    console.error("[basis-faucet] status failed", cause);
+    return error("Vault faucet status is temporarily unavailable.", 503);
+  }
+}
 
 export async function POST(request: NextRequest) {
   const auth = await requirePrivyAuth(request);
   if (!auth.ok) return auth.response;
+  let reservedClaim: { readonly wallet: string; readonly mint: string } | null =
+    null;
   try {
     const body = (await request.json()) as { owner?: unknown };
     if (typeof body.owner !== "string")
@@ -49,14 +84,6 @@ export async function POST(request: NextRequest) {
     const owner = address(body.owner);
     const ownershipError = requireLinkedSolanaWallet(auth.principal, owner);
     if (ownershipError) return ownershipError;
-    const now = Date.now();
-    if (now - (recentClaims.get(owner) ?? 0) < 60_000) {
-      return error(
-        "Your vault USDC is already being prepared. Try again shortly.",
-        429,
-      );
-    }
-
     const config = getBasisVaultConfig();
     if (!config.rpcUrl || !config.usdcMint)
       return error("Vault faucet is temporarily unavailable.", 503);
@@ -77,8 +104,32 @@ export async function POST(request: NextRequest) {
       mint,
       tokenProgram: TOKEN_PROGRAM_ADDRESS,
     });
-    const currentBalance = await getTokenBalance(rpc, ownerAta);
-    const { value: ownerLamports } = await rpc.getBalance(owner).send();
+    const [{ value: tokenAccount }, { value: ownerLamports }] =
+      await Promise.all([
+        rpc.getAccountInfo(ownerAta, { encoding: "base64" }).send(),
+        rpc.getBalance(owner).send(),
+      ]);
+    if (tokenAccount || (await hasBasisFaucetClaim(owner, mint))) {
+      return NextResponse.json(
+        {
+          error: "Vault USDC was already claimed for this wallet.",
+          alreadyClaimed: true,
+        },
+        { status: 409 },
+      );
+    }
+    const amountBaseUnits = String(FAUCET_USDC * 10 ** USDC_DECIMALS);
+    if (!(await reserveBasisFaucetClaim(owner, mint, amountBaseUnits))) {
+      return NextResponse.json(
+        {
+          error: "Vault USDC was already claimed for this wallet.",
+          alreadyClaimed: true,
+        },
+        { status: 409 },
+      );
+    }
+    reservedClaim = { wallet: owner, mint };
+    const currentBalance = 0;
     const needsUsdc = currentBalance < FAUCET_USDC;
     const needsSol = ownerLamports < MIN_OWNER_SOL_LAMPORTS;
     if (!needsUsdc && !needsSol) {
@@ -90,7 +141,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    recentClaims.set(owner, now);
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
     const instructions: Instruction[] = [];
     if (needsSol) {
@@ -138,6 +188,12 @@ export async function POST(request: NextRequest) {
       })
       .send();
     await waitForConfirmation(rpc, signature);
+    await finishBasisFaucetClaim({
+      wallet: owner,
+      mint,
+      status: "confirmed",
+      signature,
+    });
 
     return NextResponse.json({
       status: "claimed",
@@ -147,6 +203,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (cause) {
     console.error("[basis-faucet] claim failed", cause);
+    if (reservedClaim) {
+      await finishBasisFaucetClaim({
+        ...reservedClaim,
+        status: "failed",
+      }).catch((error) =>
+        console.error("[basis-faucet] failed to release claim", error),
+      );
+    }
     return error(
       "Vault faucet is temporarily unavailable. Please try again.",
       502,
@@ -159,18 +223,6 @@ function decodeSecret(value: string): Uint8Array {
   if (bytes.length !== 64)
     throw new Error("Basis mint authority must be a base64 64-byte keypair.");
   return bytes;
-}
-
-async function getTokenBalance(
-  rpc: ReturnType<typeof createSolanaRpc>,
-  tokenAccount: Address,
-): Promise<number> {
-  try {
-    const { value } = await rpc.getTokenAccountBalance(tokenAccount).send();
-    return Number(value.uiAmountString ?? "0");
-  } catch {
-    return 0;
-  }
 }
 
 async function waitForConfirmation(

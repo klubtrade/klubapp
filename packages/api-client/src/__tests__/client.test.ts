@@ -7,6 +7,7 @@ import {
   getExchangeInfo,
   getTicker,
   queryFullAccount,
+  queryUserClosedPositions,
   queryUserFundingPayments,
   queryUserFills,
 } from "../endpoints.js";
@@ -90,12 +91,10 @@ describe("BulkClient — HTTP transport", () => {
 
 describe("endpoint helpers", () => {
   it("getExchangeInfo → GET /exchangeInfo", async () => {
-    const fetchImpl = vi.fn(
-      makeFetch({ status: 200, body: { symbols: [], serverTime: 0 } }),
-    );
+    const fetchImpl = vi.fn(makeFetch({ status: 200, body: [] }));
     const client = new BulkClient({ fetch: fetchImpl as typeof fetch });
     const info = await getExchangeInfo(client);
-    expect(info.symbols).toEqual([]);
+    expect(info).toEqual([]);
     expect(String(fetchImpl.mock.calls[0]?.[0])).toMatch(/\/exchangeInfo/);
   });
 
@@ -208,6 +207,37 @@ describe("endpoint helpers", () => {
       markPrice: 100000,
       slot: 123456789,
       timestamp: 1763316177219383423,
+    });
+  });
+
+  it("queryUserClosedPositions unwraps authoritative position cycles", async () => {
+    const testPubkey = "FuueqefENiGEW6uMqZQgmwjzgpnb85EgUcZa5Em4PQh7";
+    const closed = {
+      owner: testPubkey,
+      symbol: "BTC-USD",
+      maxQuantity: 1,
+      totalVolume: 2,
+      avgOpenPrice: 100,
+      avgClosePrice: 110,
+      realizedPnl: 10,
+      fees: -1,
+      funding: 0.5,
+      openTime: 1,
+      closeTime: 2,
+      closeReason: "normal",
+    };
+    const fetchImpl = vi.fn(
+      makeFetch({ status: 200, body: [{ positions: closed }] }),
+    );
+    const client = new BulkClient({ fetch: fetchImpl as typeof fetch });
+
+    await expect(queryUserClosedPositions(client, testPubkey)).resolves.toEqual(
+      [closed],
+    );
+    const init = fetchImpl.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({
+      type: "positions",
+      user: testPubkey,
     });
   });
 });

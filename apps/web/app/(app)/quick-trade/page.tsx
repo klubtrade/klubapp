@@ -1,6 +1,7 @@
 "use client";
 
 import { calculate, type Side } from "@klub/calc";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -223,7 +224,7 @@ export default function QuickTradePage() {
 
   return (
     <main className="min-h-screen bg-bg-base">
-      <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-20 md:px-8 md:pt-24">
+      <div className="mx-auto w-full max-w-[1480px] px-4 pb-16 pt-20 md:px-8 md:pt-24 xl:px-6 xl:pb-8">
         <header className="mb-5">
           <h1 className="text-[26px] font-semibold tracking-[-0.03em] text-fg-primary md:text-[32px]">
             Simple Trade
@@ -233,196 +234,203 @@ export default function QuickTradePage() {
           </p>
         </header>
 
-        <section>
-          <QuickMarketChart
-            market={market}
-            livePrice={livePrice}
-            livePrices={livePrices}
-            onMarket={setMarket}
-          />
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setDirection("long")}
-              className={`min-h-14 rounded-klub-lg border py-3 text-center text-[16px] font-semibold transition-colors ${
-                direction === "long"
-                  ? "border-pnl-long bg-pnl-long/10 text-pnl-long"
-                  : "border-border-subtle bg-bg-surface text-fg-secondary hover:border-border"
-              }`}
-            >
-              ↗ Up
-            </button>
-            <button
-              type="button"
-              onClick={() => setDirection("short")}
-              className={`min-h-14 rounded-klub-lg border py-3 text-center text-[16px] font-semibold transition-colors ${
-                direction === "short"
-                  ? "border-pnl-short bg-pnl-short/10 text-pnl-short"
-                  : "border-border-subtle bg-bg-surface text-fg-secondary hover:border-border"
-              }`}
-            >
-              ↘ Down
-            </button>
+        <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(390px,0.72fr)] xl:gap-5">
+          <div className="min-w-0 rounded-klub-lg border border-border-subtle bg-bg-surface/30 p-3 md:p-4">
+            <QuickMarketChart
+              market={market}
+              livePrice={livePrice}
+              livePrices={livePrices}
+              onMarket={setMarket}
+            />
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <div className="rounded-klub-lg border border-border-subtle bg-bg-surface p-4">
-              <div className="flex items-baseline justify-between">
-                <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-                  Margin
+          <div className="min-w-0 rounded-klub-lg border border-border-subtle bg-bg-surface/30 p-3 md:p-4">
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setDirection("long")}
+                className={`min-h-14 rounded-klub-lg border py-3 text-center text-[16px] font-semibold transition-colors ${
+                  direction === "long"
+                    ? "border-pnl-long bg-pnl-long/10 text-pnl-long"
+                    : "border-border-subtle bg-bg-surface text-fg-secondary hover:border-border"
+                }`}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <TrendingUp aria-hidden="true" className="h-4 w-4" /> Up
                 </span>
-                <span className="text-[11px] text-fg-muted">
-                  {amountPct}% of account
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirection("short")}
+                className={`min-h-14 rounded-klub-lg border py-3 text-center text-[16px] font-semibold transition-colors ${
+                  direction === "short"
+                    ? "border-pnl-short bg-pnl-short/10 text-pnl-short"
+                    : "border-border-subtle bg-bg-surface text-fg-secondary hover:border-border"
+                }`}
+              >
+                <span className="inline-flex items-center justify-center gap-2">
+                  <TrendingDown aria-hidden="true" className="h-4 w-4" /> Down
                 </span>
-              </div>
-              <div className="mt-0.5 font-mono text-[22px] font-semibold text-fg-primary">
-                ${amountUsd.toFixed(0)}
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={50}
-                step={1}
-                value={amountPct}
-                onChange={(e) => setAmountPct(Number(e.target.value))}
-                className="mt-4 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#E8B647]"
-              />
-              <div className="mt-2 flex justify-between text-[9px] text-fg-muted">
-                <span>1%</span>
-                <span>25%</span>
-                <span>50%</span>
-              </div>
+              </button>
             </div>
 
-            <div className="rounded-klub-lg border border-accent/30 bg-accent/5 p-4 text-center">
-              <div className="text-[10px] uppercase tracking-[0.12em] text-accent">
-                Position size
-              </div>
-              <div className="mt-0.5 font-mono text-[26px] font-semibold leading-none tracking-[-0.02em] text-fg-primary">
-                ${notional.toFixed(0)}
-              </div>
-              <div className="mt-2 text-[10px] text-fg-muted">
-                ${amountUsd.toFixed(0)} × {leverage}× ={" "}
-                <span className="text-accent">${notional.toFixed(0)}</span>
-              </div>
-              <div className="mt-4 flex items-center justify-between rounded-klub border border-border-subtle bg-bg-base/50 px-3 py-2">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-                  Leverage
-                </span>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    aria-label="Decrease leverage"
-                    onClick={() => setLeverage(Math.max(1, leverage - 0.5))}
-                    className="h-8 w-8 rounded-md bg-bg-elevated text-fg-secondary"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-10 font-mono text-[15px] text-fg-primary">
-                    {leverage}×
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Increase leverage"
-                    onClick={() =>
-                      setLeverage(
-                        Math.min(market.defaultLeverage, leverage + 0.5),
-                      )
-                    }
-                    className="h-8 w-8 rounded-md bg-bg-elevated text-fg-secondary"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3">
-            <CollapseRow
-              label="Protection"
-              hint={`${leverage}× · stop ${slPct.toFixed(1)}% · target ${tpPct.toFixed(1)}%`}
-              open={showAdvanced}
-              onToggle={() => setShowAdvanced((value) => !value)}
-            >
-              <div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-klub-lg border border-border-subtle bg-bg-surface p-4">
                 <div className="flex items-baseline justify-between">
                   <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-                    Leverage
+                    Margin
                   </span>
-                  <span className="font-mono text-[14px] text-accent">
-                    {leverage}×
+                  <span className="text-[11px] text-fg-muted">
+                    {amountPct}% of account
                   </span>
+                </div>
+                <div className="mt-0.5 font-mono text-[22px] font-semibold text-fg-primary">
+                  ${amountUsd.toFixed(0)}
                 </div>
                 <input
                   type="range"
                   min={1}
-                  max={market.defaultLeverage}
-                  step={0.5}
-                  value={leverage}
-                  onChange={(e) => setLeverage(Number(e.target.value))}
-                  className="mt-2 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
+                  max={50}
+                  step={1}
+                  value={amountPct}
+                  onChange={(e) => setAmountPct(Number(e.target.value))}
+                  className="mt-4 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#E8B647]"
                 />
-                <div className="mt-1 flex justify-between text-[10px] text-fg-muted">
-                  <span>1×</span>
-                  <span>
-                    {market.defaultLeverage}× max · {market.label}
-                  </span>
+                <div className="mt-2 flex justify-between text-[9px] text-fg-muted">
+                  <span>1%</span>
+                  <span>25%</span>
+                  <span>50%</span>
                 </div>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <PercentField
-                  label="Take profit"
-                  value={tpPct}
-                  onChange={setTpPct}
-                  tone="long"
-                  suffix={`+$${Math.abs(wouldMake).toFixed(0)}`}
-                />
-                <PercentField
-                  label="Stop loss"
-                  value={slPct}
-                  onChange={setSlPct}
-                  tone="short"
-                  suffix={`−$${couldLose.toFixed(0)}`}
-                />
+
+              <div className="rounded-klub-lg border border-accent/30 bg-accent/5 p-4 text-center">
+                <div className="text-[10px] uppercase tracking-[0.12em] text-accent">
+                  Position size
+                </div>
+                <div className="mt-0.5 font-mono text-[26px] font-semibold leading-none tracking-[-0.02em] text-fg-primary">
+                  ${notional.toFixed(0)}
+                </div>
+                <div className="mt-2 text-[10px] text-fg-muted">
+                  ${amountUsd.toFixed(0)} × {leverage}× ={" "}
+                  <span className="text-accent">${notional.toFixed(0)}</span>
+                </div>
+                <div className="mt-4 flex items-center justify-center rounded-klub border border-border-subtle bg-bg-base/50 px-2 py-2">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      aria-label="Decrease leverage"
+                      onClick={() => setLeverage(Math.max(1, leverage - 0.5))}
+                      className="h-8 w-8 shrink-0 rounded-md bg-bg-elevated text-fg-secondary"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-9 text-center font-mono text-[15px] text-fg-primary">
+                      {leverage}×
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Increase leverage"
+                      onClick={() =>
+                        setLeverage(
+                          Math.min(market.defaultLeverage, leverage + 0.5),
+                        )
+                      }
+                      className="h-8 w-8 shrink-0 rounded-md bg-bg-elevated text-fg-secondary"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </div>
-            </CollapseRow>
+            </div>
+
+            <div className="mt-3">
+              <CollapseRow
+                label="Protection"
+                hint={`${leverage}× · stop ${slPct.toFixed(1)}% · target ${tpPct.toFixed(1)}%`}
+                open={showAdvanced}
+                onToggle={() => setShowAdvanced((value) => !value)}
+              >
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
+                      Leverage
+                    </span>
+                    <span className="font-mono text-[14px] text-accent">
+                      {leverage}×
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={market.defaultLeverage}
+                    step={0.5}
+                    value={leverage}
+                    onChange={(e) => setLeverage(Number(e.target.value))}
+                    className="mt-2 h-1 w-full cursor-pointer appearance-none rounded-full bg-border [accent-color:#a78bfa]"
+                  />
+                  <div className="mt-1 flex justify-between text-[10px] text-fg-muted">
+                    <span>1×</span>
+                    <span>
+                      {market.defaultLeverage}× max · {market.label}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <PercentField
+                    label="Take profit"
+                    value={tpPct}
+                    onChange={setTpPct}
+                    tone="long"
+                    suffix={`+$${Math.abs(wouldMake).toFixed(0)}`}
+                  />
+                  <PercentField
+                    label="Stop loss"
+                    value={slPct}
+                    onChange={setSlPct}
+                    tone="short"
+                    suffix={`−$${couldLose.toFixed(0)}`}
+                  />
+                </div>
+              </CollapseRow>
+            </div>
+
+            <div className="xl:[&>div]:mt-3 xl:[&>div]:p-3">
+              <SafetyPreview
+                direction={direction}
+                marketLabel={market.label}
+                maxLossUsd={couldLose}
+                targetPnlUsd={Math.abs(wouldMake)}
+                liqMovePct={liqMovePct}
+                stopPct={slPct}
+                targetPct={tpPct}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!mounted) return;
+                if (!connected) {
+                  promptConnect();
+                  return;
+                }
+                setConfirming(true);
+              }}
+              disabled={orderState.status === "submitting" || !mounted}
+              className="btn-primary btn-block btn-lg mt-5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {!mounted
+                ? "…"
+                : !connected
+                  ? "Connect wallet to trade"
+                  : orderState.status === "submitting"
+                    ? "Submitting…"
+                    : `Review ${direction === "long" ? "buy" : "sell"} order`}
+            </button>
           </div>
 
-          <SafetyPreview
-            direction={direction}
-            marketLabel={market.label}
-            maxLossUsd={couldLose}
-            targetPnlUsd={Math.abs(wouldMake)}
-            liqMovePct={liqMovePct}
-            stopPct={slPct}
-            targetPct={tpPct}
-          />
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!mounted) return;
-              if (!connected) {
-                promptConnect();
-                return;
-              }
-              setConfirming(true);
-            }}
-            disabled={orderState.status === "submitting" || !mounted}
-            className="btn-primary btn-block btn-lg mt-5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {!mounted
-              ? "…"
-              : !connected
-                ? "Connect wallet to trade"
-                : orderState.status === "submitting"
-                  ? "Submitting…"
-                  : `Review ${direction === "long" ? "buy" : "sell"} order`}
-          </button>
-
-          <div className="mt-4 space-y-2">
+          <div className="space-y-2 xl:col-span-2 xl:grid xl:grid-cols-2 xl:gap-4 xl:space-y-0">
             <CollapseRow
               label="Math"
               hint={`Liq ${liqMovePct.toFixed(1)}% · Notional $${notional.toFixed(0)}`}
@@ -453,7 +461,7 @@ export default function QuickTradePage() {
             </CollapseRow>
           </div>
 
-          <div className="mt-4 text-center">
+          <div className="text-center xl:col-span-2">
             <Link
               href="/pro"
               className="text-[11px] text-fg-muted transition-colors hover:text-fg-primary"

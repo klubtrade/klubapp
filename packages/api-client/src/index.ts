@@ -80,6 +80,7 @@ export {
   queryFullAccount,
   queryUserFundingPayments,
   queryUserFills,
+  queryUserClosedPositions,
 } from "./endpoints.js";
 
 // WebSocket
@@ -110,6 +111,8 @@ export type {
   CancelOrderParams,
   Candle,
   CandleInterval,
+  ClosedPosition,
+  ClosedPositionResponseItem,
   DecimalString,
   ExchangeInfo,
   ExchangeStats,

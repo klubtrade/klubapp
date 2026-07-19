@@ -253,6 +253,76 @@ export const basisYieldCredits = pgTable(
   }),
 );
 
+export const basisStrategyControls = pgTable("basis_strategy_controls", {
+  sourceAccount: varchar("source_account", { length: 128 }).primaryKey(),
+  paused: boolean("paused").default(false).notNull(),
+  pauseReason: text("pause_reason"),
+  consecutiveErrors: integer("consecutive_errors").default(0).notNull(),
+  peakEquityUsd: real("peak_equity_usd").default(0).notNull(),
+  lastEquityUsd: real("last_equity_usd").default(0).notNull(),
+  lastReconciledAt: timestamp("last_reconciled_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const basisStrategyRuns = pgTable(
+  "basis_strategy_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sourceAccount: varchar("source_account", { length: 128 }).notNull(),
+    state: varchar("state", { length: 32 })
+      .$type<
+        | "discovered"
+        | "validated"
+        | "submitting"
+        | "open"
+        | "closing"
+        | "closed"
+        | "reconciliation_required"
+        | "paused"
+        | "failed"
+      >()
+      .notNull(),
+    longSymbol: varchar("long_symbol", { length: 32 }).notNull(),
+    shortSymbol: varchar("short_symbol", { length: 32 }).notNull(),
+    longSize: real("long_size").notNull(),
+    shortSize: real("short_size").notNull(),
+    targetNotionalUsd: real("target_notional_usd").notNull(),
+    expectedAnnualPct: real("expected_annual_pct").notNull(),
+    orderIds: jsonb("order_ids").$type<readonly string[]>(),
+    venueResponse: jsonb("venue_response"),
+    riskSnapshot: jsonb("risk_snapshot").notNull(),
+    error: text("error"),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    accountStateIdx: index("basis_strategy_runs_account_state_idx").on(
+      table.sourceAccount,
+      table.state,
+      table.createdAt,
+    ),
+  }),
+);
+
+export const leaderCandidates = pgTable("leader_candidates", {
+  pubkey: varchar("pubkey", { length: 128 }).primaryKey(),
+  source: varchar("source", { length: 32 }).default("trade_stream").notNull(),
+  observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  lastIndexedAt: timestamp("last_indexed_at", { withTimezone: true }),
+  indexFailures: integer("index_failures").default(0).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const leaderApplications = pgTable("leader_applications", {
   id: uuid("id").defaultRandom().primaryKey(),
   userPubkey: varchar("user_pubkey", { length: 128 }).notNull(),

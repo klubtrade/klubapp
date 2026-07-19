@@ -5,6 +5,7 @@ import { createDbClient, type Db } from "@klub/db";
 import type {
   BulkClient,
   BulkClientConfig,
+  ClosedPosition,
   FundingPayment,
   Pubkey,
   UserFill,
@@ -73,8 +74,12 @@ export async function runLeaderIndexerOnce(
     );
   }
 
-  const { BulkClient, queryUserFills, queryUserFundingPayments } =
-    await import("@klub/api-client");
+  const {
+    BulkClient,
+    queryUserClosedPositions,
+    queryUserFills,
+    queryUserFundingPayments,
+  } = await import("@klub/api-client");
   const client = options.client ?? createBulkClientFromEnv(BulkClient);
   const db = options.db ?? createDbClientFromEnv();
   const nowMs = options.nowMs ?? Date.now();
@@ -84,14 +89,16 @@ export async function runLeaderIndexerOnce(
     leaderPubkeys,
     5,
     async (leaderPubkey) => {
-      const [fills, fundingPayments] = await Promise.all([
+      const [fills, fundingPayments, closedPositions] = await Promise.all([
         queryUserFills(client, leaderPubkey),
         queryUserFundingPayments(client, leaderPubkey),
+        queryUserClosedPositions(client, leaderPubkey),
       ]);
       return summarizeLeaderFills({
         leaderPubkey,
         fills,
         fundingPayments,
+        closedPositions,
         cutoffMs,
         nowMs,
       });
@@ -166,12 +173,14 @@ export function summarizeLeaderFills({
   leaderPubkey,
   fills,
   fundingPayments,
+  closedPositions,
   cutoffMs,
   nowMs,
 }: {
   readonly leaderPubkey: Pubkey;
   readonly fills: readonly UserFill[];
   readonly fundingPayments: readonly FundingPayment[];
+  readonly closedPositions?: readonly ClosedPosition[];
   readonly cutoffMs: number;
   readonly nowMs: number;
 }): LeaderIndexerSummary {
@@ -196,6 +205,15 @@ export function summarizeLeaderFills({
     nowMs - SEVEN_DAYS_MS,
     nowMs,
   );
+  const realized24h = closedPositions
+    ? realizedWindow(closedPositions, nowMs - ONE_DAY_MS)
+    : null;
+  const realized7d = closedPositions
+    ? realizedWindow(closedPositions, nowMs - SEVEN_DAYS_MS)
+    : null;
+  const realized30d = closedPositions
+    ? realizedWindow(closedPositions, cutoffMs)
+    : null;
 
   return {
     leaderPubkey,
@@ -205,16 +223,38 @@ export function summarizeLeaderFills({
     fillsLast30d: fillsLast30d.length,
     fundingPaymentsLast30d: fundingPaymentsLast30d.length,
     fundingPnlUsd: metrics.fundingPnlUsd,
-    netPnl24hUsd: metrics24h.metrics.netPnlUsd,
-    netPnl7dUsd: metrics7d.metrics.netPnlUsd,
-    netPnl30dUsd: metrics.netPnlUsd,
-    netPnlUsd: metrics.netPnlUsd,
+    netPnl24hUsd: realized24h?.netPnlUsd ?? metrics24h.metrics.netPnlUsd,
+    netPnl7dUsd: realized7d?.netPnlUsd ?? metrics7d.metrics.netPnlUsd,
+    netPnl30dUsd: realized30d?.netPnlUsd ?? metrics.netPnlUsd,
+    netPnlUsd: realized30d?.netPnlUsd ?? metrics.netPnlUsd,
     unrealizedPnlUsd: metrics.unrealizedPnlUsd,
-    winRate: metrics.winRate,
-    closedTradesCount: metrics.closedTradesCount,
+    winRate: realized30d?.winRate ?? metrics.winRate,
+    closedTradesCount: realized30d?.count ?? metrics.closedTradesCount,
     maxDrawdownUsd: metrics.maxDrawdownUsd,
     maxDrawdownPct: metrics.maxDrawdownPct,
     sharpeRatio: metrics.sharpeRatio,
+  };
+}
+
+function realizedWindow(
+  positions: readonly ClosedPosition[],
+  cutoffMs: number,
+) {
+  const closed = positions.filter(
+    (position) => toTimestampMs(position.closeTime) >= cutoffMs,
+  );
+  const pnls = closed.map(
+    (position) => position.realizedPnl + position.fees + position.funding,
+  );
+  const netPnlUsd = pnls.reduce((sum, pnl) => sum + pnl, 0);
+  const winners = pnls.filter((pnl) => pnl > 0).length;
+  return {
+    count: closed.length,
+    netPnlUsd: Math.round(netPnlUsd * 100) / 100,
+    winRate:
+      closed.length > 0
+        ? Math.round((winners / closed.length) * 10_000) / 100
+        : 0,
   };
 }
 

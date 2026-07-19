@@ -18,7 +18,7 @@ import {
 /**
  * <NavDrawer />
  *
- * One menu button (three horizontal bars) in the top-left of every
+ * One menu button (three horizontal bars) in the top-right of every
  * in-app page. Taps open a sliding panel with every navigable page
  * grouped using the same route model as the desktop sidebar.
  *
@@ -30,7 +30,7 @@ import {
  *   - ESC dismisses the drawer
  *   - Click outside dismisses
  *   - Route change auto-dismisses (handled by useEffect on pathname)
- *   - Menu button fixed position; top-left; always clickable
+ *   - Brand left, wallet center, menu right; always clickable
  */
 
 const NAV_GROUPS = [
@@ -83,12 +83,21 @@ export function NavDrawer() {
 
   return (
     <>
-      {/* Hamburger + KLUB wordmark - mobile only. On md+ DesktopNav
+      {/* KLUB wordmark + hamburger - mobile only. On md+ DesktopNav
           renders a pinned top bar with brand and primary routes
           inline, so the hamburger is redundant and the drawer is
           unreachable (which is intentional - desktop should not need
           a sliding panel for nav). */}
-      <div className="fixed left-4 top-4 z-30 flex items-center gap-3 md:hidden">
+      <div className="pointer-events-none fixed inset-x-4 top-4 z-30 flex items-center justify-between md:hidden">
+        <Image
+          src="/privy-logo.png"
+          alt="KLUB"
+          width={64}
+          height={32}
+          className="h-9 w-16 object-contain"
+          priority
+        />
+
         <button
           type="button"
           aria-label="Open menu"
@@ -96,18 +105,10 @@ export function NavDrawer() {
           onClick={() => {
             setOpen(true);
           }}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-klub border border-border-subtle bg-bg-base text-fg-primary transition-colors hover:bg-bg-elevated"
+          className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-klub border border-border-subtle bg-bg-base text-fg-primary transition-colors hover:bg-bg-elevated"
         >
           <Menu size={19} strokeWidth={1.7} aria-hidden />
         </button>
-
-        <Image
-          src="/privy-logo.png"
-          alt="KLUB"
-          width={64}
-          height={32}
-          className="h-9 w-16 object-contain"
-        />
       </div>
 
       {/* Backdrop */}

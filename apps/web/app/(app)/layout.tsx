@@ -18,8 +18,8 @@ import { ActiveAccountProvider } from "@/hooks/use-active-account";
  *     w-20 = 80px, full-height) with Portfolio/Trade/Copy + More +
  *     Settings. Page content is wrapped in
  *     `md:pl-20` so it sits to the right of the rail.
- *   - Mobile (< md): hamburger drawer top-left (NavDrawer) +
- *     wallet pill top-right. The Sidebar is `hidden md:flex` so
+ *   - Mobile (< md): brand left, wallet pill centered-right, and
+ *     hamburger drawer top-right. The Sidebar is `hidden md:flex` so
  *     phones never see it.
  *   - Top-right strip (every viewport): AccountSwitcher +
  *     WalletButton, fixed-positioned. Sits to the right of the
@@ -53,7 +53,7 @@ export default function AppLayout({
             className="fixed inset-x-0 top-0 z-20 h-16 border-b border-border-subtle bg-bg-base/95 backdrop-blur-xl md:hidden"
           />
           <NavDrawer />
-          <div className="pointer-events-none fixed right-4 top-4 z-30 flex items-center gap-2 md:right-6 md:top-6">
+          <div className="pointer-events-none fixed right-[4.5rem] top-4 z-30 flex items-center gap-2 md:right-6 md:top-6">
             <div className="pointer-events-auto hidden min-[430px]:block">
               <AccountSwitcher />
             </div>

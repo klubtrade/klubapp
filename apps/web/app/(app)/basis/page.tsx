@@ -50,6 +50,7 @@ export default function BasisPage() {
     | { readonly kind: "error"; readonly message: string }
   >({ kind: "idle", message: null });
   const [faucetClaiming, setFaucetClaiming] = useState(false);
+  const [faucetEligible, setFaucetEligible] = useState<boolean | null>(null);
   const vault = getBasisVaultConfig();
   const wallet = useTradingWallet();
   const symbols = useMemo<readonly MarketSymbol[]>(
@@ -66,6 +67,7 @@ export default function BasisPage() {
   const loadSnapshot = useCallback(async () => {
     if (!wallet.publicKeyBase58 || !vault.ready) {
       setSnapshot(null);
+      setFaucetEligible(null);
       setSnapshotStatus("idle");
       return;
     }
@@ -73,9 +75,20 @@ export default function BasisPage() {
     try {
       const next = await getBasisVaultSnapshot(wallet.publicKeyBase58);
       setSnapshot(next);
+      const faucetResponse = await authenticatedFetch(
+        `/api/basis/faucet?owner=${encodeURIComponent(wallet.publicKeyBase58)}`,
+        { cache: "no-store" },
+      );
+      if (faucetResponse.ok) {
+        const faucet = (await faucetResponse.json()) as { eligible?: boolean };
+        setFaucetEligible(faucet.eligible === true);
+      } else {
+        setFaucetEligible(null);
+      }
       setSnapshotStatus("ready");
     } catch (err) {
       setSnapshotStatus("error");
+      setFaucetEligible(null);
       setTxStatus({
         kind: "error",
         message:
@@ -153,6 +166,7 @@ export default function BasisPage() {
         throw new Error(payload.error ?? "Vault faucet is unavailable.");
       }
       setTxStatus({ kind: "success", message: "1,000 vault USDC is ready." });
+      setFaucetEligible(false);
       await loadSnapshot();
     } catch (err) {
       setTxStatus({
@@ -222,6 +236,7 @@ export default function BasisPage() {
           onFaucet={() => void claimVaultUsdc()}
           onRefresh={() => void loadSnapshot()}
           faucetClaiming={faucetClaiming}
+          faucetEligible={faucetEligible}
         />
 
         <div className="mt-8 grid gap-3 md:grid-cols-[1.1fr_0.9fr]">

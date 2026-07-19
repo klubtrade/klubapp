@@ -82,21 +82,21 @@ export interface OrderAck {
   readonly message?: string;
 }
 
-export interface ExchangeInfo {
-  readonly symbols: readonly MarketSpec[];
-  readonly serverTime: TimestampMs;
-}
+export type ExchangeInfo = readonly MarketSpec[];
 
 export interface MarketSpec {
-  readonly s: Symbol;
-  readonly baseDecimals: number;
-  readonly quoteDecimals: number;
-  readonly tickSize: DecimalString;
-  readonly lotSize: DecimalString;
+  readonly symbol: Symbol;
+  readonly baseAsset: string;
+  readonly quoteAsset: string;
+  readonly status: "TRADING" | string;
+  readonly pricePrecision: number;
+  readonly sizePrecision: number;
+  readonly tickSize: number;
+  readonly lotSize: number;
+  readonly minNotional: number;
   readonly maxLeverage: number;
-  readonly initialMarginBps: number;
-  readonly maintenanceMarginBps: number;
-  readonly isActive: boolean;
+  readonly orderTypes: readonly string[];
+  readonly timeInForces: readonly string[];
 }
 
 export interface Ticker {
@@ -245,6 +245,27 @@ export interface FundingPayment {
   readonly markPrice: number;
   readonly slot: number;
   readonly timestamp: TimestampMs;
+}
+
+export interface ClosedPosition {
+  readonly owner: Pubkey;
+  readonly symbol: Symbol;
+  readonly quantity?: number;
+  readonly maxQuantity: number;
+  readonly totalVolume: number;
+  readonly avgOpenPrice: number;
+  readonly avgClosePrice: number;
+  readonly realizedPnl: number;
+  readonly fees: number;
+  readonly funding: number;
+  readonly openTime: TimestampMs;
+  readonly closeTime: TimestampMs;
+  readonly closeReason: "normal" | "liquidation" | "adl" | string;
+  readonly iso?: boolean;
+}
+
+export interface ClosedPositionResponseItem {
+  readonly positions: ClosedPosition;
 }
 
 export interface FundingPaymentResponseItem {

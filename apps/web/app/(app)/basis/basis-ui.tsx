@@ -21,6 +21,7 @@ export function VaultReadinessCard({
   onFaucet,
   onRefresh,
   faucetClaiming,
+  faucetEligible,
 }: {
   readonly connected: boolean;
   readonly snapshot: BasisVaultSnapshot | null;
@@ -31,6 +32,7 @@ export function VaultReadinessCard({
   readonly onFaucet: () => void;
   readonly onRefresh: () => void;
   readonly faucetClaiming: boolean;
+  readonly faucetEligible: boolean | null;
 }) {
   const fundsReady =
     (snapshot?.ownerUsdcBalance ?? 0) >= 1_000 && snapshot?.gasReady === true;
@@ -93,16 +95,20 @@ export function VaultReadinessCard({
           <button
             type="button"
             onClick={onFaucet}
-            disabled={faucetClaiming || fundsReady}
+            disabled={faucetClaiming || fundsReady || faucetEligible !== true}
             className="btn-primary md:col-span-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {fundsReady
               ? "Vault funds ready"
               : faucetClaiming
                 ? "Claiming…"
-                : (snapshot?.ownerUsdcBalance ?? 0) >= 1_000
-                  ? "Prepare deposit gas"
-                  : "Claim 1,000 vault USDC"}
+                : faucetEligible === false
+                  ? "Already claimed"
+                  : faucetEligible === null
+                    ? "Checking faucet…"
+                    : (snapshot?.ownerUsdcBalance ?? 0) >= 1_000
+                      ? "Prepare deposit gas"
+                      : "Claim 1,000 vault USDC"}
           </button>
           <button
             type="button"

@@ -10,6 +10,8 @@ interface NativePreparedMessage extends PreparedBulkTransaction {
   readonly messageBase58?: string;
   readonly messageBase64?: string;
   readonly messageHex?: string;
+  readonly orderId?: string;
+  readonly orderIds?: readonly string[];
 }
 
 interface NativeKeychain {
@@ -24,6 +26,10 @@ interface NativeKeychain {
   };
   prepareOrder(
     order: Parameters<BulkKeychainAdapter["prepareOrder"]>[0],
+    options: Parameters<BulkKeychainAdapter["prepareOrder"]>[1],
+  ): NativePreparedMessage;
+  prepareOrderGroup(
+    orders: Parameters<BulkKeychainAdapter["prepareOrder"]>[0][],
     options: Parameters<BulkKeychainAdapter["prepareOrder"]>[1],
   ): NativePreparedMessage;
   prepareFaucetRequest(options: {
@@ -93,6 +99,33 @@ export function prepareSignedFaucetRequest(params: {
     prepared,
     signer.signBytes(prepared.messageBytes),
   );
+}
+
+export function prepareSignedOrderGroup(params: {
+  readonly secretKey: Uint8Array;
+  readonly expectedPublicKey: string;
+  readonly orders: Parameters<BulkKeychainAdapter["prepareOrder"]>[0][];
+  readonly nonce?: number;
+}) {
+  const keypair = nativeKeychain.NativeKeypair.fromBytes(
+    Buffer.from(params.secretKey),
+  );
+  if (keypair.pubkey !== params.expectedPublicKey) {
+    throw new Error("Strategy secret does not match the Bulk strategy account");
+  }
+  const signer = new nativeKeychain.NativeSigner(keypair);
+  const prepared = nativeKeychain.prepareOrderGroup(params.orders, {
+    account: keypair.pubkey,
+    signer: keypair.pubkey,
+    nonce: params.nonce ?? Date.now(),
+  });
+  return {
+    signed: nativeKeychain.finalizePreparedTransaction(
+      prepared,
+      signer.signBytes(prepared.messageBytes),
+    ),
+    orderIds: prepared.orderIds ?? (prepared.orderId ? [prepared.orderId] : []),
+  };
 }
 
 /** Native Node adapter backed by Bulk's canonical wincode implementation. */

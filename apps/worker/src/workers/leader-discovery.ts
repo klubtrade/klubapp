@@ -6,7 +6,9 @@ import type {
   TradeUpdate,
   WSTransportConstructor,
 } from "@klub/api-client";
-import type { Db } from "@klub/db";
+import { BulkClient, getExchangeInfo, queryUserFills } from "@klub/api-client";
+import { leaderCandidates, type Db } from "@klub/db";
+import { desc, eq } from "drizzle-orm";
 import WebSocket from "ws";
 
 import { runLeaderIndexerOnce } from "./leader-indexer.js";
@@ -47,7 +49,12 @@ export async function startLeaderDiscovery({
   const { BulkWebSocket: BulkWebSocketCtor } = await import("@klub/api-client");
   const stream = createStream(BulkWebSocketCtor);
   const candidates = new Map<Pubkey, number>();
-  const unsubs = symbolsFromEnv().map((symbol) =>
+  const strategyAccount = process.env.BASIS_BULK_STRATEGY_ACCOUNT?.trim();
+  if (strategyAccount && PUBKEY_RE.test(strategyAccount)) {
+    candidates.set(strategyAccount, Date.now());
+  }
+  const symbols = await symbolsForDiscovery(logger);
+  const unsubs = symbols.map((symbol) =>
     stream.onTrades(symbol, (trades) => {
       recordCandidates(candidates, trades);
     }),
@@ -55,19 +62,49 @@ export async function startLeaderDiscovery({
   let indexing = false;
 
   const index = async () => {
-    if (indexing || candidates.size === 0) return;
+    if (indexing) return;
     indexing = true;
     try {
-      const pubkeys = [...candidates.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, maxCandidatesPerRun)
-        .map(([pubkey]) => pubkey);
+      await persistCandidates(db, candidates);
+      const stored = await db
+        .select({ pubkey: leaderCandidates.pubkey })
+        .from(leaderCandidates)
+        .orderBy(desc(leaderCandidates.observedAt))
+        .limit(maxCandidatesPerRun);
+      let pubkeys = [
+        ...new Set([
+          ...[...candidates.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, maxCandidatesPerRun)
+            .map(([pubkey]) => pubkey),
+          ...stored.map((row) => row.pubkey),
+        ]),
+      ].slice(0, maxCandidatesPerRun);
+      if (pubkeys.length === 0) return;
+      await expandFromObservedFills(candidates, pubkeys.slice(0, 5));
+      await persistCandidates(db, candidates);
+      pubkeys = [
+        ...new Set([
+          ...pubkeys,
+          ...[...candidates.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([pubkey]) => pubkey),
+        ]),
+      ].slice(0, maxCandidatesPerRun);
       const summaries = await runLeaderIndexerOnce({
         db,
         leaderPubkeys: pubkeys,
       });
       logger.log(
         `[leader-discovery] scored ${summaries.length} observed Bulk accounts`,
+      );
+      await Promise.all(
+        summaries.map((summary) =>
+          db
+            .update(leaderCandidates)
+            .set({ lastIndexedAt: new Date(), updatedAt: new Date() })
+            .where(eq(leaderCandidates.pubkey, summary.leaderPubkey)),
+        ),
       );
     } catch (error) {
       logger.error("[leader-discovery] indexing failed", error);
@@ -89,6 +126,29 @@ export async function startLeaderDiscovery({
       stream.disconnect();
     },
   };
+}
+
+async function expandFromObservedFills(
+  candidates: Map<Pubkey, number>,
+  accounts: readonly Pubkey[],
+) {
+  const client = new BulkClient({
+    baseUrl:
+      process.env.BULK_HTTP_URL ??
+      process.env.BULK_API_URL ??
+      "https://exchange-api.bulk.trade/api/v1",
+  });
+  const histories = await Promise.allSettled(
+    accounts.map((account) => queryUserFills(client, account)),
+  );
+  const now = Date.now();
+  for (const history of histories) {
+    if (history.status !== "fulfilled") continue;
+    for (const fill of history.value) {
+      if (PUBKEY_RE.test(fill.maker)) candidates.set(fill.maker, now);
+      if (PUBKEY_RE.test(fill.taker)) candidates.set(fill.taker, now);
+    }
+  }
 }
 
 export function recordCandidates(
@@ -129,6 +189,49 @@ function symbolsFromEnv(): readonly string[] {
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+async function symbolsForDiscovery(
+  logger: Pick<Console, "warn">,
+): Promise<readonly string[]> {
+  const configured = symbolsFromEnv();
+  if (process.env.LEADER_DISCOVERY_SYMBOLS) return configured;
+  try {
+    const client = new BulkClient({
+      baseUrl:
+        process.env.BULK_HTTP_URL ??
+        process.env.BULK_API_URL ??
+        "https://exchange-api.bulk.trade/api/v1",
+    });
+    const info = await getExchangeInfo(client);
+    const active = info
+      .filter((symbol) => symbol.status === "TRADING")
+      .map((symbol) => symbol.symbol);
+    return active.length > 0 ? active : configured;
+  } catch (error) {
+    logger.warn(
+      "[leader-discovery] exchangeInfo unavailable; using fallback",
+      error,
+    );
+    return configured;
+  }
+}
+
+async function persistCandidates(
+  db: Db,
+  candidates: ReadonlyMap<Pubkey, number>,
+) {
+  await Promise.all(
+    [...candidates.entries()].map(([pubkey, observedAt]) =>
+      db
+        .insert(leaderCandidates)
+        .values({ pubkey, observedAt: new Date(observedAt) })
+        .onConflictDoUpdate({
+          target: leaderCandidates.pubkey,
+          set: { observedAt: new Date(observedAt), updatedAt: new Date() },
+        }),
+    ),
+  );
 }
 
 function normalizeTimestamp(value: number): number {

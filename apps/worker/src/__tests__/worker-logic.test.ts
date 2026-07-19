@@ -21,6 +21,13 @@ import {
 import { summarizeCopyFollowRows } from "../workers/copy-follow-scanner.js";
 import { computeMirroredSize } from "../workers/copy-trade-worker.js";
 import { summarizeLeaderFills } from "../workers/leader-indexer.js";
+import {
+  assessStrategyRisk,
+  buildLegOrder,
+  defaultBasisStrategyPolicy,
+  selectStrategyOpportunity,
+  validateStrategyRisk,
+} from "../workers/basis-strategy-policy.js";
 
 const alert = {
   userId: "user-1",
@@ -184,6 +191,118 @@ describe("worker risk helpers", () => {
     expect(summary.netPnl24hUsd).toBe(21);
     expect(summary.netPnl7dUsd).toBe(20);
     expect(summary.netPnl30dUsd).toBe(31);
+  });
+
+  it("ranks with authoritative closed-position PnL instead of truncated fills", () => {
+    const nowMs = Date.parse("2026-07-19T12:00:00.000Z");
+    const summary = summarizeLeaderFills({
+      leaderPubkey: "leader",
+      nowMs,
+      cutoffMs: nowMs - 30 * 24 * 60 * 60 * 1000,
+      fills: [],
+      fundingPayments: [],
+      closedPositions: [
+        {
+          owner: "leader",
+          symbol: "BTC-USD",
+          maxQuantity: 1,
+          totalVolume: 2,
+          avgOpenPrice: 100,
+          avgClosePrice: 90,
+          realizedPnl: -10,
+          fees: -1,
+          funding: 0.5,
+          openTime: nowMs - 2_000,
+          closeTime: nowMs - 1_000,
+          closeReason: "normal",
+        },
+      ],
+    });
+
+    expect(summary.netPnl24hUsd).toBe(-10.5);
+    expect(summary.netPnl7dUsd).toBe(-10.5);
+    expect(summary.netPnl30dUsd).toBe(-10.5);
+    expect(summary.closedTradesCount).toBe(1);
+    expect(summary.winRate).toBe(0);
+  });
+
+  it("selects only liquid, approved major-market funding spreads", () => {
+    const opportunity = selectStrategyOpportunity(
+      [
+        {
+          symbol: "BTC-USD",
+          fundingRate: 0.00025,
+          volume24h: 8_000,
+          openInterest: 5_000,
+          lastPrice: 65_000,
+        },
+        {
+          symbol: "SOL-USD",
+          fundingRate: 0.0000125,
+          volume24h: 30_000,
+          openInterest: 90_000,
+          lastPrice: 75,
+        },
+        {
+          symbol: "BNB-USD",
+          fundingRate: 0.0012,
+          volume24h: 50,
+          openInterest: 500,
+          lastPrice: 560,
+        },
+      ],
+      defaultBasisStrategyPolicy(),
+    );
+    expect(opportunity?.long.symbol).toBe("SOL-USD");
+    expect(opportunity?.short.symbol).toBe("BTC-USD");
+    expect(opportunity?.annualSpreadPct).toBeCloseTo(2.0805);
+  });
+
+  it("enforces the liquidity reserve and bounded IOC execution", () => {
+    const policy = defaultBasisStrategyPolicy();
+    const healthy = assessStrategyRisk({
+      equityUsd: 1_000,
+      availableUsd: 800,
+      grossNotionalUsd: 200,
+      peakEquityUsd: 1_000,
+    });
+    expect(validateStrategyRisk(healthy, policy)).toBeNull();
+    expect(
+      validateStrategyRisk(
+        { ...healthy, availableUsd: 600, reservePct: 60 },
+        policy,
+      ),
+    ).toContain("Liquidity reserve");
+    expect(
+      buildLegOrder({
+        symbol: "BTC-USD",
+        isBuy: false,
+        reduceOnly: false,
+        notionalUsd: 100,
+        markPrice: 65_000,
+        market: {
+          symbol: "BTC-USD",
+          baseAsset: "BTC",
+          quoteAsset: "USD",
+          status: "TRADING",
+          pricePrecision: 3,
+          sizePrecision: 6,
+          tickSize: 0.001,
+          lotSize: 0.000001,
+          minNotional: 1,
+          maxLeverage: 40,
+          orderTypes: ["LIMIT"],
+          timeInForces: ["IOC"],
+        },
+        maxSlippageBps: 20,
+      }),
+    ).toMatchObject({
+      isBuy: false,
+      reduceOnly: false,
+      size: 0.001538,
+      price: 64_870,
+      orderType: { type: "limit", tif: "IOC" },
+    });
   });
 
   it("fails closed while the canonical execution gateway is unavailable", async () => {

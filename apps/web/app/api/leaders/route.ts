@@ -1,5 +1,5 @@
 import { createDbClient, leaders } from "@klub/db";
-import { desc } from "drizzle-orm";
+import { and, desc, gt } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { leaderLabel } from "@/lib/copy-trade/leaders";
@@ -22,9 +22,16 @@ export async function GET(request: Request) {
         : window === "7d"
           ? leaders.netPnl7dUsd
           : leaders.netPnl30dUsd;
+    const activityColumn =
+      window === "24h"
+        ? leaders.fillsLast24h
+        : window === "7d"
+          ? leaders.fillsLast7d
+          : leaders.fillsLast30d;
     const rows = await db
       .select()
       .from(leaders)
+      .where(and(gt(rankingColumn, 0), gt(activityColumn, 0)))
       .orderBy(desc(rankingColumn))
       .limit(20);
     return NextResponse.json(

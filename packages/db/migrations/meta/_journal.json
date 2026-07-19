@@ -78,6 +78,13 @@
       "when": 1784456400000,
       "tag": "0010_add_leader_ranking_windows",
       "breakpoints": false
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784466000000,
+      "tag": "0011_add_basis_strategy_state",
+      "breakpoints": false
     }
   ]
 }

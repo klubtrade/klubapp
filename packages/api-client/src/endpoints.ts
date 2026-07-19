@@ -11,6 +11,8 @@
 import type { BulkClient } from "./client.js";
 import type {
   AccountQueryParams,
+  ClosedPosition,
+  ClosedPositionResponseItem,
   Candle,
   CandleInterval,
   ExchangeInfo,
@@ -202,4 +204,16 @@ export async function queryUserFundingPayments(
   });
 
   return rows.map((row) => row.fundingPayment);
+}
+
+/** Authoritative realized position cycles used for leaderboard PnL. */
+export async function queryUserClosedPositions(
+  client: BulkClient,
+  user: Pubkey,
+): Promise<readonly ClosedPosition[]> {
+  const rows = await client.postUnsigned<
+    AccountQueryParams,
+    readonly ClosedPositionResponseItem[]
+  >("/account", { type: "positions", user });
+  return rows.map((row) => row.positions);
 }

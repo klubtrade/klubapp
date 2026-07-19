@@ -11,6 +11,7 @@ import { createAlertsWorker } from "./workers/alerts-worker.js";
 import { startCopyFollowScanner } from "./workers/copy-follow-scanner.js";
 import { createCopyTradeWorker } from "./workers/copy-trade-worker.js";
 import { startBasisYieldOperator } from "./workers/basis-yield-operator.js";
+import { startBasisStrategyWorker } from "./workers/basis-strategy-worker.js";
 import { startLeaderDiscovery } from "./workers/leader-discovery.js";
 
 /**
@@ -52,6 +53,10 @@ async function main() {
     process.env.BASIS_OPERATOR_ENABLED === "true"
       ? startBasisYieldOperator({ db })
       : null;
+  const basisStrategy =
+    process.env.BASIS_OPERATOR_ENABLED === "true"
+      ? startBasisStrategyWorker({ db })
+      : null;
   const redisUrl = process.env["REDIS_URL"];
   const redis = redisUrl
     ? new Redis(redisUrl, {
@@ -76,6 +81,7 @@ async function main() {
     copyFollowScanner.close();
     leaderDiscovery.close();
     basisOperator?.close();
+    basisStrategy?.close();
     await accountSubscriber?.close();
     await Promise.allSettled([alertsWorker?.close(), copyTradeWorker?.close()]);
     await redis?.quit();
