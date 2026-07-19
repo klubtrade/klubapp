@@ -1,10 +1,6 @@
 /* eslint-disable no-console */
 
-import {
-  BulkClient,
-  queryUserFills,
-  queryUserFundingPayments,
-} from "@klub/api-client";
+import { BulkClient } from "@klub/api-client";
 import { basisOperatorStates, basisYieldCredits, type Db } from "@klub/db";
 import {
   findAssociatedTokenPda,
@@ -31,8 +27,8 @@ import {
 import bs58 from "bs58";
 import { eq, sql } from "drizzle-orm";
 
+import { loadBasisProfitSource } from "./basis-profit-source.js";
 import { ensureStrategyPayoutBalance } from "./basis-yield-mint.js";
-import { computeLeaderMetrics } from "./leader-metrics.js";
 
 const USDC_SCALE = 1_000_000n;
 const CREDIT_YIELD_DISCRIMINATOR = 7;
@@ -79,12 +75,8 @@ export async function runBasisYieldOperatorOnce({
 }): Promise<BasisOperatorSummary> {
   const config = operatorConfig();
   const bulk = new BulkClient({ baseUrl: config.bulkApiUrl });
-  const [fills, funding] = await Promise.all([
-    queryUserFills(bulk, config.sourceAccount),
-    queryUserFundingPayments(bulk, config.sourceAccount),
-  ]);
-  const metrics = computeLeaderMetrics(fills, funding);
-  const sourcePnlRaw = toRaw(Math.max(0, metrics.netPnlUsd));
+  const profit = await loadBasisProfitSource(bulk, config.sourceAccount);
+  const sourcePnlRaw = toRaw(Math.max(0, profit.netPnlUsd));
   const [state] = await db
     .select()
     .from(basisOperatorStates)
@@ -92,7 +84,7 @@ export async function runBasisYieldOperatorOnce({
     .limit(1);
   const creditedBefore = state?.creditedYieldRaw ?? 0n;
   const availableProfitRaw = sourcePnlRaw - creditedBefore;
-  const sourceTimestamp = latestTimestamp(fills, funding);
+  const sourceTimestamp = profit.sourceTimestamp;
 
   if (availableProfitRaw <= 0n) {
     await saveOperatorState(db, {
@@ -101,7 +93,7 @@ export async function runBasisYieldOperatorOnce({
       creditedYieldRaw: creditedBefore,
       sourceTimestamp,
     });
-    return summary(metrics.netPnlUsd, 0n, 0n, 0, "idle");
+    return summary(profit.netPnlUsd, 0n, 0n, 0, "idle");
   }
 
   const rpc = createSolanaRpc(config.rpcUrl);
@@ -210,7 +202,7 @@ export async function runBasisYieldOperatorOnce({
     sourceTimestamp,
   });
   return summary(
-    metrics.netPnlUsd,
+    profit.netPnlUsd,
     availableProfitRaw,
     creditedRaw,
     positionsCredited,
@@ -445,19 +437,6 @@ function parseSecretJson(value: string): Uint8Array | null {
   } catch {
     return null;
   }
-}
-
-function latestTimestamp(
-  fills: readonly { timestamp: number }[],
-  funding: readonly { timestamp: number }[],
-): bigint {
-  return BigInt(
-    Math.max(
-      0,
-      ...fills.map((row) => row.timestamp),
-      ...funding.map((row) => row.timestamp),
-    ),
-  );
 }
 
 function summary(
