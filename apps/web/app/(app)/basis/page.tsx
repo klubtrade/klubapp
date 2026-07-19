@@ -18,18 +18,15 @@ import {
   maxWithdrawAmount,
   type BasisVaultAction,
 } from "@/lib/basis-vault/actions";
-import {
-  formatBasisVaultFee,
-  getBasisVaultConfig,
-} from "@/lib/basis-vault/config";
+import { getBasisVaultConfig } from "@/lib/basis-vault/config";
 import { MARKETS, type MarketSymbol } from "@/lib/markets";
 import { useTradingWallet } from "@/lib/trading-wallet";
 
 import {
   buildBasisOpportunities,
+  BasisStatusCard,
   depositButtonLabel,
   formatPrice,
-  InfoCard,
   labelFor,
   LegCard,
   VaultReadinessCard,
@@ -252,7 +249,10 @@ export default function BasisPage() {
             <h1 className="mt-2 text-[30px] font-semibold tracking-[-0.03em] text-fg-primary md:text-[42px]">
               Basis vault
             </h1>
-            <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-fg-muted">Deposit vault mock USDC. Earn funded basis carry. Withdraw anytime.</p>
+            <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-fg-muted">
+              Deposit vault mock USDC. Earn funded basis carry. Withdraw
+              anytime.
+            </p>
           </div>
           <Link href="/desk" className="btn-secondary btn-compact w-fit">
             Open Funding Desk
@@ -273,189 +273,183 @@ export default function BasisPage() {
               faucetClaiming={faucetClaiming}
               faucetEligible={faucetEligible}
             />
-            <section className="grid gap-3 text-[12px] leading-relaxed text-fg-muted md:grid-cols-3 xl:grid-cols-1">
-              <InfoCard title="Strategy">Delta-neutral funding carry.</InfoCard>
-              <InfoCard title="Withdrawals">Instant from vault liquidity.</InfoCard>
-              <InfoCard title="Fee">
-                {formatBasisVaultFee(vault.performanceFeeBps)} on earned yield only.
-              </InfoCard>
-            </section>
+            <BasisStatusCard />
           </div>
 
           <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
             <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
-            <div className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
-              Best current carry
-            </div>
-            {best ? (
-              <>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <LegCard
-                    label="Long"
-                    symbol={best.longSymbol}
-                    annualPct={best.longAnnualPct}
-                  />
-                  <LegCard
-                    label="Short"
-                    symbol={best.shortSymbol}
-                    annualPct={best.shortAnnualPct}
-                  />
-                </div>
-                <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-                  <div>
-                    <div className="break-all font-mono text-[36px] font-semibold leading-none tracking-[-0.04em] text-pnl-long sm:text-[46px]">
-                      +{best.netAnnualPct.toFixed(1)}%
-                    </div>
-                    <div className="mt-1 text-[11px] uppercase tracking-[0.1em] text-fg-muted">
-                      current annualized spread
-                    </div>
-                  </div>
-                  <div className="text-right text-[12px] text-fg-muted">
-                    Equal notional
-                    <br />
-                    1× planner
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="mt-6 rounded-klub border border-border-subtle bg-bg-base p-5 text-[13px] text-fg-muted">
-                Waiting for Bulk funding data…
+              <div className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
+                Best current carry
               </div>
-            )}
-          </div>
-
-          <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
-            <div className="grid grid-cols-2 rounded-klub border border-border-subtle bg-bg-base p-1">
-              {(["deposit", "withdraw"] as const).map((nextAction) => (
-                <button
-                  key={nextAction}
-                  type="button"
-                  onClick={() => selectAction(nextAction)}
-                  className={`rounded-md px-3 py-2 text-[12px] font-medium capitalize transition-colors ${
-                    action === nextAction
-                      ? "bg-bg-elevated text-fg-primary"
-                      : "text-fg-muted hover:text-fg-primary"
-                  }`}
-                >
-                  {nextAction}
-                </button>
-              ))}
-            </div>
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <label className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
-                {action === "deposit" ? "Deposit" : "Withdraw"} · vault USDC
-              </label>
-              {action === "withdraw" && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setWithdrawAmount(maxWithdrawAmount(withdrawable))
-                  }
-                  disabled={withdrawable <= 0}
-                  className="text-[11px] font-medium text-accent disabled:text-fg-muted"
-                >
-                  Max {formatBasisAmount(withdrawable)}
-                </button>
+              {best ? (
+                <>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <LegCard
+                      label="Long"
+                      symbol={best.longSymbol}
+                      annualPct={best.longAnnualPct}
+                    />
+                    <LegCard
+                      label="Short"
+                      symbol={best.shortSymbol}
+                      annualPct={best.shortAnnualPct}
+                    />
+                  </div>
+                  <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                      <div className="break-all font-mono text-[36px] font-semibold leading-none tracking-[-0.04em] text-pnl-long sm:text-[46px]">
+                        +{best.netAnnualPct.toFixed(1)}%
+                      </div>
+                      <div className="mt-1 text-[11px] uppercase tracking-[0.1em] text-fg-muted">
+                        current annualized spread
+                      </div>
+                    </div>
+                    <div className="text-right text-[12px] text-fg-muted">
+                      Equal notional
+                      <br />
+                      1× planner
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-6 rounded-klub border border-border-subtle bg-bg-base p-5 text-[13px] text-fg-muted">
+                  Waiting for Bulk funding data…
+                </div>
               )}
             </div>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={50}
-              value={amount}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                if (Number.isFinite(next) && next >= 0) {
-                  if (action === "deposit") setDepositAmount(next);
-                  else setWithdrawAmount(next);
-                }
-              }}
-              className="mt-3 w-full rounded-klub border border-border bg-bg-base px-4 py-3.5 font-mono text-xl text-fg-primary focus:border-accent focus:outline-none"
-            />
 
-            <div className="mt-5 rounded-klub border border-border-subtle bg-bg-base p-4">
-              <div className="text-[11px] uppercase tracking-[0.1em] text-fg-muted">
-                Proceeds
+            <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+              <div className="grid grid-cols-2 rounded-klub border border-border-subtle bg-bg-base p-1">
+                {(["deposit", "withdraw"] as const).map((nextAction) => (
+                  <button
+                    key={nextAction}
+                    type="button"
+                    onClick={() => selectAction(nextAction)}
+                    className={`rounded-md px-3 py-2 text-[12px] font-medium capitalize transition-colors ${
+                      action === nextAction
+                        ? "bg-bg-elevated text-fg-primary"
+                        : "text-fg-muted hover:text-fg-primary"
+                    }`}
+                  >
+                    {nextAction}
+                  </button>
+                ))}
               </div>
-              <div className="mt-2 text-[16px] font-medium text-fg-primary">
-                {action === "withdraw"
-                  ? `${formatBasisAmount(withdrawable)} available now`
-                  : `$${formatBasisAmount(claimableYield)} earned`}
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <label className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
+                  {action === "deposit" ? "Deposit" : "Withdraw"} · vault USDC
+                </label>
+                {action === "withdraw" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setWithdrawAmount(maxWithdrawAmount(withdrawable))
+                    }
+                    disabled={withdrawable <= 0}
+                    className="text-[11px] font-medium text-accent disabled:text-fg-muted"
+                  >
+                    Max {formatBasisAmount(withdrawable)}
+                  </button>
+                )}
               </div>
-              <div className="mt-1 text-[11px] text-fg-muted">
-                {action === "withdraw"
-                  ? "The 0.10% fee applies only to earned yield."
-                  : "Claim becomes active after realized strategy profit is funded on-chain."}
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={50}
+                value={amount}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (Number.isFinite(next) && next >= 0) {
+                    if (action === "deposit") setDepositAmount(next);
+                    else setWithdrawAmount(next);
+                  }
+                }}
+                className="mt-3 w-full rounded-klub border border-border bg-bg-base px-4 py-3.5 font-mono text-xl text-fg-primary focus:border-accent focus:outline-none"
+              />
+
+              <div className="mt-5 rounded-klub border border-border-subtle bg-bg-base p-4">
+                <div className="text-[11px] uppercase tracking-[0.1em] text-fg-muted">
+                  Proceeds
+                </div>
+                <div className="mt-2 text-[16px] font-medium text-fg-primary">
+                  {action === "withdraw"
+                    ? `${formatBasisAmount(withdrawable)} available now`
+                    : `$${formatBasisAmount(claimableYield)} earned`}
+                </div>
+                <div className="mt-1 text-[11px] text-fg-muted">
+                  {action === "withdraw"
+                    ? "The 0.10% fee applies only to earned yield."
+                    : "Claim becomes active after realized strategy profit is funded on-chain."}
+                </div>
               </div>
+
+              {action === "deposit" ? (
+                <button
+                  type="button"
+                  onClick={() => void submitDeposit()}
+                  disabled={depositDisabled}
+                  className={`btn-primary btn-block btn-lg mt-5 ${
+                    !depositDisabled ? "" : "cursor-not-allowed opacity-50"
+                  }`}
+                >
+                  {depositButtonLabel({
+                    ready: vault.ready,
+                    connected,
+                    pending,
+                    amount: depositAmount,
+                    minDeposit: vault.minDepositUsdc,
+                    ownerUsdc,
+                    gasReady: snapshot?.gasReady === true,
+                  })}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void submitWithdraw()}
+                  disabled={withdrawDisabled}
+                  className={`btn-primary btn-block btn-lg mt-5 ${
+                    !withdrawDisabled ? "" : "cursor-not-allowed opacity-50"
+                  }`}
+                >
+                  {!connected
+                    ? "Connect wallet"
+                    : pending
+                      ? "Confirming…"
+                      : withdrawable <= 0
+                        ? "Nothing to withdraw"
+                        : "Withdraw now"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void claimEarnedProceeds()}
+                disabled={claimDisabled}
+                className={`btn-secondary btn-block mt-3 ${
+                  !claimDisabled ? "" : "cursor-not-allowed opacity-50"
+                }`}
+              >
+                {pending
+                  ? "Confirming…"
+                  : claimableYield > 0
+                    ? `Claim $${formatBasisAmount(claimableYield)} earned`
+                    : "No earned proceeds yet"}
+              </button>
+              {txStatus.message && (
+                <div
+                  className={`mt-3 rounded-klub border px-3 py-2 text-[11px] ${
+                    txStatus.kind === "error"
+                      ? "border-pnl-short/30 bg-pnl-short/5 text-pnl-short"
+                      : txStatus.kind === "success"
+                        ? "border-pnl-long/30 bg-pnl-long/5 text-pnl-long"
+                        : "border-border-subtle bg-bg-base text-fg-muted"
+                  }`}
+                >
+                  {txStatus.message}
+                </div>
+              )}
             </div>
-
-            {action === "deposit" ? (
-              <button
-                type="button"
-                onClick={() => void submitDeposit()}
-                disabled={depositDisabled}
-                className={`btn-primary btn-block btn-lg mt-5 ${
-                  !depositDisabled ? "" : "cursor-not-allowed opacity-50"
-                }`}
-              >
-                {depositButtonLabel({
-                  ready: vault.ready,
-                  connected,
-                  pending,
-                  amount: depositAmount,
-                  minDeposit: vault.minDepositUsdc,
-                  ownerUsdc,
-                  gasReady: snapshot?.gasReady === true,
-                })}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void submitWithdraw()}
-                disabled={withdrawDisabled}
-                className={`btn-primary btn-block btn-lg mt-5 ${
-                  !withdrawDisabled ? "" : "cursor-not-allowed opacity-50"
-                }`}
-              >
-                {!connected
-                  ? "Connect wallet"
-                  : pending
-                    ? "Confirming…"
-                    : withdrawable <= 0
-                      ? "Nothing to withdraw"
-                      : "Withdraw now"}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => void claimEarnedProceeds()}
-              disabled={claimDisabled}
-              className={`btn-secondary btn-block mt-3 ${
-                !claimDisabled ? "" : "cursor-not-allowed opacity-50"
-              }`}
-            >
-              {pending
-                ? "Confirming…"
-                : claimableYield > 0
-                  ? `Claim $${formatBasisAmount(claimableYield)} earned`
-                  : "No earned proceeds yet"}
-            </button>
-            {txStatus.message && (
-              <div
-                className={`mt-3 rounded-klub border px-3 py-2 text-[11px] ${
-                  txStatus.kind === "error"
-                    ? "border-pnl-short/30 bg-pnl-short/5 text-pnl-short"
-                    : txStatus.kind === "success"
-                      ? "border-pnl-long/30 bg-pnl-long/5 text-pnl-long"
-                      : "border-border-subtle bg-bg-base text-fg-muted"
-                }`}
-              >
-                {txStatus.message}
-              </div>
-            )}
           </div>
-        </div>
         </div>
 
         <div className="mt-4 rounded-klub-lg border border-border-subtle bg-bg-surface">

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { formatUsdc, type BasisVaultSnapshot } from "@/lib/basis-vault/client";
 import {
@@ -126,6 +126,138 @@ export function VaultReadinessCard({
       )}
     </section>
   );
+}
+
+interface BasisStatusResponse {
+  readonly ok: boolean;
+  readonly status: string;
+  readonly message?: string;
+  readonly strategy?: {
+    readonly paused: boolean;
+    readonly pauseReason: string | null;
+    readonly consecutiveErrors: number;
+    readonly lastEquityUsd: number;
+    readonly lastReconciledAt: string | null;
+  } | null;
+  readonly latestRun?: {
+    readonly state: string;
+    readonly longSymbol: string;
+    readonly shortSymbol: string;
+    readonly expectedAnnualPct: number;
+    readonly error: string | null;
+    readonly updatedAt: string;
+  } | null;
+  readonly operator?: {
+    readonly sourceProfitUsdc: number;
+    readonly creditedUsdc: number;
+    readonly availableProfitUsdc: number;
+    readonly updatedAt: string;
+  } | null;
+  readonly credits?: {
+    readonly latestError: string | null;
+  };
+}
+
+export function BasisStatusCard() {
+  const [status, setStatus] = useState<BasisStatusResponse | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/basis/status", {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as BasisStatusResponse;
+        if (alive) setStatus(payload);
+      } catch (error) {
+        if (alive) {
+          setStatus({
+            ok: false,
+            status: "error",
+            message:
+              error instanceof Error ? error.message : "Status unavailable.",
+          });
+        }
+      }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 15_000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const label = status ? basisStatusLabel(status) : "Loading Basis status…";
+  const tone = statusTone(status?.status);
+
+  return (
+    <section className="rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[13px] font-medium text-fg-primary">
+            Strategy status
+          </div>
+          <div className={`mt-1 text-[11px] ${tone}`}>{label}</div>
+        </div>
+        <span className="rounded-full border border-border-subtle px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
+          Live
+        </span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <VaultMetric
+          label="Bulk equity"
+          value={`$${formatUsdc(status?.strategy?.lastEquityUsd ?? 0)}`}
+        />
+        <VaultMetric
+          label="Source profit"
+          value={`$${formatUsdc(status?.operator?.sourceProfitUsdc ?? 0)}`}
+        />
+        <VaultMetric
+          label="Credited"
+          value={`$${formatUsdc(status?.operator?.creditedUsdc ?? 0)}`}
+        />
+      </div>
+      {status?.latestRun && (
+        <div className="mt-3 rounded-klub border border-border-subtle bg-bg-base p-3 text-[11px] text-fg-muted">
+          Run: {status.latestRun.state} · Long {status.latestRun.longSymbol} ·
+          Short {status.latestRun.shortSymbol}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function basisStatusLabel(status: BasisStatusResponse): string {
+  if (!status.ok) return status.message ?? "Basis status unavailable.";
+  if (status.status === "strategy_paused") {
+    return status.strategy?.pauseReason ?? "Strategy is paused.";
+  }
+  if (status.status === "operator_not_seen") {
+    return "Yield operator has not reported yet.";
+  }
+  if (status.status === "strategy_not_seen") {
+    return "Strategy worker has not opened a run yet.";
+  }
+  if (status.status === "credit_error") {
+    return status.credits?.latestError ?? "Latest yield credit failed.";
+  }
+  if (status.status === "waiting_for_profit") {
+    return "No realized or funding profit has been produced yet.";
+  }
+  if (status.status === "waiting_for_credit") {
+    return "Profit detected. Waiting for on-chain credit.";
+  }
+  return "Yield credits are active.";
+}
+
+function statusTone(status?: string): string {
+  if (status === "crediting") return "text-pnl-long";
+  if (status === "waiting_for_profit" || status === "waiting_for_credit") {
+    return "text-accent";
+  }
+  return "text-alert-orange";
 }
 
 function VaultMetric({
