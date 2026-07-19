@@ -11,6 +11,7 @@ import { createAlertsWorker } from "./workers/alerts-worker.js";
 import { startCopyFollowScanner } from "./workers/copy-follow-scanner.js";
 import { createCopyTradeWorker } from "./workers/copy-trade-worker.js";
 import { startBasisYieldOperator } from "./workers/basis-yield-operator.js";
+import { workerIntervalMs } from "./workers/basis-strategy-config.js";
 import { startBasisStrategyWorker } from "./workers/basis-strategy-worker.js";
 import { startLeaderDiscovery } from "./workers/leader-discovery.js";
 
@@ -51,11 +52,25 @@ async function main() {
   const leaderDiscovery = await startLeaderDiscovery({ db });
   const basisOperator =
     process.env.BASIS_OPERATOR_ENABLED === "true"
-      ? startBasisYieldOperator({ db })
+      ? startBasisYieldOperator({
+          db,
+          intervalMs: workerIntervalMs(
+            "BASIS_OPERATOR_INTERVAL_MS",
+            60_000,
+            30_000,
+          ),
+        })
       : null;
   const basisStrategy =
     process.env.BASIS_OPERATOR_ENABLED === "true"
-      ? startBasisStrategyWorker({ db })
+      ? startBasisStrategyWorker({
+          db,
+          intervalMs: workerIntervalMs(
+            "BASIS_STRATEGY_INTERVAL_MS",
+            60_000,
+            30_000,
+          ),
+        })
       : null;
   const redisUrl = process.env["REDIS_URL"];
   const redis = redisUrl

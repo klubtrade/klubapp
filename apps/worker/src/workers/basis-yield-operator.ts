@@ -31,6 +31,7 @@ import {
 import bs58 from "bs58";
 import { eq, sql } from "drizzle-orm";
 
+import { ensureStrategyPayoutBalance } from "./basis-yield-mint.js";
 import { computeLeaderMetrics } from "./leader-metrics.js";
 
 const USDC_SCALE = 1_000_000n;
@@ -113,7 +114,17 @@ export async function runBasisYieldOperatorOnce({
     mint: config.usdcMint,
     tokenProgram: TOKEN_PROGRAM_ADDRESS,
   });
-  const strategyBalanceRaw = await tokenBalance(rpc, strategyUsdc);
+  const strategyBalanceRaw = await ensureStrategyPayoutBalance({
+    rpc,
+    owner: signer.address,
+    mint: config.usdcMint,
+    token: strategyUsdc,
+    currentBalanceRaw: await tokenBalance(rpc, strategyUsdc),
+    requiredBalanceRaw: minBigInt(
+      availableProfitRaw,
+      config.maxCreditPerRunRaw,
+    ),
+  });
   const budgetRaw = minBigInt(
     availableProfitRaw,
     strategyBalanceRaw,
@@ -465,12 +476,9 @@ function summary(
   };
 }
 
-function toRaw(value: number): bigint {
-  return BigInt(Math.floor(value * Number(USDC_SCALE)));
-}
-function fromRaw(value: bigint): number {
-  return Number(value) / Number(USDC_SCALE);
-}
+const toRaw = (value: number): bigint =>
+  BigInt(Math.floor(value * Number(USDC_SCALE)));
+const fromRaw = (value: bigint): number => Number(value) / Number(USDC_SCALE);
 function minBigInt(...values: readonly bigint[]): bigint {
   return values.reduce((min, value) => (value < min ? value : min));
 }

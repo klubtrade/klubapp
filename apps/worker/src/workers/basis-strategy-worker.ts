@@ -10,13 +10,15 @@ import {
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
-import { decodeStrategySecret } from "./basis-yield-operator.js";
 import {
   loadStrategyAccount,
   type StrategyAccountSnapshot,
   waitForStrategyPair,
 } from "./basis-strategy-account.js";
+import { marketMap, requireMarket } from "./basis-market-map.js";
+import { strategyConfig } from "./basis-strategy-config.js";
 import { submitAtomicStrategyOrders } from "./basis-strategy-execution.js";
+import { requestBulkStrategyFaucet } from "./basis-strategy-faucet.js";
 import {
   assessStrategyRisk,
   buildLegOrder,
@@ -74,18 +76,43 @@ export async function runBasisStrategyOnce({
   const config = strategyConfig();
   const control = await loadControl(db, config.account);
   if (control.paused || !config.executionEnabled) {
-    return {
-      status: "paused",
-      detail: control.pauseReason ?? "Execution paused.",
-    };
+    if (control.paused && isRecoverableNoEquityPause(control.pauseReason)) {
+      await updateControl(db, config.account, {
+        paused: false,
+        pauseReason: null,
+        consecutiveErrors: 0,
+      });
+    } else {
+      return {
+        status: "paused",
+        detail: control.pauseReason ?? "Execution paused.",
+      };
+    }
   }
 
   const client = new BulkClient({
     baseUrl: config.bulkApiUrl,
     timeoutMs: 20_000,
   });
-  const [account, rates, exchangeInfo] = await Promise.all([
-    loadStrategyAccount(client, config.account),
+  let account = await loadStrategyAccount(client, config.account);
+  if (account.equityUsd <= 0) {
+    const faucet = await requestBulkStrategyFaucet({
+      client,
+      account: config.account,
+      secret: config.secret,
+    });
+    account = await loadStrategyAccount(client, config.account);
+    if (account.equityUsd <= 0) {
+      return {
+        status: "idle",
+        detail:
+          faucet === "accepted"
+            ? "Bulk strategy faucet accepted; waiting for account equity."
+            : "Bulk strategy faucet is on cooldown and account has no equity.",
+      };
+    }
+  }
+  const [rates, exchangeInfo] = await Promise.all([
     fetchCurrentFundingRates({ wsUrl: config.wsUrl, timeoutMs: 15_000 }),
     getExchangeInfo(client),
   ]);
@@ -461,39 +488,6 @@ async function recordReconciliation(
   });
 }
 
-function marketMap(markets: readonly MarketSpec[]) {
-  return new Map(markets.map((market) => [market.symbol, market]));
-}
-
-function requireMarket(
-  markets: ReadonlyMap<string, MarketSpec>,
-  symbol: string,
-) {
-  const market = markets.get(symbol);
-  if (!market || market.status !== "TRADING")
-    throw new Error(`${symbol} is not active.`);
-  return market;
-}
-
-function strategyConfig() {
-  const required = (name: string) => {
-    const value = process.env[name]?.trim();
-    if (!value) throw new Error(`Missing required env: ${name}`);
-    return value;
-  };
-  const network = required("BASIS_OPERATOR_NETWORK");
-  if (network !== "devnet")
-    throw new Error("Software strategy execution is devnet-only.");
-  return {
-    account: required("BASIS_BULK_STRATEGY_ACCOUNT"),
-    secret: decodeStrategySecret(
-      required("BASIS_VAULT_STRATEGY_AUTHORITY_SECRET"),
-    ),
-    executionEnabled: process.env.BASIS_STRATEGY_EXECUTION_ENABLED !== "false",
-    bulkApiUrl:
-      process.env.BULK_HTTP_URL ??
-      process.env.BULK_API_URL ??
-      "https://exchange-api.bulk.trade/api/v1",
-    wsUrl: process.env.BULK_WS_URL ?? "wss://exchange-ws1.bulk.trade",
-  };
+function isRecoverableNoEquityPause(reason: string | null): boolean {
+  return Boolean(reason?.toLowerCase().includes("no equity"));
 }
