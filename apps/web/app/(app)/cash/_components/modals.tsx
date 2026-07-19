@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { useCreatePot, useTransfer } from "@/hooks/use-bulk-account-actions";
 import type { SubmitOrderResult } from "@/lib/bulk/orders";
@@ -461,9 +462,13 @@ export function ResultToast({
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted hover:text-fg-primary"
+                className="mt-1 inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted hover:text-fg-primary"
               >
-                {expanded ? "▼ Hide response" : "▶ Show response"}
+                {expanded ? (
+                  <><ChevronDown className="h-3 w-3" /> Hide response</>
+                ) : (
+                  <><ChevronRight className="h-3 w-3" /> Show response</>
+                )}
               </button>
             )}
             {expanded && rawText && (

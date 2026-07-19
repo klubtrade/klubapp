@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 import { EnterAppButton, Kicker, fadeUp, viewport } from "./landing-ui";
 
@@ -426,10 +427,13 @@ export function Footer() {
   return (
     <footer className="border-t border-border-subtle px-6 py-14 md:px-10">
       <div className="mx-auto flex max-w-[1160px] flex-col items-start justify-between gap-6 text-[13px] text-fg-muted md:flex-row md:items-center">
-        <div className="flex items-center gap-2.5 font-semibold text-fg-primary">
-          <span className="live-dot" aria-hidden />
-          KLUB
-        </div>
+        <Image
+          src="/privy-logo.png"
+          alt="KLUB"
+          width={72}
+          height={36}
+          className="h-9 w-[72px] object-contain"
+        />
         <div className="flex flex-wrap gap-7">
           <a
             href="#features"

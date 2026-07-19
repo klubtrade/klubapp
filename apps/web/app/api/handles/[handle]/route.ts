@@ -1,12 +1,12 @@
 // apps/web/app/api/handles/[handle]/route.ts
-import { createDbClient, handles } from '@klub/db';
-import { and, eq, isNull } from 'drizzle-orm';
-import { NextResponse } from 'next/server';
+import { createDbClient, handles } from "@klub/db";
+import { and, eq, isNull } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
 import {
   getFallbackHandle,
   shouldUseHandleRegistryFallback,
-} from '@/lib/handle-registry-fallback';
+} from "@/lib/handle-registry-fallback";
 
 /**
  * GET /api/handles/:handle
@@ -21,10 +21,10 @@ import {
  * public mapping.
  */
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 function getDb() {
-  const url = process.env['DATABASE_URL'];
+  const url = process.env["DATABASE_URL"];
   if (!url) return null;
   return createDbClient({ connectionString: url, maxConnections: 3 });
 }
@@ -34,7 +34,7 @@ const HANDLE_RE = /^[a-z0-9_]{3,30}$/;
 function fallbackResponse(handle: string) {
   const row = getFallbackHandle(handle);
   if (!row) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
   return NextResponse.json(
     { handle: row.handle, pubkey: row.pubkey, fallback: true },
@@ -44,13 +44,13 @@ function fallbackResponse(handle: string) {
 
 export async function GET(
   _request: Request,
-  ctx: { params: { handle: string } },
+  ctx: { params: Promise<{ handle: string }> },
 ) {
-  const raw = ctx.params.handle ?? '';
-  const handle = raw.toLowerCase().replace(/^@/, '');
+  const { handle: raw = "" } = await ctx.params;
+  const handle = raw.toLowerCase().replace(/^@/, "");
 
   if (!HANDLE_RE.test(handle)) {
-    return NextResponse.json({ error: 'invalid_handle' }, { status: 400 });
+    return NextResponse.json({ error: "invalid_handle" }, { status: 400 });
   }
 
   const db = getDb();
@@ -66,15 +66,18 @@ export async function GET(
       .limit(1);
 
     if (!row) {
-      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
-    return NextResponse.json({ handle: row.handle, pubkey: row.pubkey }, { status: 200 });
+    return NextResponse.json(
+      { handle: row.handle, pubkey: row.pubkey },
+      { status: 200 },
+    );
   } catch (err) {
-    console.error('[handles/get] failed', err);
+    console.error("[handles/get] failed", err);
     if (shouldUseHandleRegistryFallback(err)) {
       return fallbackResponse(handle);
     }
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
+    return NextResponse.json({ error: "internal" }, { status: 500 });
   }
 }

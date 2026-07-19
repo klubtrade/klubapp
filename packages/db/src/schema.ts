@@ -1,5 +1,6 @@
 // packages/db/src/schema.ts
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -185,6 +186,66 @@ export const leaders = pgTable(
   },
   (t) => ({
     handleIdx: index("leaders_handle_idx").on(t.handle),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Basis yield operator
+// ---------------------------------------------------------------------------
+
+export const basisOperatorStates = pgTable("basis_operator_states", {
+  sourceAccount: varchar("source_account", { length: 128 }).primaryKey(),
+  highWaterPnlRaw: bigint("high_water_pnl_raw", { mode: "bigint" })
+    .default(0n)
+    .notNull(),
+  creditedYieldRaw: bigint("credited_yield_raw", { mode: "bigint" })
+    .default(0n)
+    .notNull(),
+  sourceTimestamp: bigint("source_timestamp", { mode: "bigint" })
+    .default(0n)
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const basisYieldCredits = pgTable(
+  "basis_yield_credits",
+  {
+    idempotencyKey: varchar("idempotency_key", { length: 180 }).primaryKey(),
+    sourceAccount: varchar("source_account", { length: 128 }).notNull(),
+    owner: varchar("owner", { length: 128 }).notNull(),
+    position: varchar("position", { length: 128 }).notNull(),
+    amountRaw: bigint("amount_raw", { mode: "bigint" }).notNull(),
+    sourcePnlRaw: bigint("source_pnl_raw", { mode: "bigint" }).notNull(),
+    status: varchar("status", { length: 24 })
+      .$type<
+        | "pending"
+        | "submitting"
+        | "confirmed"
+        | "reconciliation_required"
+        | "failed"
+      >()
+      .default("pending")
+      .notNull(),
+    signature: varchar("signature", { length: 128 }),
+    wireTransaction: text("wire_transaction"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => ({
+    sourceIdx: index("basis_yield_credits_source_idx").on(
+      table.sourceAccount,
+      table.createdAt,
+    ),
+    signatureIdx: uniqueIndex("basis_yield_credits_signature_idx").on(
+      table.signature,
+    ),
   }),
 );
 

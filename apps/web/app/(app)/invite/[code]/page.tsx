@@ -1,7 +1,7 @@
 // apps/web/app/invite/[code]/page.tsx
-import { notFound } from 'next/navigation';
+import { notFound } from "next/navigation";
 
-import { InviteFlow } from './invite-flow';
+import { InviteFlow } from "./invite-flow";
 
 /**
  * /invite/[code] - server component. Validates the code at request
@@ -10,9 +10,10 @@ import { InviteFlow } from './invite-flow';
 export default async function InvitePage({
   params,
 }: {
-  readonly params: { readonly code: string };
+  readonly params: Promise<{ readonly code: string }>;
 }) {
-  const code = params.code.trim().toLowerCase();
+  const { code: rawCode } = await params;
+  const code = rawCode.trim().toLowerCase();
   const check = await validateCode(code);
   if (!check.valid) {
     notFound();
@@ -30,15 +31,22 @@ export default async function InvitePage({
 async function validateCode(
   code: string,
 ): Promise<
-  | { readonly valid: true; readonly label: string; readonly remaining: number | null }
+  | {
+      readonly valid: true;
+      readonly label: string;
+      readonly remaining: number | null;
+    }
   | { readonly valid: false }
 > {
   try {
     const baseUrl =
-      process.env['NEXT_PUBLIC_SITE_URL'] ?? 'https://klubapp-web.vercel.app';
-    const res = await fetch(`${baseUrl}/api/invite?code=${encodeURIComponent(code)}`, {
-      cache: 'no-store',
-    });
+      process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://klubapp-web.vercel.app";
+    const res = await fetch(
+      `${baseUrl}/api/invite?code=${encodeURIComponent(code)}`,
+      {
+        cache: "no-store",
+      },
+    );
     if (!res.ok) return { valid: false };
     const body = (await res.json()) as
       | { valid: true; label: string; remaining: number | null }

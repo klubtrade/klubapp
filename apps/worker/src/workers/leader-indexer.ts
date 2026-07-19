@@ -1,9 +1,6 @@
-// apps/worker/src/workers/leader-indexer.ts
 /* eslint-disable no-console */
-
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { createDbClient, leaders, type Db } from "@klub/db";
 import type {
   BulkClient,
@@ -13,6 +10,7 @@ import type {
   UserFill,
 } from "@klub/api-client";
 
+import { mapWithConcurrency } from "./worker-utils.js";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 export const LEADER_INDEXER_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -53,7 +51,6 @@ export interface LeaderIndexerOptions extends LeaderIndexerOnceOptions {
   readonly intervalMs?: number;
   readonly logger?: Pick<Console, "error" | "log" | "warn">;
 }
-
 export interface RunningLeaderIndexer {
   readonly intervalMs: number;
   close(): void;
@@ -61,7 +58,6 @@ export interface RunningLeaderIndexer {
 
 export function parseLeaderPubkeys(raw: string | undefined): readonly Pubkey[] {
   if (!raw) return [];
-
   return raw
     .split(",")
     .map((pubkey) => pubkey.trim())
@@ -86,8 +82,10 @@ export async function runLeaderIndexerOnce(
   const nowMs = options.nowMs ?? Date.now();
   const cutoffMs = nowMs - THIRTY_DAYS_MS;
 
-  const summaries = await Promise.all(
-    leaderPubkeys.map(async (leaderPubkey) => {
+  const results = await mapWithConcurrency(
+    leaderPubkeys,
+    5,
+    async (leaderPubkey) => {
       const [fills, fundingPayments] = await Promise.all([
         queryUserFills(client, leaderPubkey),
         queryUserFundingPayments(client, leaderPubkey),
@@ -99,8 +97,16 @@ export async function runLeaderIndexerOnce(
         cutoffMs,
         nowMs,
       });
-    }),
+    },
   );
+  const summaries = results.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+  if (summaries.length === 0) {
+    throw new Error(
+      "Bulk account history was unavailable for every observed trader.",
+    );
+  }
 
   if (db) {
     await Promise.all(
@@ -415,7 +421,7 @@ function roundTo(value: number, decimals: number): number {
 function createBulkClientFromEnv(
   BulkClientCtor: new (config?: BulkClientConfig) => BulkClient,
 ): BulkClient {
-  const baseUrl = process.env["BULK_API_URL"];
+  const baseUrl = process.env["BULK_HTTP_URL"] ?? process.env["BULK_API_URL"];
   return new BulkClientCtor(baseUrl ? { baseUrl } : {});
 }
 

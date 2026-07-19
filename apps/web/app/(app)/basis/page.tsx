@@ -13,6 +13,12 @@ import {
   type BasisVaultSnapshot,
 } from "@/lib/basis-vault/client";
 import {
+  initialAmountForAction,
+  isValidWithdrawAmount,
+  maxWithdrawAmount,
+  type BasisVaultAction,
+} from "@/lib/basis-vault/actions";
+import {
   formatBasisVaultFee,
   getBasisVaultConfig,
 } from "@/lib/basis-vault/config";
@@ -30,7 +36,9 @@ import {
 } from "./basis-ui";
 
 export default function BasisPage() {
-  const [amount, setAmount] = useState(1_000);
+  const [action, setAction] = useState<BasisVaultAction>("deposit");
+  const [depositAmount, setDepositAmount] = useState(1_000);
+  const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [snapshot, setSnapshot] = useState<BasisVaultSnapshot | null>(null);
   const [snapshotStatus, setSnapshotStatus] = useState<
     "idle" | "loading" | "ready" | "error"
@@ -161,6 +169,7 @@ export default function BasisPage() {
   const pending = txStatus.kind === "pending";
   const ownerUsdc = snapshot?.ownerUsdcBalance ?? 0;
   const withdrawable = snapshot?.position.withdrawableUsdc ?? 0;
+  const amount = action === "deposit" ? depositAmount : withdrawAmount;
   const depositDisabled =
     !vault.ready ||
     pending ||
@@ -172,8 +181,21 @@ export default function BasisPage() {
     !vault.ready ||
     !connected ||
     pending ||
-    amount <= 0 ||
-    amount > withdrawable;
+    !isValidWithdrawAmount(withdrawAmount, withdrawable);
+
+  function selectAction(nextAction: BasisVaultAction) {
+    setAction(nextAction);
+    if (nextAction === "withdraw") {
+      setWithdrawAmount(
+        initialAmountForAction({
+          action: nextAction,
+          depositAmount,
+          withdrawableUsdc: withdrawable,
+        }),
+      );
+    }
+    setTxStatus({ kind: "idle", message: null });
+  }
 
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
@@ -245,9 +267,39 @@ export default function BasisPage() {
           </div>
 
           <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
-            <label className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
-              Vault amount · mock USDC
-            </label>
+            <div className="grid grid-cols-2 rounded-klub border border-border-subtle bg-bg-base p-1">
+              {(["deposit", "withdraw"] as const).map((nextAction) => (
+                <button
+                  key={nextAction}
+                  type="button"
+                  onClick={() => selectAction(nextAction)}
+                  className={`rounded-md px-3 py-2 text-[12px] font-medium capitalize transition-colors ${
+                    action === nextAction
+                      ? "bg-bg-elevated text-fg-primary"
+                      : "text-fg-muted hover:text-fg-primary"
+                  }`}
+                >
+                  {nextAction}
+                </button>
+              ))}
+            </div>
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <label className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
+                {action === "deposit" ? "Deposit" : "Withdraw"} · vault USDC
+              </label>
+              {action === "withdraw" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setWithdrawAmount(maxWithdrawAmount(withdrawable))
+                  }
+                  disabled={withdrawable <= 0}
+                  className="text-[11px] font-medium text-accent disabled:text-fg-muted"
+                >
+                  Max {formatBasisAmount(withdrawable)}
+                </button>
+              )}
+            </div>
             <input
               type="number"
               inputMode="decimal"
@@ -256,7 +308,10 @@ export default function BasisPage() {
               value={amount}
               onChange={(event) => {
                 const next = Number(event.target.value);
-                if (Number.isFinite(next) && next >= 0) setAmount(next);
+                if (Number.isFinite(next) && next >= 0) {
+                  if (action === "deposit") setDepositAmount(next);
+                  else setWithdrawAmount(next);
+                }
               }}
               className="mt-3 w-full rounded-klub border border-border bg-bg-base px-4 py-3.5 font-mono text-xl text-fg-primary focus:border-accent focus:outline-none"
             />
@@ -266,41 +321,54 @@ export default function BasisPage() {
                 Strategy estimate
               </div>
               <div className="mt-2 text-[16px] font-medium text-fg-primary">
-                Awaiting funding history
+                {action === "withdraw"
+                  ? `${formatBasisAmount(withdrawable)} available now`
+                  : "Awaiting realized funding"}
               </div>
               <div className="mt-1 text-[11px] text-fg-muted">
-                Live hourly rates are not a promised vault APY.
+                {action === "withdraw"
+                  ? "The 0.10% fee applies only to earned yield."
+                  : "Yield appears only after the operator funds it on-chain."}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void submitDeposit()}
-              disabled={depositDisabled}
-              className={`btn-primary btn-block btn-lg mt-5 ${
-                !depositDisabled ? "" : "cursor-not-allowed opacity-50"
-              }`}
-            >
-              {depositButtonLabel({
-                ready: vault.ready,
-                connected,
-                pending,
-                amount,
-                minDeposit: vault.minDepositUsdc,
-                ownerUsdc,
-                gasReady: snapshot?.gasReady === true,
-              })}
-            </button>
-            <button
-              type="button"
-              onClick={() => void submitWithdraw()}
-              disabled={withdrawDisabled}
-              className={`btn-secondary btn-block mt-3 ${
-                !withdrawDisabled ? "" : "cursor-not-allowed opacity-50"
-              }`}
-            >
-              Withdraw
-            </button>
+            {action === "deposit" ? (
+              <button
+                type="button"
+                onClick={() => void submitDeposit()}
+                disabled={depositDisabled}
+                className={`btn-primary btn-block btn-lg mt-5 ${
+                  !depositDisabled ? "" : "cursor-not-allowed opacity-50"
+                }`}
+              >
+                {depositButtonLabel({
+                  ready: vault.ready,
+                  connected,
+                  pending,
+                  amount: depositAmount,
+                  minDeposit: vault.minDepositUsdc,
+                  ownerUsdc,
+                  gasReady: snapshot?.gasReady === true,
+                })}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void submitWithdraw()}
+                disabled={withdrawDisabled}
+                className={`btn-primary btn-block btn-lg mt-5 ${
+                  !withdrawDisabled ? "" : "cursor-not-allowed opacity-50"
+                }`}
+              >
+                {!connected
+                  ? "Connect wallet"
+                  : pending
+                    ? "Confirming…"
+                    : withdrawable <= 0
+                      ? "Nothing to withdraw"
+                      : "Withdraw now"}
+              </button>
+            )}
             {txStatus.message && (
               <div
                 className={`mt-3 rounded-klub border px-3 py-2 text-[11px] ${
@@ -366,4 +434,8 @@ export default function BasisPage() {
       </section>
     </main>
   );
+}
+
+function formatBasisAmount(value: number): string {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 6 });
 }

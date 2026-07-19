@@ -1,76 +1,74 @@
-// apps/web/app/(app)/follow/[handle]/page.tsx
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { createDbClient, leaders } from "@klub/db";
+import { eq } from "drizzle-orm";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 
-import { findLeader } from '@/lib/mock-data/leaders';
+import { leaderLabel, type VerifiedLeader } from "@/lib/copy-trade/leaders";
 
-import { LeaderDetails } from './copy-config';
+import { LeaderDetails } from "./copy-config";
 
-/**
- * /copy/[handle] - leader profile.
- *
- * Visible by default:
- *   - Small avatar + @handle
- *   - One-line style tag
- *   - 30d PnL headline (big)
- *   - "Follow" button
- *
- * Behind disclosures:
- *   - Bio
- *   - Stats (win rate, DD, followers, favorite markets)
- *   - Recent trades
- */
-export default function LeaderProfile({
+export const dynamic = "force-dynamic";
+
+export default async function LeaderProfile({
   params,
 }: {
-  readonly params: { readonly handle: string };
+  readonly params: Promise<{ readonly handle: string }>;
 }) {
-  const leader = findLeader(params.handle.toLowerCase());
-  if (!leader) notFound();
+  const { handle } = await params;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) notFound();
+  const db = createDbClient({ connectionString, maxConnections: 2 });
+  const [row] = await db
+    .select()
+    .from(leaders)
+    .where(eq(leaders.pubkey, handle))
+    .limit(1);
+  if (!row) notFound();
 
-  const pnlTone = leader.pnl30dUsd >= 0 ? 'text-pnl-long' : 'text-pnl-short';
+  const leader: VerifiedLeader = {
+    pubkey: row.pubkey,
+    label: leaderLabel(row.handle, row.pubkey),
+    netPnl30dUsd: row.netPnl30dUsd,
+    unrealizedPnlUsd: row.unrealizedPnlUsd,
+    winRate: row.winRate,
+    closedTradesCount: row.closedTradesCount,
+    maxDrawdownPct: row.maxDrawdownPct,
+    sharpeRatio: row.sharpeRatio,
+    fillsLast30d: row.fillsLast30d,
+    updatedAt: row.updatedAt.toISOString(),
+  };
 
   return (
     <main className="min-h-screen bg-bg-base px-4 pb-24 pt-20 md:px-8 md:pt-24">
       <section className="mx-auto w-full max-w-md">
         <Link
           href="/copy"
-          className="text-[12px] text-fg-muted transition-colors hover:text-fg-primary"
+          className="text-[12px] text-fg-muted hover:text-fg-primary"
         >
-          ← Copy
+          Back to copy trading
         </Link>
-
-        {/* Header */}
-        <div className="mt-4 flex items-center gap-3">
-          <span
-            aria-hidden
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold uppercase text-bg-base"
-            style={{ backgroundColor: `hsl(${leader.avatarHue}, 62%, 70%)` }}
-          >
-            {leader.handle.slice(0, 2)}
-          </span>
-          <div>
-            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-fg-primary md:text-[32px]">
-              @{leader.handle}
-            </h1>
-            <div className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-              {leader.styleLabel}
-            </div>
+        <div className="mt-6">
+          <div className="text-[11px] uppercase tracking-[0.12em] text-pnl-long">
+            Verified testnet account
+          </div>
+          <h1 className="mt-2 truncate text-[28px] font-semibold tracking-tight text-fg-primary">
+            {leader.label}
+          </h1>
+          <div className="mt-1 break-all font-mono text-[10px] text-fg-muted">
+            {leader.pubkey}
           </div>
         </div>
-
-        {/* Headline PnL */}
-        <div className="mt-10">
-          <div className="text-[11px] uppercase tracking-[0.06em] text-fg-muted">
-            30-day PnL · net of fees
-          </div>
-          <div className={`mt-2 font-mono text-[44px] leading-none tracking-[-0.02em] ${pnlTone}`}>
-            {leader.pnl30dUsd >= 0 ? '+' : '−'}$
-            {Math.abs(leader.pnl30dUsd).toLocaleString()}
-          </div>
+        <div className="mt-10 text-[11px] uppercase tracking-[0.08em] text-fg-muted">
+          Calculated 30-day net PnL
         </div>
-
-        {/* Follow button + disclosures - client component */}
+        <div
+          className={`mt-2 font-mono text-[44px] leading-none ${leader.netPnl30dUsd >= 0 ? "text-pnl-long" : "text-pnl-short"}`}
+        >
+          {leader.netPnl30dUsd >= 0 ? "+" : "−"}$
+          {Math.abs(leader.netPnl30dUsd).toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })}
+        </div>
         <LeaderDetails leader={leader} />
       </section>
     </main>

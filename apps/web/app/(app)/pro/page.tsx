@@ -121,7 +121,7 @@ export default function ProPage() {
       </div>
 
       {/* Desktop advanced terminal */}
-      <main className="hidden h-screen min-h-0 overflow-hidden bg-bg-base lg:flex lg:flex-col">
+      <main className="hidden h-screen min-h-0 overflow-y-auto overflow-x-hidden bg-bg-base lg:flex lg:flex-col">
         <ProHeader
           symbol={symbol}
           mark={mark}
@@ -133,7 +133,7 @@ export default function ProPage() {
           livePrices={livePrices}
         />
 
-        <div className="grid min-h-0 flex-1 grid-cols-[210px_minmax(0,1fr)_320px] gap-2 overflow-hidden p-2 xl:grid-cols-[220px_minmax(0,1fr)_250px_330px] min-[1750px]:grid-cols-[230px_minmax(0,1fr)_270px_350px]">
+        <div className="grid min-h-[680px] flex-1 grid-cols-[210px_minmax(0,1fr)_320px] gap-2 overflow-hidden p-2 xl:grid-cols-[220px_minmax(0,1fr)_250px_330px] min-[1750px]:grid-cols-[230px_minmax(0,1fr)_270px_350px]">
           <PanelWatchlist
             symbol={symbol}
             onSelect={setSymbol}

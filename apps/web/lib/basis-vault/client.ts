@@ -134,6 +134,7 @@ export async function buildBasisDepositTransaction({
     feePayer: addresses.owner,
     latestBlockhash,
     instructions,
+    operation: "deposit",
   });
 }
 
@@ -158,6 +159,7 @@ export async function buildBasisWithdrawTransaction({
       createOwnerAtaInstruction(addresses),
       requestWithdrawInstruction(addresses, amountRaw),
     ],
+    operation: "withdraw",
   });
 }
 
@@ -329,6 +331,7 @@ async function buildUnsignedTransaction({
   feePayer,
   latestBlockhash,
   instructions,
+  operation,
 }: {
   readonly rpc: ReturnType<typeof createSolanaRpc>;
   readonly feePayer: Address;
@@ -337,6 +340,7 @@ async function buildUnsignedTransaction({
     readonly lastValidBlockHeight: bigint;
   };
   readonly instructions: readonly Instruction[];
+  readonly operation: "deposit" | "withdraw";
 }): Promise<Uint8Array> {
   const message = pipe(
     createTransactionMessage({ version: "legacy" }),
@@ -357,37 +361,48 @@ async function buildUnsignedTransaction({
       error: simulation.value.err,
       logs: simulation.value.logs,
     });
-    throw new Error(basisSimulationError(simulation.value.logs ?? []));
+    throw new Error(
+      basisSimulationError(simulation.value.logs ?? [], operation),
+    );
   }
   return Uint8Array.from(getTransactionEncoder().encode(transaction));
 }
 
-function basisSimulationError(logs: readonly string[]): string {
+function basisSimulationError(
+  logs: readonly string[],
+  operation: "deposit" | "withdraw",
+): string {
   const detail = logs.join("\n").toLowerCase();
   if (
     detail.includes("insufficient funds") ||
     detail.includes("insufficient lamports")
   ) {
-    return "This wallet needs devnet SOL for the first deposit. Claim vault funds once more, then retry.";
+    return operation === "withdraw"
+      ? "The vault balance or wallet gas changed. Refresh and retry the withdrawal."
+      : "This wallet needs devnet SOL for the first deposit. Claim vault funds once more, then retry.";
   }
   if (
     detail.includes("already in use") ||
     detail.includes("already initialized")
   ) {
-    return "Your vault position already exists. Refreshing it before another deposit.";
+    return operation === "withdraw"
+      ? "Your position changed. Refresh the vault balance and retry."
+      : "Your vault position already exists. Refreshing it before another deposit.";
   }
   if (
     detail.includes("invalidargument") ||
     detail.includes("invalid argument")
   ) {
-    return "Deposit must be at least 100 vault mock USDC.";
+    return operation === "withdraw"
+      ? "Enter an amount no greater than your available vault balance."
+      : "Deposit must be at least 100 vault mock USDC.";
   }
   const programLog = [...logs]
     .reverse()
     .find((line) => /program log:|program .* failed:/i.test(line));
   return programLog
     ? `Vault preflight failed: ${programLog.replace(/^program log:\s*/i, "")}`
-    : "Vault preflight failed. Refresh your balance and try again.";
+    : `Vault ${operation} preflight failed. Refresh your balance and try again.`;
 }
 
 function accountDataBytes(

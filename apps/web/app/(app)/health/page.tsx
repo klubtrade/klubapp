@@ -7,7 +7,7 @@ import {
   type SubScore,
 } from "@klub/calc";
 import Link from "next/link";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { ChevronDown, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useBulkAccount } from "@/hooks/use-bulk-account";
@@ -319,7 +319,10 @@ function HealthReadout({
           className="flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-surface px-4 py-3 text-[13px] text-fg-secondary transition-colors hover:bg-bg-elevated"
         >
           <span>Breakdown</span>
-          <span className="text-fg-muted">{showBreakdown ? "▲" : "▼"}</span>
+          <ChevronDown
+            aria-hidden
+            className={`h-4 w-4 text-fg-muted transition-transform ${showBreakdown ? "rotate-180" : ""}`}
+          />
         </button>
         {showBreakdown && (
           <div className="space-y-3 rounded-klub border border-border-subtle bg-bg-surface/40 p-4">
@@ -351,7 +354,10 @@ function HealthReadout({
               className="flex w-full items-center justify-between rounded-klub border border-border-subtle bg-bg-surface px-4 py-3 text-[13px] text-fg-secondary transition-colors hover:bg-bg-elevated"
             >
               <span>What should I do?</span>
-              <span className="text-fg-muted">{showAdvice ? "▲" : "▼"}</span>
+              <ChevronDown
+                aria-hidden
+                className={`h-4 w-4 text-fg-muted transition-transform ${showAdvice ? "rotate-180" : ""}`}
+              />
             </button>
             {showAdvice && (
               <ul className="space-y-2 rounded-klub border border-border-subtle bg-bg-surface/40 p-4 text-[13px] leading-relaxed text-fg-secondary">

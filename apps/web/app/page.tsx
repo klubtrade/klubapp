@@ -1,6 +1,8 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
+import { ArrowDown, BadgeCheck } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -69,8 +71,14 @@ function LandingNav() {
           href="/"
           className="flex items-center gap-2.5 text-[18px] font-semibold tracking-tight"
         >
-          <span className="live-dot" aria-hidden />
-          KLUB
+          <Image
+            src="/privy-logo.png"
+            alt="KLUB"
+            width={72}
+            height={36}
+            className="h-9 w-[72px] object-contain"
+            priority
+          />
         </Link>
         <EnterAppButton />
       </div>
@@ -114,7 +122,7 @@ function Hero() {
           custom={0}
           className="mb-7 inline-flex items-center gap-2 rounded-full border border-border bg-bg-surface px-[14px] py-1.5 text-xs text-fg-secondary"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+          <BadgeCheck className="h-3.5 w-3.5 text-accent" aria-hidden />
           Built for Bulk Exchange
         </motion.div>
 
@@ -155,6 +163,7 @@ function Hero() {
             className="inline-flex items-center gap-2 rounded-klub border border-border px-[18px] py-2.5 text-sm font-medium text-fg-primary transition-colors duration-200 hover:border-fg-muted hover:bg-bg-elevated"
           >
             See what&rsquo;s inside
+            <ArrowDown className="h-4 w-4" aria-hidden />
           </a>
         </motion.div>
 

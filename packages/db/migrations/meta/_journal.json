@@ -64,6 +64,13 @@
       "when": 1784379600000,
       "tag": "0008_add_security_and_execution_state",
       "breakpoints": false
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784424000000,
+      "tag": "0009_add_basis_operator",
+      "breakpoints": false
     }
   ]
 }

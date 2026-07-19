@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { recordCandidates } from "../workers/leader-discovery.js";
+
 import { formatAlertText } from "../notifications/telegram.js";
 import {
   createCanonicalCopyTradeExecutor,
@@ -11,6 +13,7 @@ import {
   signPreparedWithAgentSecret,
 } from "../signing/keychain-adapter.js";
 import { composeAlertMessage, tierCrossed } from "../workers/alerts-worker.js";
+import { allocateProRata } from "../workers/basis-yield-operator.js";
 import { summarizeCopyFollowRows } from "../workers/copy-follow-scanner.js";
 import { computeMirroredSize } from "../workers/copy-trade-worker.js";
 
@@ -27,6 +30,42 @@ const alert = {
 };
 
 describe("worker risk helpers", () => {
+  it("discovers real Bulk participants from public trade prints", () => {
+    const candidates = new Map<string, number>();
+    const maker = "FuueqefENiGEW6uMqZQgmwjzgpnb85EgUcZa5Em4PQh7";
+    const taker = "6X6B7TCZMzoCfavPvV3iZS5PZT1kK7dZFsbW6Gwxd4uv";
+
+    recordCandidates(candidates, [{ maker, taker, time: 1_784_418_948_506 }]);
+
+    expect([...candidates.keys()]).toEqual([maker, taker]);
+    expect(candidates.get(maker)).toBe(1_784_418_948_506);
+  });
+
+  it("allocates funded Basis yield by active principal", () => {
+    expect(
+      allocateProRata(
+        [
+          { position: "p1", owner: "o1", principalRaw: 500_000_000n },
+          { position: "p2", owner: "o2", principalRaw: 1_500_000_000n },
+        ],
+        20_000_000n,
+      ),
+    ).toEqual([
+      {
+        position: "p1",
+        owner: "o1",
+        principalRaw: 500_000_000n,
+        amountRaw: 5_000_000n,
+      },
+      {
+        position: "p2",
+        owner: "o2",
+        principalRaw: 1_500_000_000n,
+        amountRaw: 15_000_000n,
+      },
+    ]);
+  });
+
   it("returns the most severe tier crossed during a decline", () => {
     expect(tierCrossed(0.3, 0.09)).toBe(0.1);
     expect(tierCrossed(0.09, 0.12)).toBeNull();

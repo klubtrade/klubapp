@@ -35,9 +35,10 @@ export function CollapseRow({
         </span>
         <span className="flex items-center gap-2 text-[10px] text-fg-muted">
           {hint && <span className="truncate">{hint}</span>}
-          <span aria-hidden className="text-[10px]">
-            {open ? "▲" : "▼"}
-          </span>
+          <ChevronDown
+            aria-hidden
+            className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`}
+          />
         </span>
       </button>
       {open && (

@@ -10,6 +10,8 @@ import { startAccountSubscriber } from "./workers/account-subscriber.js";
 import { createAlertsWorker } from "./workers/alerts-worker.js";
 import { startCopyFollowScanner } from "./workers/copy-follow-scanner.js";
 import { createCopyTradeWorker } from "./workers/copy-trade-worker.js";
+import { startBasisYieldOperator } from "./workers/basis-yield-operator.js";
+import { startLeaderDiscovery } from "./workers/leader-discovery.js";
 
 /**
  * KLUB background worker entrypoint.
@@ -45,6 +47,11 @@ async function main() {
   });
 
   const copyFollowScanner = startCopyFollowScanner({ db, instanceId });
+  const leaderDiscovery = await startLeaderDiscovery({ db });
+  const basisOperator =
+    process.env.BASIS_OPERATOR_ENABLED === "true"
+      ? startBasisYieldOperator({ db })
+      : null;
   const redisUrl = process.env["REDIS_URL"];
   const redis = redisUrl
     ? new Redis(redisUrl, {
@@ -67,11 +74,10 @@ async function main() {
   async function shutdown(signal: string) {
     console.log(`[klub-worker] received ${signal}, shutting down`);
     copyFollowScanner.close();
+    leaderDiscovery.close();
+    basisOperator?.close();
     await accountSubscriber?.close();
-    await Promise.allSettled([
-      alertsWorker?.close(),
-      copyTradeWorker?.close(),
-    ]);
+    await Promise.allSettled([alertsWorker?.close(), copyTradeWorker?.close()]);
     await redis?.quit();
     process.exit(0);
   }
@@ -87,7 +93,7 @@ async function main() {
   });
 
   console.log(
-    `[klub-worker] live · copy-follow scanner ready · ${accountSubscriber?.size() ?? 0} account streams · queues ${redis ? "ready" : "disabled"}`,
+    `[klub-worker] live · leader discovery ready · copy-follow scanner ready · ${accountSubscriber?.size() ?? 0} account streams · queues ${redis ? "ready" : "disabled"}`,
   );
 }
 

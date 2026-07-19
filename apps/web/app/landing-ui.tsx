@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -77,9 +78,10 @@ export function EnterAppButton({
       className={`btn-primary group ${large ? "btn-lg" : ""}`}
     >
       Enter the app
-      <span className="transition-transform duration-200 group-hover:translate-x-0.5">
-        →
-      </span>
+      <ArrowRight
+        className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+        aria-hidden
+      />
     </button>
   );
 }
