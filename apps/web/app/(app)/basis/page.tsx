@@ -250,7 +250,7 @@ export default function BasisPage() {
               Basis vault
             </h1>
             <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-fg-muted">
-              Deposit vault mock USDC. Earn funded basis carry. Withdraw
+              Deposit vault mock USDC. Earn realized strategy credits. Withdraw
               anytime.
             </p>
           </div>
@@ -279,7 +279,7 @@ export default function BasisPage() {
           <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
             <div className="min-w-0 overflow-hidden rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
               <div className="text-[11px] uppercase tracking-[0.12em] text-fg-muted">
-                Best current carry
+                Best market spread
               </div>
               {best ? (
                 <>
@@ -301,13 +301,13 @@ export default function BasisPage() {
                         +{best.netAnnualPct.toFixed(1)}%
                       </div>
                       <div className="mt-1 text-[11px] uppercase tracking-[0.1em] text-fg-muted">
-                        current annualized spread
+                        market spread, not vault APR
                       </div>
                     </div>
                     <div className="text-right text-[12px] text-fg-muted">
-                      Equal notional
+                      Before fees
                       <br />
-                      1× planner
+                      Deployed strategy only
                     </div>
                   </div>
                 </>
@@ -458,7 +458,8 @@ export default function BasisPage() {
               Live opportunities
             </div>
             <div className="mt-0.5 text-[11px] text-fg-muted">
-              Stable current rates only. Extreme testnet prints are excluded.
+              Market spreads only. Vault yield depends on deployed notional and
+              realized credits.
             </div>
           </div>
           <ul className="divide-y divide-border-subtle">
@@ -478,7 +479,7 @@ export default function BasisPage() {
                   </div>
                 </div>
                 <div className="text-right font-mono text-[13px] text-pnl-long">
-                  +{opp.netAnnualPct.toFixed(1)}% current
+                  +{opp.netAnnualPct.toFixed(1)}% spread
                 </div>
               </li>
             ))}

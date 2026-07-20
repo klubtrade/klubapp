@@ -43,7 +43,7 @@ export default function EarnPage() {
         </div>
 
         <p className="mt-7 text-center text-[11px] text-fg-muted">
-          Basis Vault uses devnet mock USDC, separate from Bulk test USDC.
+          Basis Vault uses devnet mock USDC. Market spreads are not deposit APR.
         </p>
       </div>
     </main>
@@ -93,7 +93,7 @@ function BasisCard({ ready }: { readonly ready: boolean }) {
               Basis vault
             </div>
             <div className="mt-0.5 text-[11px] text-fg-muted">
-              Delta-neutral funding carry
+              Realized strategy credits
             </div>
           </div>
         </div>
@@ -102,7 +102,7 @@ function BasisCard({ ready }: { readonly ready: boolean }) {
             {top !== null ? `+${top.toFixed(1)}%` : "-"}
           </div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-fg-muted">
-            {ready ? "current spread" : "unavailable"}
+            {ready ? "market spread" : "unavailable"}
           </div>
         </div>
       </div>

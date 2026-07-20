@@ -103,6 +103,7 @@ export async function GET() {
               state: latestRun.state,
               longSymbol: latestRun.longSymbol,
               shortSymbol: latestRun.shortSymbol,
+              targetNotionalUsd: latestRun.targetNotionalUsd,
               expectedAnnualPct: latestRun.expectedAnnualPct,
               error: latestRun.error,
               openedAt: latestRun.openedAt,

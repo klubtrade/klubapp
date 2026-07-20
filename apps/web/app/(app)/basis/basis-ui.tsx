@@ -5,6 +5,7 @@ import {
   formatBasisVaultFee,
   type BasisVaultConfig,
 } from "@/lib/basis-vault/config";
+import { estimateFundingCarryUsdc } from "@/lib/basis-vault/yield-math";
 export {
   buildBasisOpportunities,
   type BasisOpportunity,
@@ -143,6 +144,7 @@ interface BasisStatusResponse {
     readonly state: string;
     readonly longSymbol: string;
     readonly shortSymbol: string;
+    readonly targetNotionalUsd: number;
     readonly expectedAnnualPct: number;
     readonly error: string | null;
     readonly updatedAt: string;
@@ -191,6 +193,13 @@ export function BasisStatusCard() {
 
   const label = status ? basisStatusLabel(status) : "Loading Basis status…";
   const tone = statusTone(status?.status);
+  const deployedNotional = status?.latestRun?.targetNotionalUsd ?? 0;
+  const annualSpread = status?.latestRun?.expectedAnnualPct ?? 0;
+  const estimatedTenHourCarry = estimateFundingCarryUsdc({
+    deployedNotionalUsd: deployedNotional,
+    annualSpreadPct: annualSpread,
+    hours: 10,
+  });
 
   return (
     <section className="rounded-klub-lg border border-border-subtle bg-bg-surface p-5">
@@ -218,6 +227,18 @@ export function BasisStatusCard() {
           label="Credited"
           value={`$${formatUsdc(status?.operator?.creditedUsdc ?? 0)}`}
         />
+        <VaultMetric
+          label="Deployed notional"
+          value={`$${formatUsdc(deployedNotional)}`}
+        />
+        <VaultMetric
+          label="Market spread"
+          value={`${annualSpread >= 0 ? "+" : ""}${annualSpread.toFixed(1)}%`}
+        />
+        <VaultMetric
+          label="10h estimate"
+          value={`$${formatUsdc(estimatedTenHourCarry)}`}
+        />
       </div>
       {status?.latestRun && (
         <div className="mt-3 rounded-klub border border-border-subtle bg-bg-base p-3 text-[11px] text-fg-muted">
@@ -225,6 +246,11 @@ export function BasisStatusCard() {
           Short {status.latestRun.shortSymbol}
         </div>
       )}
+      <div className="mt-3 rounded-klub border border-accent/20 bg-accent/5 p-3 text-[11px] leading-relaxed text-fg-secondary">
+        Market spread is not vault APR. Yield comes from realized strategy
+        profit on deployed Bulk notional, then gets credited to vault
+        depositors.
+      </div>
     </section>
   );
 }
@@ -321,7 +347,7 @@ export function LegCard({
         {labelFor(symbol)}
       </div>
       <div className="mt-2 break-words font-mono text-[12px] text-fg-muted">
-        current {annualPct >= 0 ? "+" : ""}
+        market {annualPct >= 0 ? "+" : ""}
         {annualPct.toFixed(1)}% ann.
       </div>
     </div>
